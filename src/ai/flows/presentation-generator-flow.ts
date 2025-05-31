@@ -1,7 +1,8 @@
 
 'use server';
 /**
- * @fileOverview A flow for generating presentation outlines, now including generated images per slide.
+ * @fileOverview A flow for generating presentation outlines, now including generated images per slide
+ * and an option to influence image style.
  *
  * - generatePresentationOutline - A function that generates a text outline and images for a presentation.
  * - GeneratePresentationInput - The input type for the generatePresentationOutline function.
@@ -21,6 +22,7 @@ const SlideSchema = z.object({
 const GeneratePresentationInputSchema = z.object({
   topic: z.string().describe('The main topic or subject of the presentation.'),
   numSlides: z.number().optional().describe('The desired number of slides for the presentation (e.g., 3, 5, 10). Defaults to 5 if not specified.'),
+  imageStylePrompt: z.string().optional().describe('An optional text prompt to influence the visual style of generated images (e.g., "vintage art style", "minimalist flat design", "vibrant cartoonish look").'),
 });
 export type GeneratePresentationInput = z.infer<typeof GeneratePresentationInputSchema>;
 
@@ -33,8 +35,8 @@ export type GeneratePresentationOutput = z.infer<typeof GeneratePresentationOutp
 // This prompt remains for generating the text structure and image descriptions
 const textOutlinePrompt = ai.definePrompt({
   name: 'generatePresentationTextPrompt',
-  input: {schema: GeneratePresentationInputSchema},
-  output: { // Output schema here is for the *textual part* including image descriptions
+  input: {schema: GeneratePresentationInputSchema}, // Input schema includes imageStylePrompt but it's not directly used in *this* prompt template
+  output: { 
     schema: z.object({
       slides: z.array(z.object({
         title: z.string(),
@@ -64,7 +66,7 @@ const generatePresentationOutlineFlow = ai.defineFlow(
   },
   async (input): Promise<GeneratePresentationOutput> => {
     // Step 1: Generate the text outline and image descriptions
-    const {output: textOutput} = await textOutlinePrompt(input);
+    const {output: textOutput} = await textOutlinePrompt({ topic: input.topic, numSlides: input.numSlides }); // Only pass relevant fields to this prompt
     if (!textOutput) {
       throw new Error('Failed to generate presentation text outline.');
     }
@@ -76,10 +78,15 @@ const generatePresentationOutlineFlow = ai.defineFlow(
       let imageUrl: string | undefined = undefined;
       if (slideTextData.suggestedImageDescription && slideTextData.suggestedImageDescription.trim() !== "") {
         try {
-          console.log(`Generating image for slide: ${slideTextData.title} with prompt: ${slideTextData.suggestedImageDescription}`);
+          let imageGenPrompt = `Generate an image for a presentation slide. The slide is about "${slideTextData.title}". The desired image content is: ${slideTextData.suggestedImageDescription}. Make it visually appealing for a presentation.`;
+          if (input.imageStylePrompt && input.imageStylePrompt.trim() !== "") {
+            imageGenPrompt += ` Apply the following style: ${input.imageStylePrompt.trim()}.`;
+          }
+          
+          console.log(`Generating image for slide: ${slideTextData.title} with prompt: ${imageGenPrompt}`);
           const {media} = await ai.generate({
             model: 'googleai/gemini-2.0-flash-exp',
-            prompt: `Generate an image for a presentation slide. The slide is about "${slideTextData.title}". The desired image content is: ${slideTextData.suggestedImageDescription}. Make it visually appealing for a presentation.`,
+            prompt: imageGenPrompt,
             config: {
               responseModalities: ['TEXT', 'IMAGE'],
             },
