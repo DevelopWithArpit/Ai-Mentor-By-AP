@@ -243,7 +243,7 @@ export default function ScholarAiPage() {
         const stylePromptText = `Overall Image Style Applied: ${imageStylePrompt.trim()}`;
         let lines = doc.splitTextToSize(stylePromptText, maxTextWidth);
         let textBlockHeight = doc.getTextDimensions(lines).h;
-        addNewPageIfNeeded(textBlockHeight + 5); 
+        if (addNewPageIfNeeded(textBlockHeight + 5)) { /* Font might need to be reset if new page */ doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); }
         doc.text(lines, margin, currentY);
         currentY += textBlockHeight + 7; 
     }
@@ -252,22 +252,23 @@ export default function ScholarAiPage() {
       const slide = generatedPresentation.slides[i];
       if (i > 0 || (i === 0 && (!generatedPresentation.title && !imageStylePrompt?.trim()))) { 
          if (i > 0) { doc.addPage(); currentY = margin; } 
-         else if (currentY <= margin + 5) { /* no-op */ } 
-         else { if(!addNewPageIfNeeded(40) && currentY > margin + 20) { doc.addPage(); currentY = margin; } else { currentY +=8; } }
-      } else if (i === 0 && (generatedPresentation.title || imageStylePrompt?.trim())){
-         if (pageHeight - currentY < pageHeight * 0.4) { doc.addPage(); currentY = margin; } else { currentY += 5; }
+         else if (currentY <= margin + 5 && !generatedPresentation.title && !imageStylePrompt?.trim() ) { /* no-op, likely first element on page */ } 
+         else { if(!addNewPageIfNeeded(40) && currentY > margin + 20) { doc.addPage(); currentY = margin; } else { currentY +=8; } } // Add space or new page if needed
+      } else if (i === 0 && (generatedPresentation.title || imageStylePrompt?.trim())){ // If there was a title or style prompt, check if enough space for first slide
+         if (pageHeight - currentY < pageHeight * 0.4) { doc.addPage(); currentY = margin; } else { currentY += 5; } // Add some space
       }
       
       doc.setFont(theme.bodyFont, 'normal'); doc.setFontSize(10); 
       if(theme.accentColor) doc.setTextColor(theme.accentColor[0], theme.accentColor[1], theme.accentColor[2]);
       else doc.setTextColor(pdfThemes.default.accentColor![0], pdfThemes.default.accentColor![1], pdfThemes.default.accentColor![2]);
       const slideNumberText = `Slide ${i + 1}`;
-      doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY);
+      doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY); // Slide number top-right
 
       doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       let lines = doc.splitTextToSize(slide.title, maxTextWidth);
       let textBlockHeight = doc.getTextDimensions(lines).h;
       if(addNewPageIfNeeded(textBlockHeight + 8)) {
+          // Reset font if new page was added
           doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       }
       doc.text(lines, margin, currentY);
@@ -275,35 +276,38 @@ export default function ScholarAiPage() {
 
       doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
       for (const point of slide.bulletPoints) {
-        lines = doc.splitTextToSize(`• ${point}`, maxTextWidth - 8); 
+        lines = doc.splitTextToSize(`• ${point}`, maxTextWidth - 8); // Indent bullet points slightly
         textBlockHeight = doc.getTextDimensions(lines).h;
         if (addNewPageIfNeeded(textBlockHeight + 4)) { 
+           // Reset font and color if new page was added
            doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
-        } else { doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); }
-        doc.text(lines, margin + 5, currentY); 
-        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
+        } else { doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); } // Set bullet color
+        doc.text(lines, margin + 5, currentY); // x-offset for bullet point
+        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); // Reset to body color for next point if not new page
         currentY += textBlockHeight + 4;
       }
 
       if (slide.imageUrl) {
-        currentY += 6; 
-        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; const IMAGE_MAX_HEIGHT = pageHeight * 0.45; 
+        currentY += 6; // Space before image
+        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; const IMAGE_MAX_HEIGHT = pageHeight * 0.45; // Max image dimensions
         try {
             const imgProps = doc.getImageProperties(slide.imageUrl);
             let imgWidth = imgProps.width; let imgHeight = imgProps.height; const aspectRatio = imgWidth / imgHeight;
             if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; }
             if (imgHeight > IMAGE_MAX_HEIGHT) { imgHeight = IMAGE_MAX_HEIGHT; imgWidth = imgHeight * aspectRatio; }
-            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; }
-            if (addNewPageIfNeeded(imgHeight + 10)) { 
+            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; } // Recheck width constraint
+
+            if (addNewPageIfNeeded(imgHeight + 10)) { // Check if image fits, add new page if not
                 doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2 , currentY, imgWidth, imgHeight);
-            } else { doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight); }
-            currentY += imgHeight + 10;
+            } else { doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight); } // Center image
+            currentY += imgHeight + 10; // Space after image
         } catch (e) {
+          console.error("Error adding image to PDF:", e);
           doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-          lines = doc.splitTextToSize("[Image embedding failed]", maxTextWidth); textBlockHeight = doc.getTextDimensions(lines).h;
+          lines = doc.splitTextToSize("[Image embedding failed or image format not supported by jsPDF]", maxTextWidth); textBlockHeight = doc.getTextDimensions(lines).h;
           addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
         }
-      } else if (slide.suggestedImageDescription) { 
+      } else if (slide.suggestedImageDescription) { // Fallback if no image URL but description exists
         currentY += 4; doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
         lines = doc.splitTextToSize(`Suggested Image Idea: ${slide.suggestedImageDescription}`, maxTextWidth);
         textBlockHeight = doc.getTextDimensions(lines).h;
@@ -389,11 +393,11 @@ export default function ScholarAiPage() {
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-8 space-y-8">
-        {/* ScholarAI Section */}
+        {/* ScholarAI Document Q&A Section */}
         <Card className="shadow-xl bg-card">
           <CardHeader>
             <CardTitle className="font-headline text-2xl text-primary flex items-center"><Brain className="mr-2 h-7 w-7"/> ScholarAI Document Q&amp;A</CardTitle>
-            <CardDescription>Upload a document and ask questions, or ask general questions without a document.</CardDescription>
+            <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -410,7 +414,7 @@ export default function ScholarAiPage() {
           </CardContent>
         </Card>
 
-        {/* Document Summarizer Section */}
+        {/* AI Document Summarizer Section */}
         <Card className="shadow-xl bg-card">
             <CardHeader>
                 <CardTitle className="font-headline text-2xl text-primary flex items-center"><FileType className="mr-2 h-7 w-7"/>AI Document Summarizer</CardTitle>
@@ -466,277 +470,264 @@ export default function ScholarAiPage() {
                 )}
             </CardContent>
         </Card>
-
-
-        {/* Interview Preparation & Career Building Suite Section */}
+        
+        {/* AI Interview Question Generator Section */}
         <Card className="shadow-xl bg-card">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Briefcase className="mr-2 h-7 w-7"/> Career Development Suite</CardTitle>
-            <CardDescription>AI-powered tools to help you prepare for interviews, build your resume & cover letter, and explore career paths.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            {/* Interview Question Generator */}
-            <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><MessageSquareQuote className="mr-2 h-6 w-6"/>Interview Question Generator</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><MessageSquareQuote className="mr-2 h-7 w-7"/>AI Interview Question Generator</CardTitle>
+                <CardDescription>Generate targeted interview questions based on job role, topic, and desired category (technical, behavioral, situational).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <Input placeholder="Job Role or Topic (e.g., 'Software Engineer', 'Leadership')" value={interviewJobRole} onChange={(e) => setInterviewJobRole(e.target.value)} disabled={isGeneratingInterviewQuestions} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input type="number" placeholder="Number of Questions (e.g., 5)" value={interviewNumQuestions} onChange={(e) => setInterviewNumQuestions(e.target.value)} disabled={isGeneratingInterviewQuestions} min="1" max="10" />
-                  <Select value={interviewQuestionCategory} onValueChange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
-                    <SelectTrigger><SelectValue placeholder="Question Category" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any Category</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="situational">Situational</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <Input type="number" placeholder="Number of Questions (e.g., 5)" value={interviewNumQuestions} onChange={(e) => setInterviewNumQuestions(e.target.value)} disabled={isGeneratingInterviewQuestions} min="1" max="10" />
+                    <Select value={interviewQuestionCategory} onValueChange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
+                        <SelectTrigger><SelectValue placeholder="Question Category" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="any">Any Category</SelectItem>
+                            <SelectItem value="technical">Technical</SelectItem>
+                            <SelectItem value="behavioral">Behavioral</SelectItem>
+                            <SelectItem value="situational">Situational</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <Button onClick={handleGenerateInterviewQuestions} disabled={isGeneratingInterviewQuestions || !interviewJobRole.trim()} className="w-full sm:w-auto">
-                  {isGeneratingInterviewQuestions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Questions
+                    {isGeneratingInterviewQuestions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Questions
                 </Button>
                 {generatedInterviewQuestions && (
-                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
-                    <h4 className="font-semibold mb-2 text-foreground">Generated Interview Questions:</h4>
-                    <Accordion type="single" collapsible className="w-full">
-                      {generatedInterviewQuestions.questions.map((q, index) => (
-                        <AccordionItem value={`item-${index}`} key={index}>
-                          <AccordionTrigger className="text-sm hover:no-underline text-left">
-                            <div className="flex items-start">
-                                <span className={`mr-2 mt-1 h-2 w-2 rounded-full flex-shrink-0 ${q.category.toLowerCase().includes('technical') ? 'bg-blue-500' : q.category.toLowerCase().includes('behavioral') ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-                                {q.question} ({q.category})
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="text-xs pl-6">
-                            <strong>Suggested Approach:</strong> {q.suggestedApproach || "Consider the key aspects of the question and structure your answer clearly."}
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </div>
+                    <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
+                        <h4 className="font-semibold mb-2 text-foreground">Generated Interview Questions:</h4>
+                        <Accordion type="single" collapsible className="w-full">
+                            {generatedInterviewQuestions.questions.map((q, index) => (
+                            <AccordionItem value={`item-${index}`} key={index}>
+                                <AccordionTrigger className="text-sm hover:no-underline text-left">
+                                <div className="flex items-start">
+                                    <span className={`mr-2 mt-1 h-2 w-2 rounded-full flex-shrink-0 ${q.category.toLowerCase().includes('technical') ? 'bg-blue-500' : q.category.toLowerCase().includes('behavioral') ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                    {q.question} ({q.category})
+                                </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="text-xs pl-6">
+                                <strong>Suggested Approach:</strong> {q.suggestedApproach || "Consider the key aspects of the question and structure your answer clearly."}
+                                </AccordionContent>
+                            </AccordionItem>
+                            ))}
+                        </Accordion>
+                    </div>
                 )}
-              </CardContent>
-            </Card>
+            </CardContent>
+        </Card>
 
-            {/* Resume Feedback Tool */}
-            <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><Edit3 className="mr-2 h-6 w-6"/>Resume Feedback Tool (ATS Optimized)</CardTitle>
-                <CardDescription>Get AI feedback on your resume, focusing on ATS keywords and overall effectiveness.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        {/* AI Resume Feedback Tool Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Feedback Tool (ATS Optimized)</CardTitle>
+                <CardDescription>Paste your resume text to get AI-driven feedback, focusing on ATS keywords and overall effectiveness for job applications.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
                 <Input placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst', 'Healthcare')" value={resumeTargetJobRole} onChange={(e) => setResumeTargetJobRole(e.target.value)} disabled={isGeneratingResumeFeedback} />
                 <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-full sm:w-auto">
-                  {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
+                    {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
                 </Button>
                 {resumeFeedback && (
-                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
-                    <h4 className="font-semibold mb-2 text-foreground">Resume Feedback:</h4>
-                    <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
-                    {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary:</strong> {resumeFeedback.atsKeywordsSummary}</p>}
-                    <Accordion type="single" collapsible className="w-full">
-                      {resumeFeedback.feedbackItems.map((item, index) => (
-                        <AccordionItem value={`feedback-${index}`} key={index}>
-                          <AccordionTrigger className="text-sm hover:no-underline text-left">
-                            <div className="flex items-start">
-                                <CheckCircle className={`mr-2 mt-1 h-4 w-4 flex-shrink-0 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}/>
-                                <span><strong>{item.area}</strong> {item.importance && `(${item.importance})`}</span>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="text-xs pl-8">
-                            {item.suggestion}
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </div>
+                    <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
+                        <h4 className="font-semibold mb-2 text-foreground">Resume Feedback:</h4>
+                        <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
+                        {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary:</strong> {resumeFeedback.atsKeywordsSummary}</p>}
+                        <Accordion type="single" collapsible className="w-full">
+                            {resumeFeedback.feedbackItems.map((item, index) => (
+                            <AccordionItem value={`feedback-${index}`} key={index}>
+                                <AccordionTrigger className="text-sm hover:no-underline text-left">
+                                <div className="flex items-start">
+                                    <CheckCircle className={`mr-2 mt-1 h-4 w-4 flex-shrink-0 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}/>
+                                    <span><strong>{item.area}</strong> {item.importance && `(${item.importance})`}</span>
+                                </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="text-xs pl-8">
+                                {item.suggestion}
+                                </AccordionContent>
+                            </AccordionItem>
+                            ))}
+                        </Accordion>
+                    </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Cover Letter Assistant */}
-            <Card className="bg-card/80">
-                <CardHeader>
-                    <CardTitle className="font-headline text-xl text-accent flex items-center"><Send className="mr-2 h-6 w-6"/>AI Cover Letter Assistant</CardTitle>
-                    <CardDescription>Generate a tailored cover letter draft based on the job description and your information.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Textarea placeholder="Paste the full Job Description here..." value={coverLetterJobDesc} onChange={(e) => setCoverLetterJobDesc(e.target.value)} disabled={isGeneratingCoverLetter} className="min-h-[150px]"/>
-                    <Textarea placeholder="Paste your resume text or key achievements, skills, and experiences relevant to this job..." value={coverLetterUserInfo} onChange={(e) => setCoverLetterUserInfo(e.target.value)} disabled={isGeneratingCoverLetter} className="min-h-[150px]"/>
-                    <Select value={coverLetterTone} onValueChange={(v) => setCoverLetterTone(v as any)} disabled={isGeneratingCoverLetter}>
-                        <SelectTrigger><SelectValue placeholder="Select Tone" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="professional">Professional</SelectItem>
-                            <SelectItem value="enthusiastic">Enthusiastic</SelectItem>
-                            <SelectItem value="formal">Formal</SelectItem>
-                            <SelectItem value="slightly-informal">Slightly Informal</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={handleGenerateCoverLetter} disabled={isGeneratingCoverLetter || !coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()} className="w-full sm:w-auto">
-                        {isGeneratingCoverLetter && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Cover Letter
-                    </Button>
-                    {generatedCoverLetter && (
-                        <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
-                            <h4 className="font-semibold mb-2 text-foreground">Draft Cover Letter:</h4>
-                            <pre className="text-sm whitespace-pre-wrap bg-background/50 p-3 rounded-md">{generatedCoverLetter.draftCoverLetter}</pre>
-                            {generatedCoverLetter.keyPointsCovered && generatedCoverLetter.keyPointsCovered.length > 0 && (
-                                <>
-                                  <h5 className="font-medium mt-3 mb-1 text-foreground">Key Points Addressed:</h5>
-                                  <ul className="list-disc list-inside text-xs space-y-1">
-                                      {generatedCoverLetter.keyPointsCovered.map((item, index) => <li key={index}>{item}</li>)}
-                                  </ul>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Career Path Suggester */}
-            <Card className="bg-card/80">
-                <CardHeader>
-                    <CardTitle className="font-headline text-xl text-accent flex items-center"><Star className="mr-2 h-6 w-6"/>AI Career Path Suggester</CardTitle>
-                    <CardDescription>Discover potential career paths based on your interests, skills, and experience.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
-                    <Input placeholder="Your Skills (comma-separated, e.g., Python, project management, writing)" value={careerSkills} onChange={(e) => setCareerSkills(e.target.value)} disabled={isGeneratingCareerPaths}/>
-                    <Select value={careerExperienceLevel} onValueChange={(v) => setCareerExperienceLevel(v as any)} disabled={isGeneratingCareerPaths}>
-                        <SelectTrigger><SelectValue placeholder="Select Experience Level"/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="entry-level">Entry-Level</SelectItem>
-                            <SelectItem value="mid-level">Mid-Level</SelectItem>
-                            <SelectItem value="senior-level">Senior-Level</SelectItem>
-                            <SelectItem value="executive">Executive</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={handleGenerateCareerPaths} disabled={isGeneratingCareerPaths || !careerInterests.trim() || !careerSkills.trim()} className="w-full sm:w-auto">
-                        {isGeneratingCareerPaths && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Suggest Career Paths
-                    </Button>
-                    {generatedCareerPaths && (
-                        <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
-                            <h4 className="font-semibold mb-2 text-foreground">Suggested Career Paths:</h4>
-                            <Accordion type="single" collapsible className="w-full">
-                                {generatedCareerPaths.suggestions.map((path, index) => (
-                                    <AccordionItem value={`career-${index}`} key={index}>
-                                        <AccordionTrigger className="text-sm hover:no-underline text-left font-medium">{path.pathTitle}</AccordionTrigger>
-                                        <AccordionContent className="text-xs space-y-2 pl-4">
-                                            <p><strong>Description:</strong> {path.description}</p>
-                                            <p><strong>Why it aligns:</strong> {path.alignmentReason}</p>
-                                            {path.potentialSkillsToDevelop && path.potentialSkillsToDevelop.length > 0 && (
-                                                <p><strong>Skills to develop:</strong> {path.potentialSkillsToDevelop.join(', ')}</p>
-                                            )}
-                                            {path.typicalIndustries && path.typicalIndustries.length > 0 && (
-                                                <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
-                                            )}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-             <p className="text-xs text-muted-foreground text-center">
-                More advanced features like real-time mock interviews, voice coaching, and live assistance are complex and planned for future updates.
-            </p>
-          </CardContent>
+            </CardContent>
         </Card>
 
-        {/* Creative AI Tools Section */}
+        {/* AI Cover Letter Assistant Section */}
         <Card className="shadow-xl bg-card">
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Sparkles className="mr-2 h-7 w-7"/> Creative AI Tools</CardTitle>
-            <CardDescription>Generate code, images, diagrams, and presentations. Download presentations as themed PDFs.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            {/* Code Generator */}
-            <Card className="bg-card/80">
-              <CardHeader><CardTitle className="font-headline text-xl text-accent flex items-center"><Code className="mr-2 h-6 w-6"/>Code Generator</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea placeholder="Describe the code..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
-                <Input placeholder="Language (optional)" value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} disabled={isGeneratingCode} />
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Send className="mr-2 h-7 w-7"/>AI Cover Letter Assistant</CardTitle>
+                <CardDescription>Generate a tailored cover letter draft. Provide the job description and your key information or resume text.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Textarea placeholder="Paste the full Job Description here..." value={coverLetterJobDesc} onChange={(e) => setCoverLetterJobDesc(e.target.value)} disabled={isGeneratingCoverLetter} className="min-h-[150px]"/>
+                <Textarea placeholder="Paste your resume text or key achievements, skills, and experiences relevant to this job..." value={coverLetterUserInfo} onChange={(e) => setCoverLetterUserInfo(e.target.value)} disabled={isGeneratingCoverLetter} className="min-h-[150px]"/>
+                <Select value={coverLetterTone} onValueChange={(v) => setCoverLetterTone(v as any)} disabled={isGeneratingCoverLetter}>
+                    <SelectTrigger><SelectValue placeholder="Select Tone" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="professional">Professional</SelectItem>
+                        <SelectItem value="enthusiastic">Enthusiastic</SelectItem>
+                        <SelectItem value="formal">Formal</SelectItem>
+                        <SelectItem value="slightly-informal">Slightly Informal</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleGenerateCoverLetter} disabled={isGeneratingCoverLetter || !coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()} className="w-full sm:w-auto">
+                    {isGeneratingCoverLetter && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Cover Letter
+                </Button>
+                {generatedCoverLetter && (
+                    <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
+                        <h4 className="font-semibold mb-2 text-foreground">Draft Cover Letter:</h4>
+                        <pre className="text-sm whitespace-pre-wrap bg-background/50 p-3 rounded-md">{generatedCoverLetter.draftCoverLetter}</pre>
+                        {generatedCoverLetter.keyPointsCovered && generatedCoverLetter.keyPointsCovered.length > 0 && (
+                            <>
+                                <h5 className="font-medium mt-3 mb-1 text-foreground">Key Points Addressed:</h5>
+                                <ul className="list-disc list-inside text-xs space-y-1">
+                                    {generatedCoverLetter.keyPointsCovered.map((item, index) => <li key={index}>{item}</li>)}
+                                </ul>
+                            </>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+
+        {/* AI Career Path Suggester Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
+                <CardDescription>Discover potential career paths. Input your interests, skills, and experience level for personalized suggestions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
+                <Input placeholder="Your Skills (comma-separated, e.g., Python, project management, writing)" value={careerSkills} onChange={(e) => setCareerSkills(e.target.value)} disabled={isGeneratingCareerPaths}/>
+                <Select value={careerExperienceLevel} onValueChange={(v) => setCareerExperienceLevel(v as any)} disabled={isGeneratingCareerPaths}>
+                    <SelectTrigger><SelectValue placeholder="Select Experience Level"/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="entry-level">Entry-Level</SelectItem>
+                        <SelectItem value="mid-level">Mid-Level</SelectItem>
+                        <SelectItem value="senior-level">Senior-Level</SelectItem>
+                        <SelectItem value="executive">Executive</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleGenerateCareerPaths} disabled={isGeneratingCareerPaths || !careerInterests.trim() || !careerSkills.trim()} className="w-full sm:w-auto">
+                    {isGeneratingCareerPaths && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Suggest Career Paths
+                </Button>
+                {generatedCareerPaths && (
+                    <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
+                        <h4 className="font-semibold mb-2 text-foreground">Suggested Career Paths:</h4>
+                        <Accordion type="single" collapsible className="w-full">
+                            {generatedCareerPaths.suggestions.map((path, index) => (
+                                <AccordionItem value={`career-${index}`} key={index}>
+                                    <AccordionTrigger className="text-sm hover:no-underline text-left font-medium">{path.pathTitle}</AccordionTrigger>
+                                    <AccordionContent className="text-xs space-y-2 pl-4">
+                                        <p><strong>Description:</strong> {path.description}</p>
+                                        <p><strong>Why it aligns:</strong> {path.alignmentReason}</p>
+                                        {path.potentialSkillsToDevelop && path.potentialSkillsToDevelop.length > 0 && (
+                                            <p><strong>Skills to develop:</strong> {path.potentialSkillsToDevelop.join(', ')}</p>
+                                        )}
+                                        {path.typicalIndustries && path.typicalIndustries.length > 0 && (
+                                            <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
+                                        )}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+
+        {/* AI Code Generator Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Code className="mr-2 h-7 w-7"/>AI Code Generator</CardTitle>
+                <CardDescription>Generate code snippets in various programming languages based on your description.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Textarea placeholder="Describe the code you want to generate..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
+                <Input placeholder="Programming Language (e.g., Python, JavaScript, Java - optional)" value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} disabled={isGeneratingCode} />
                 <Button onClick={handleGenerateCode} disabled={isGeneratingCode || !codePrompt.trim()} className="w-full sm:w-auto">
-                  {isGeneratingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Code
+                    {isGeneratingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Code
                 </Button>
                 {generatedCode && <div className="mt-4 p-4 bg-muted rounded-md"><h4 className="font-semibold mb-2">Generated Code:</h4><pre className="text-sm whitespace-pre-wrap overflow-x-auto bg-background/50 p-3 rounded-md"><code>{generatedCode}</code></pre></div>}
                 {!generatedCode && !isGeneratingCode && <div className="text-center text-muted-foreground py-4"><FileText className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated code will appear here.</p></div>}
-              </CardContent>
-            </Card>
+            </CardContent>
+        </Card>
 
-            {/* Image Generator */}
-            <Card className="bg-card/80">
-              <CardHeader><CardTitle className="font-headline text-xl text-accent flex items-center"><ImageIconLucide className="mr-2 h-6 w-6"/>Image Generator</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea placeholder="Describe the image..." value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} disabled={isGeneratingImage} className="min-h-[80px]"/>
+        {/* AI Image Generator Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><ImageIconLucide className="mr-2 h-7 w-7"/>AI Image Generator</CardTitle>
+                <CardDescription>Create unique images from your text descriptions using generative AI.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Textarea placeholder="Describe the image you want to create (e.g., 'A cat wearing a wizard hat')..." value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} disabled={isGeneratingImage} className="min-h-[80px]"/>
                 <Button onClick={handleGenerateImage} disabled={isGeneratingImage || !imagePrompt.trim()} className="w-full sm:w-auto">
-                  {isGeneratingImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Image
+                    {isGeneratingImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Image
                 </Button>
                 {generatedImageUrl && <div className="mt-4"><h4 className="font-semibold mb-2">Generated Image:</h4><Image src={generatedImageUrl} alt="Generated by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" /></div>}
                 {!generatedImageUrl && !isGeneratingImage && <div className="text-center text-muted-foreground py-4"><ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated image will appear here.</p><img data-ai-hint="abstract creative" src="https://placehold.co/300x200.png" alt="Placeholder" className="mx-auto mt-2 rounded-md opacity-50" /></div>}
-              </CardContent>
-            </Card>
+            </CardContent>
+        </Card>
 
-            {/* Diagram Generator */}
-            <Card className="bg-card/80">
-              <CardHeader><CardTitle className="font-headline text-xl text-accent flex items-center"><Wand2 className="mr-2 h-6 w-6"/>Diagram Generator</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea placeholder="Describe the diagram..." value={diagramPrompt} onChange={(e) => setDiagramPrompt(e.target.value)} disabled={isGeneratingDiagram} className="min-h-[80px]"/>
+        {/* AI Diagram Generator Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Wand2 className="mr-2 h-7 w-7"/>AI Diagram Generator</CardTitle>
+                <CardDescription>Generate visual diagrams (flowcharts, mind maps, etc.) as images from your text descriptions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Textarea placeholder="Describe the diagram (e.g., 'A flowchart for a login process', 'A mind map about photosynthesis')..." value={diagramPrompt} onChange={(e) => setDiagramPrompt(e.target.value)} disabled={isGeneratingDiagram} className="min-h-[80px]"/>
                 <Button onClick={handleGenerateDiagram} disabled={isGeneratingDiagram || !diagramPrompt.trim()} className="w-full sm:w-auto">
-                  {isGeneratingDiagram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Diagram
+                    {isGeneratingDiagram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Diagram
                 </Button>
                 {generatedDiagramUrl && <div className="mt-4"><h4 className="font-semibold mb-2">Generated Diagram:</h4><Image src={generatedDiagramUrl} alt="Diagram by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" /></div>}
                 {!generatedDiagramUrl && !isGeneratingDiagram && <div className="text-center text-muted-foreground py-4"><Wand2 className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated diagram will appear here.</p><img data-ai-hint="flowchart structure" src="https://placehold.co/300x200.png" alt="Placeholder" className="mx-auto mt-2 rounded-md opacity-50" /></div>}
-              </CardContent>
-            </Card>
+            </CardContent>
+        </Card>
 
-            {/* Presentation Generator */}
-            <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><PresentationIcon className="mr-2 h-6 w-6"/>Presentation Generator</CardTitle>
-                <CardDescription>Create outlines with AI images. PDF theming applies to download. Transitions/animations not supported in PDF.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        {/* AI Presentation Generator Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><PresentationIcon className="mr-2 h-7 w-7"/>AI Presentation Generator</CardTitle>
+                <CardDescription>Create presentation outlines with AI-generated text and images. Customize image style and download as a themed PDF. (Note: Transitions/animations not supported in PDF).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <Input placeholder="Presentation Topic" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
                 <Input type="number" placeholder="Number of Slides (e.g., 3)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" max="7" />
-                <Input placeholder="Image Style Prompt (Optional)" value={imageStylePrompt} onChange={(e) => setImageStylePrompt(e.target.value)} disabled={isGeneratingPresentation} />
+                <Input placeholder="Image Style Prompt (Optional, e.g., 'vintage art style', 'minimalist flat design')" value={imageStylePrompt} onChange={(e) => setImageStylePrompt(e.target.value)} disabled={isGeneratingPresentation} />
                 <div className="space-y-2">
-                  <Label htmlFor="presentation-theme-select" className="text-md font-medium flex items-center"><Palette className="mr-2 h-5 w-5 text-primary" />PDF Theme</Label>
-                  <Select value={presentationTheme} onValueChange={setPresentationTheme} disabled={isGeneratingPresentation}>
-                    <SelectTrigger id="presentation-theme-select" className="w-full sm:w-[200px]"><SelectValue placeholder="Select PDF theme" /></SelectTrigger>
-                    <SelectContent>{Object.keys(pdfThemes).map((key) => <SelectItem key={key} value={key} className="capitalize">{key}</SelectItem>)}</SelectContent>
-                  </Select>
+                    <Label htmlFor="presentation-theme-select" className="text-md font-medium flex items-center"><Palette className="mr-2 h-5 w-5 text-primary" />PDF Theme</Label>
+                    <Select value={presentationTheme} onValueChange={setPresentationTheme} disabled={isGeneratingPresentation}>
+                        <SelectTrigger id="presentation-theme-select" className="w-full sm:w-[200px]"><SelectValue placeholder="Select PDF theme" /></SelectTrigger>
+                        <SelectContent>{Object.keys(pdfThemes).map((key) => <SelectItem key={key} value={key} className="capitalize">{key}</SelectItem>)}</SelectContent>
+                    </Select>
                 </div>
                  <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow (2-3 slides recommended). Max 7 slides.</p>
-                 <div className="flex items-center text-xs text-muted-foreground bg-muted/50 p-2 rounded-md"><Info className="mr-2 h-4 w-4 text-primary shrink-0" /><span>Slide transitions/animations are not included in PDF.</span></div>
+                 <div className="flex items-center text-xs text-muted-foreground bg-muted/50 p-2 rounded-md"><Info className="mr-2 h-4 w-4 text-primary shrink-0" /><span>Slide transitions/animations are not included in PDF output.</span></div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
-                    {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Presentation
-                  </Button>
-                  {generatedPresentation && <Button onClick={() => handleDownloadPresentationPdf(presentationTheme)} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}><Download className="mr-2 h-4 w-4" /> Download PDF</Button>}
+                    <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
+                        {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Presentation
+                    </Button>
+                    {generatedPresentation && <Button onClick={() => handleDownloadPresentationPdf(presentationTheme)} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}><Download className="mr-2 h-4 w-4" /> Download PDF</Button>}
                 </div>
                 {generatedPresentation && (
-                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto">
-                    <h4 className="font-semibold mb-2">Generated Presentation:</h4>
-                    {generatedPresentation.title && <h5 className="text-xl font-bold text-primary mb-4 text-center">{generatedPresentation.title}</h5>}
-                    {generatedPresentation.slides.map((slide, index) => (
-                      <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
-                        <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
-                        <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>)}</ul>
-                        {slide.imageUrl && <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5"><p className="text-xs text-primary font-medium flex items-center mb-2"><ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />Generated Image (style: {imageStylePrompt || 'default'}):</p><Image src={slide.imageUrl} alt={`AI for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" /></div>}
-                        {!slide.imageUrl && slide.suggestedImageDescription && <div className="mt-2 p-2 bg-primary/10 rounded"><p className="text-xs text-primary font-medium flex items-center"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span> (Not generated)</p></div>}
-                      </div>
-                    ))}
-                  </div>
+                    <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto">
+                        <h4 className="font-semibold mb-2">Generated Presentation:</h4>
+                        {generatedPresentation.title && <h5 className="text-xl font-bold text-primary mb-4 text-center">{generatedPresentation.title}</h5>}
+                        {generatedPresentation.slides.map((slide, index) => (
+                        <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
+                            <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
+                            <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>)}</ul>
+                            {slide.imageUrl && <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5"><p className="text-xs text-primary font-medium flex items-center mb-2"><ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />Generated Image (style: {imageStylePrompt || 'default'}):</p><Image src={slide.imageUrl} alt={`AI for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" /></div>}
+                            {!slide.imageUrl && slide.suggestedImageDescription && <div className="mt-2 p-2 bg-primary/10 rounded"><p className="text-xs text-primary font-medium flex items-center"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span> (Not generated)</p></div>}
+                        </div>
+                        ))}
+                    </div>
                 )}
                 {!generatedPresentation && !isGeneratingPresentation && <div className="text-center text-muted-foreground py-4"><PresentationIcon className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your presentation will appear here.</p></div>}
-              </CardContent>
-            </Card>
-          </CardContent>
+            </CardContent>
         </Card>
 
       </main>
