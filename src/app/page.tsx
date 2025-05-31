@@ -934,7 +934,20 @@ export default function MentorAiPage() {
                         </div>
                         {generatedCode && (
                             <div className="mt-4 p-4 bg-muted rounded-md">
-                                <h4 className="font-semibold mb-2 text-foreground">Generated Code:</h4>
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="font-semibold text-foreground">Generated Code:</h4>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(generatedCode);
+                                            toast({ title: "Copied!", description: "Generated code copied to clipboard." });
+                                        }}
+                                        disabled={!generatedCode || isGeneratingCode || isAnalyzingCode}
+                                    >
+                                        <Copy className="mr-2 h-4 w-4" /> Copy Code
+                                    </Button>
+                                </div>
                                 <pre className="text-sm whitespace-pre-wrap overflow-x-auto bg-background/50 p-3 rounded-md"><code>{generatedCode}</code></pre>
                             </div>
                         )}
@@ -1075,5 +1088,7 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
+    
 
     
