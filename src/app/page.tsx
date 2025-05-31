@@ -11,9 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Sparkles, Code, Image as ImageIcon, Presentation, Wand2, Brain, FileText, Loader2, Lightbulb } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIcon, Presentation, Wand2, Brain, FileText, Loader2, Lightbulb, Download } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
+import jsPDF from 'jspdf';
 
 import { smartSearch, type SmartSearchInput, type SmartSearchOutput } from '@/ai/flows/smart-search';
 import { explainAnswer, type ExplainAnswerInput, type ExplainAnswerOutput } from '@/ai/flows/ai-explanation';
@@ -214,6 +215,85 @@ export default function ScholarAiPage() {
     }
   };
 
+  const handleDownloadPresentationPdf = () => {
+    if (!generatedPresentation) return;
+
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const maxLineWidth = pageWidth - margin * 2;
+    let currentY = margin;
+
+    const addNewPageIfNeeded = (textHeight: number) => {
+      if (currentY + textHeight > pageHeight - margin) {
+        doc.addPage();
+        currentY = margin;
+      }
+    };
+    
+    // Presentation Title
+    if (generatedPresentation.title) {
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      const titleLines = doc.splitTextToSize(generatedPresentation.title, maxLineWidth);
+      const titleHeight = doc.getTextDimensions(titleLines).h;
+      addNewPageIfNeeded(titleHeight);
+      doc.text(titleLines, pageWidth / 2, currentY, { align: 'center' });
+      currentY += titleHeight + 10;
+    }
+
+    generatedPresentation.slides.forEach((slide, index) => {
+      if (index > 0) { // Add space before new slide, or new page
+         currentY += 5; // Some space before next slide content
+         if (currentY > pageHeight - margin - 40) { // Check if enough space for slide title
+            doc.addPage();
+            currentY = margin;
+         }
+      }
+      
+      // Slide Title
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      const slideTitle = `${index + 1}. ${slide.title}`;
+      let lines = doc.splitTextToSize(slideTitle, maxLineWidth);
+      let textBlockHeight = doc.getTextDimensions(lines).h;
+      addNewPageIfNeeded(textBlockHeight);
+      doc.text(lines, margin, currentY);
+      currentY += textBlockHeight + 5;
+
+      // Bullet Points
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'normal');
+      slide.bulletPoints.forEach(point => {
+        const bulletPointText = `- ${point}`;
+        lines = doc.splitTextToSize(bulletPointText, maxLineWidth - 5); // Indent bullets slightly
+        textBlockHeight = doc.getTextDimensions(lines).h;
+        addNewPageIfNeeded(textBlockHeight);
+        doc.text(lines, margin + 5, currentY);
+        currentY += textBlockHeight + 3;
+      });
+
+      // Suggested Image Description
+      if (slide.suggestedImageDescription) {
+        currentY += 2; // Little space before image suggestion
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'italic');
+        const suggestionText = `Suggested Image: ${slide.suggestedImageDescription}`;
+        lines = doc.splitTextToSize(suggestionText, maxLineWidth);
+        textBlockHeight = doc.getTextDimensions(lines).h;
+        addNewPageIfNeeded(textBlockHeight);
+        doc.text(lines, margin, currentY);
+        currentY += textBlockHeight + 7;
+      }
+      if (index < generatedPresentation.slides.length - 1) {
+        currentY += 5; // Space between slides
+      }
+    });
+
+    doc.save('scholarai_presentation_outline.pdf');
+  };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -362,12 +442,20 @@ export default function ScholarAiPage() {
               <CardContent className="space-y-4">
                 <Input placeholder="Presentation Topic (e.g., 'The Future of AI')" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
                 <Input type="number" placeholder="Number of Slides (optional, default 5)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" />
-                <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="w-full sm:w-auto">
-                  {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Outline
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
+                    {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Generate Outline
+                  </Button>
+                  {generatedPresentation && (
+                    <Button onClick={handleDownloadPresentationPdf} variant="outline" className="flex-grow sm:flex-grow-0">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download PDF Outline
+                    </Button>
+                  )}
+                </div>
                 {generatedPresentation && (
-                  <div className="mt-4 p-4 bg-muted rounded-md">
+                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
                     <h4 className="font-semibold mb-2 text-foreground">Generated Presentation Outline:</h4>
                     {generatedPresentation.title && <h5 className="text-lg font-semibold text-primary mb-3">{generatedPresentation.title}</h5>}
                     {generatedPresentation.slides.map((slide, index) => (
