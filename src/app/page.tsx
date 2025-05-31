@@ -295,21 +295,53 @@ export default function ScholarAiPage() {
       const titleHeight = doc.getTextDimensions(titleLines).h;
       addNewPageIfNeeded(titleHeight);
       doc.text(titleLines, pageWidth / 2, currentY, { align: 'center' });
-      currentY += titleHeight + 12;
+      currentY += titleHeight + 10;
     }
+
+    // Add Image Style Prompt if used for the whole presentation
+    if (imageStylePrompt && imageStylePrompt.trim() !== "") {
+        doc.setFont(theme.bodyFont, 'italic');
+        doc.setFontSize(10);
+        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+        const stylePromptText = `Overall Image Style Applied: ${imageStylePrompt.trim()}`;
+        let lines = doc.splitTextToSize(stylePromptText, maxTextWidth);
+        let textBlockHeight = doc.getTextDimensions(lines).h;
+        addNewPageIfNeeded(textBlockHeight + 5); 
+        doc.text(lines, margin, currentY);
+        currentY += textBlockHeight + 7; 
+    }
+
 
     for (let i = 0; i < generatedPresentation.slides.length; i++) {
       const slide = generatedPresentation.slides[i];
       
-      if (i > 0 || (i === 0 && !generatedPresentation.title)) { 
-        currentY += 8; 
-        addNewPageIfNeeded(40); 
-      }
-      if (i === 0 && generatedPresentation.title){ 
-         // currentY is already advanced
-      } else if (i > 0){
-        doc.addPage();
-        currentY = margin;
+      if (i > 0 || (i === 0 && (!generatedPresentation.title && !(imageStylePrompt && imageStylePrompt.trim() !== "")))) { 
+        // Add a new page for subsequent slides, or for the first slide if no title/style prompt shifted currentY
+         if (i > 0) { // Always add page for slides after the first
+            doc.addPage();
+            currentY = margin;
+         } else if (currentY <= margin + 5) { // if currentY is still at the top for the very first slide
+            // no need to add page, it's the first content
+         } else { // Some content (title/style) was there, but not enough to push to new page, but we want separation
+            // Or, it's the first slide but something has already been written
+            if(addNewPageIfNeeded(40)){ // check if new page is needed for upcoming content
+                // new page was added
+            } else if (currentY > margin + 20) { // if substantial content already on page, force new page for clarity
+                doc.addPage();
+                currentY = margin;
+            } else {
+                 currentY += 8; // Add some spacing if not a new page
+            }
+         }
+      } else if (i === 0 && (generatedPresentation.title || (imageStylePrompt && imageStylePrompt.trim() !== ""))){
+         // currentY is already advanced by title or style prompt
+         // Potentially add a new page if the title/style prompt took up most of the page
+         if (pageHeight - currentY < pageHeight * 0.4) { // if less than 40% of page remaining
+            doc.addPage();
+            currentY = margin;
+         } else {
+            currentY += 5; // Add a little space after title/style prompt
+         }
       }
       
       // Slide Number
@@ -328,8 +360,14 @@ export default function ScholarAiPage() {
       const slideTitle = `${slide.title}`;
       let lines = doc.splitTextToSize(slideTitle, maxTextWidth);
       let textBlockHeight = doc.getTextDimensions(lines).h;
-      addNewPageIfNeeded(textBlockHeight);
-      doc.text(lines, margin, currentY);
+      if(addNewPageIfNeeded(textBlockHeight + 8)) { // +8 for title itself and spacing after
+          doc.setFont(theme.titleFont, theme.titleStyle);
+          doc.setFontSize(18);
+          doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
+          doc.text(lines, margin, currentY);
+      } else {
+          doc.text(lines, margin, currentY);
+      }
       currentY += textBlockHeight + 8;
 
       // Bullet Points
@@ -340,14 +378,17 @@ export default function ScholarAiPage() {
         const bulletPointText = `• ${point}`; 
         lines = doc.splitTextToSize(bulletPointText, maxTextWidth - 8); 
         textBlockHeight = doc.getTextDimensions(lines).h;
-        if (addNewPageIfNeeded(textBlockHeight + 3)) { 
+        if (addNewPageIfNeeded(textBlockHeight + 4)) { 
            doc.setFont(theme.bodyFont, theme.bodyStyle);
            doc.setFontSize(12);
-           doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+           doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); // Set bullet color again
+           doc.text(lines, margin + 5, currentY); 
+           doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); // Reset to body color
+        } else {
+            doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
+            doc.text(lines, margin + 5, currentY);
+            doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
         }
-        doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
-        doc.text(lines, margin + 5, currentY);
-        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
         currentY += textBlockHeight + 4;
       }
 
@@ -371,6 +412,7 @@ export default function ScholarAiPage() {
                 imgHeight = IMAGE_MAX_HEIGHT;
                 imgWidth = imgHeight * aspectRatio;
             }
+            // Re-check width constraint after height adjustment
             if (imgWidth > IMAGE_MAX_WIDTH) {
                 imgWidth = IMAGE_MAX_WIDTH;
                 imgHeight = imgWidth / aspectRatio;
@@ -378,11 +420,10 @@ export default function ScholarAiPage() {
 
             if (addNewPageIfNeeded(imgHeight + 10)) { 
                 doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2 , currentY, imgWidth, imgHeight);
-                currentY += imgHeight + 10;
             } else {
                  doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight);
-                 currentY += imgHeight + 10;
             }
+            currentY += imgHeight + 10;
 
         } catch (e) {
           console.error("Error adding image to PDF:", e);
@@ -391,7 +432,7 @@ export default function ScholarAiPage() {
           doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
           lines = doc.splitTextToSize("[Image embedding failed for this slide]", maxTextWidth);
           textBlockHeight = doc.getTextDimensions(lines).h;
-          addNewPageIfNeeded(textBlockHeight);
+          addNewPageIfNeeded(textBlockHeight + 7);
           doc.text(lines, margin, currentY);
           currentY += textBlockHeight + 7;
         }
@@ -400,10 +441,10 @@ export default function ScholarAiPage() {
         doc.setFont(theme.bodyFont, 'italic');
         doc.setFontSize(10);
         doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-        const suggestionText = `Suggested Image: ${slide.suggestedImageDescription}`;
+        const suggestionText = `Suggested Image Idea: ${slide.suggestedImageDescription}`;
         lines = doc.splitTextToSize(suggestionText, maxTextWidth);
         textBlockHeight = doc.getTextDimensions(lines).h;
-        addNewPageIfNeeded(textBlockHeight);
+        addNewPageIfNeeded(textBlockHeight + 7);
         doc.text(lines, margin, currentY);
         currentY += textBlockHeight + 7;
       }
@@ -660,5 +701,7 @@ export default function ScholarAiPage() {
     </div>
   );
 }
+
+    
 
     
