@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -41,6 +41,7 @@ import { getResumeFeedback, type ResumeFeedbackInput, type ResumeFeedbackOutput 
 import { generateCoverLetter, type GenerateCoverLetterInput, type GenerateCoverLetterOutput } from '@/ai/flows/cover-letter-assistant-flow';
 import { suggestCareerPaths, type SuggestCareerPathsInput, type SuggestCareerPathsOutput } from '@/ai/flows/career-path-suggester-flow';
 import { summarizeDocument, type SummarizeDocumentInput, type SummarizeDocumentOutput } from '@/ai/flows/document-summarizer-flow';
+import { analyzeGeneratedCode, type AnalyzeCodeInput, type AnalyzeCodeOutput } from '@/ai/flows/code-analyzer-flow';
 
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -100,6 +101,9 @@ export default function MentorAiPage() {
   const [codeLanguage, setCodeLanguage] = useState<string>('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isGeneratingCode, setIsGeneratingCode] = useState<boolean>(false);
+  const [codeAnalysis, setCodeAnalysis] = useState<AnalyzeCodeOutput | null>(null);
+  const [isAnalyzingCode, setIsAnalyzingCode] = useState<boolean>(false);
+
 
   const [imagePrompt, setImagePrompt] = useState<string>('');
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
@@ -196,13 +200,34 @@ export default function MentorAiPage() {
 
   const handleGenerateCode = async () => {
     if (!codePrompt.trim()) { toast({ title: "Error", description: "Please enter a code description.", variant: "destructive" }); return; }
-    setIsGeneratingCode(true); setGeneratedCode(null);
+    setIsGeneratingCode(true); setGeneratedCode(null); setCodeAnalysis(null);
     try {
       const result = await generateCode({ description: codePrompt, language: codeLanguage || undefined });
       setGeneratedCode(result.generatedCode);
       toast({ title: "Code Generated!", description: "Code snippet has been generated." });
     } catch (err: any) { toast({ title: "Code Generation Error", description: err.message || "Failed to generate code.", variant: "destructive" }); }
     finally { setIsGeneratingCode(false); }
+  };
+  
+  const handleAnalyzeCode = async () => {
+    if (!generatedCode || !codePrompt) {
+      toast({ title: "Error", description: "Please generate code first before analyzing.", variant: "destructive" });
+      return;
+    }
+    setIsAnalyzingCode(true); setCodeAnalysis(null);
+    try {
+      const analysisResult = await analyzeGeneratedCode({
+        generatedCode: generatedCode,
+        originalDescription: codePrompt,
+        language: codeLanguage || undefined
+      });
+      setCodeAnalysis(analysisResult);
+      toast({ title: "Code Analysis Complete!", description: "AI has reviewed the code." });
+    } catch (err: any) {
+      toast({ title: "Code Analysis Error", description: err.message || "Failed to analyze code.", variant: "destructive" });
+    } finally {
+      setIsAnalyzingCode(false);
+    }
   };
 
   const handleGenerateImage = async () => {
@@ -888,20 +913,77 @@ export default function MentorAiPage() {
                 </Card>
               )}
 
-              {activeTool === 'code-gen' && (
+             {activeTool === 'code-gen' && (
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><SearchCode className="mr-2 h-7 w-7"/>AI Code &amp; DSA Helper</CardTitle>
-                        <CardDescription>Generate code snippets in various languages, or get help with Data Structures and Algorithm (DSA) problems by describing the logic or problem statement.</CardDescription>
+                        <CardDescription>Generate code snippets, get DSA help, and analyze your code for syntax, correctness, and improvements with AI.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Textarea placeholder="Describe the code you want to generate (e.g., 'a Python function for quicksort', 'Java code for a linked list node', 'solve fizzbuzz')..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
-                        <Input placeholder="Programming Language (e.g., Python, JavaScript, Java - optional)" value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} disabled={isGeneratingCode} />
-                        <Button onClick={handleGenerateCode} disabled={isGeneratingCode || !codePrompt.trim()} className="w-full sm:w-auto">
-                            {isGeneratingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Code
-                        </Button>
-                        {generatedCode && <div className="mt-4 p-4 bg-muted rounded-md"><h4 className="font-semibold mb-2">Generated Code:</h4><pre className="text-sm whitespace-pre-wrap overflow-x-auto bg-background/50 p-3 rounded-md"><code>{generatedCode}</code></pre></div>}
-                        {!generatedCode && !isGeneratingCode && <div className="text-center text-muted-foreground py-4"><FileText className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated code will appear here.</p></div>}
+                        <Textarea placeholder="Describe the code you want to generate (e.g., 'a Python function for quicksort', 'Java code for a linked list node', 'solve fizzbuzz')..." value={codePrompt} onChange={(e) => { setCodePrompt(e.target.value); setCodeAnalysis(null); }} disabled={isGeneratingCode || isAnalyzingCode} className="min-h-[80px]"/>
+                        <Input placeholder="Programming Language (e.g., Python, JavaScript, Java - optional)" value={codeLanguage} onChange={(e) => { setCodeLanguage(e.target.value); setCodeAnalysis(null); }} disabled={isGeneratingCode || isAnalyzingCode} />
+                        <div className="flex flex-wrap gap-2">
+                            <Button onClick={handleGenerateCode} disabled={isGeneratingCode || isAnalyzingCode || !codePrompt.trim()} className="flex-grow sm:flex-grow-0">
+                                {isGeneratingCode ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Generate Code
+                            </Button>
+                            {generatedCode && (
+                                <Button onClick={handleAnalyzeCode} variant="outline" disabled={isAnalyzingCode || isGeneratingCode} className="flex-grow sm:flex-grow-0">
+                                    {isAnalyzingCode ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSignature className="mr-2 h-4 w-4" />} Analyze Code
+                                </Button>
+                            )}
+                        </div>
+                        {generatedCode && (
+                            <div className="mt-4 p-4 bg-muted rounded-md">
+                                <h4 className="font-semibold mb-2 text-foreground">Generated Code:</h4>
+                                <pre className="text-sm whitespace-pre-wrap overflow-x-auto bg-background/50 p-3 rounded-md"><code>{generatedCode}</code></pre>
+                            </div>
+                        )}
+                        {isAnalyzingCode && (
+                            <div className="mt-4 p-4 bg-muted rounded-md flex items-center justify-center">
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />
+                                <p className="text-primary">AI is analyzing your code...</p>
+                            </div>
+                        )}
+                        {codeAnalysis && !isAnalyzingCode && (
+                            <div className="mt-6 p-4 border border-primary/30 rounded-lg bg-card space-y-4">
+                                <h4 className="text-lg font-semibold text-primary flex items-center"><FileSignature className="mr-2 h-6 w-6"/>AI Code Analysis:</h4>
+                                <Accordion type="multiple" defaultValue={["syntax", "correctness"]} className="w-full">
+                                    <AccordionItem value="syntax">
+                                        <AccordionTrigger className="text-base hover:no-underline">Syntax Feedback</AccordionTrigger>
+                                        <AccordionContent className="text-sm whitespace-pre-wrap">{codeAnalysis.syntaxFeedback}</AccordionContent>
+                                    </AccordionItem>
+                                    <AccordionItem value="correctness">
+                                        <AccordionTrigger className="text-base hover:no-underline flex items-center">
+                                            Correctness Assessment 
+                                            {codeAnalysis.meetsRequirements ? <Check className="ml-2 h-5 w-5 text-green-600"/> : <X className="ml-2 h-5 w-5 text-red-600"/>}
+                                        </AccordionTrigger>
+                                        <AccordionContent className="text-sm whitespace-pre-wrap">{codeAnalysis.correctnessAssessment}</AccordionContent>
+                                    </AccordionItem>
+                                    <AccordionItem value="improvements">
+                                        <AccordionTrigger className="text-base hover:no-underline">Improvement Suggestions</AccordionTrigger>
+                                        <AccordionContent className="text-sm whitespace-pre-wrap">{codeAnalysis.improvementSuggestions}</AccordionContent>
+                                    </AccordionItem>
+                                    {codeAnalysis.styleAndBestPractices && (
+                                        <AccordionItem value="style">
+                                            <AccordionTrigger className="text-base hover:no-underline">Style & Best Practices</AccordionTrigger>
+                                            <AccordionContent className="text-sm whitespace-pre-wrap">{codeAnalysis.styleAndBestPractices}</AccordionContent>
+                                        </AccordionItem>
+                                    )}
+                                    {codeAnalysis.potentialBugsOrEdgeCases && (
+                                        <AccordionItem value="bugs">
+                                            <AccordionTrigger className="text-base hover:no-underline">Potential Bugs/Edge Cases</AccordionTrigger>
+                                            <AccordionContent className="text-sm whitespace-pre-wrap">{codeAnalysis.potentialBugsOrEdgeCases}</AccordionContent>
+                                        </AccordionItem>
+                                    )}
+                                </Accordion>
+                            </div>
+                        )}
+                        {!generatedCode && !isGeneratingCode && !codeAnalysis && !isAnalyzingCode && (
+                            <div className="text-center text-muted-foreground py-4">
+                                <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                                <p>Your generated code and AI analysis will appear here.</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
               )}
