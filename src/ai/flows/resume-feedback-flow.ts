@@ -27,7 +27,7 @@ const ResumeFeedbackOutputSchema = z.object({
   overallAssessment: z.string().describe('A brief overall assessment of the original resume, including its potential ATS compatibility.'),
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten resume.'),
-  modifiedResumeText: z.string().describe('The rewritten resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine.'),
+  modifiedResumeText: z.string().describe('The rewritten resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output.'),
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
 
@@ -62,18 +62,27 @@ The resume is being targeted for the job role of "{{targetJobRole}}". Tailor you
 *   **ATS Keywords Summary**: If a target job role is provided, list relevant keywords that are well-utilized in, or should be incorporated into, the *rewritten* resume for better ATS performance. If no job role is provided, give general advice on finding and using keywords.
 
 **Part 2: Rewritten Resume (for \`modifiedResumeText\` field)**
-*   Provide the **full, rewritten resume text**.
+*   Provide the **full, rewritten resume text**. This text MUST be structured for easy parsing and professional PDF generation. Use the following conventions:
+    *   **Name**: Start with the candidate's full name on its own line, ideally prefixed with "### ". Example: "### JOHN DOE".
+    *   **Contact Information**: Immediately follow the name. Each piece of contact info (Phone, Email, LinkedIn URL, Location) on its own line. Example: "Phone: (555) 123-4567\nEmail: john.doe@email.com\nLinkedIn: linkedin.com/in/johndoe\nLocation: City, ST".
+    *   **Section Headings**: Use markdown H2 style headings (e.g., "## Summary", "## Professional Experience", "## Education", "## Skills", "## Projects"). Each section heading MUST be on its own line.
+    *   **Experience Entries**:
+        *   Job Title: On its own line, ideally bolded with markdown (e.g., "**Senior Software Engineer**").
+        *   Company Name & Location: On the next line (e.g., "Tech Solutions Inc. - Anytown, USA").
+        *   Dates: On the next line (e.g., "05/2020 - Present" or "May 2020 - Present").
+        *   Bullet Points: Each achievement/responsibility as a bullet point starting with "• " (a bullet symbol followed by a space) on its own line. Indent bullet points slightly if possible in the text representation.
+    *   **Education Entries**: Similar structure for Degree, University, Dates.
+    *   **Skills Section**: Can be a comma-separated list under the "## Skills" heading, or categorized subheadings (e.g., "Programming Languages:", "Tools:").
 *   This rewritten version should directly implement the suggestions you've identified.
 *   Focus on:
-    *   **ATS Friendliness**: Standard formatting (avoid tables, columns, images if they hinder parsing), clear headings, optimal keyword density. Use common resume section titles.
+    *   **ATS Friendliness**: Standard formatting, clear headings, optimal keyword density.
     *   **Clarity and Conciseness**: Easy to read and understand, using professional language.
-    *   **Impact and Achievements**: Use strong action verbs (e.g., "Managed," "Developed," "Achieved") and quantify achievements with numbers or specific outcomes wherever possible.
+    *   **Impact and Achievements**: Use strong action verbs and quantify achievements.
     *   **Relevance**: Tailor to common job requirements{{#if targetJobRole}} and the specific role of "{{targetJobRole}}"{{/if}}.
-    *   **Keyword Optimization**: Naturally integrate relevant hard skills, soft skills, industry terms, and job titles from the target job role or general best practices.
-    *   **Grammar and Professionalism**: Ensure it's error-free and maintains a consistent professional tone.
-    *   **Structure and Flow**: Improve logical organization if needed. Ensure essential contact information (like name, phone, email, LinkedIn if provided) is present and correctly formatted. Avoid overly dense blocks of text; use bullet points effectively in experience sections.
+    *   **Grammar and Professionalism**: Ensure it's error-free.
+    *   **Structure and Flow**: Improve logical organization.
 
-The \`modifiedResumeText\` should be a complete, well-formatted, ready-to-use version of the resume.
+The \`modifiedResumeText\` should be a complete, well-formatted, ready-to-use version of the resume adhering to the specified structure.
 `,
 });
 

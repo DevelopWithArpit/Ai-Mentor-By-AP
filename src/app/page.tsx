@@ -371,30 +371,133 @@ export default function MentorAiPage() {
       toast({ title: "Error", description: "No modified resume text to download.", variant: "destructive" });
       return;
     }
-    const doc = new jsPDF();
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
     const text = resumeFeedback.modifiedResumeText;
-    const margin = 15;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const maxLineWidth = pageWidth - margin * 2;
     
-    doc.setFontSize(11); 
-    doc.setFont("helvetica", "normal");
-
-    const lines = doc.splitTextToSize(text, maxLineWidth);
+    const FONT_FAMILY = "Helvetica"; // Times or Helvetica
+    const NAME_SIZE = 20;
+    const SECTION_TITLE_SIZE = 14;
+    const HEADING_SIZE = 11; // Job titles, Degree
+    const BODY_SIZE = 10;
+    const CONTACT_SIZE = 9;
     
-    let yPos = margin;
-    const lineHeight = doc.getTextDimensions("M").h * 1.2; // Approximate line height with some spacing
+    const LINE_SPACING = 1.4;
+    const SECTION_SPACING = 10; // Space after a major section
+    const SUB_SECTION_SPACING = 5; // Space after job title/company before bullets
+    
+    const MARGIN = 50; // points
+    const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
+    const BULLET_INDENT = 15;
+    const BULLET_CHAR = '•';
 
-    for (const line of lines) {
-      if (yPos + lineHeight > doc.internal.pageSize.getHeight() - margin) {
+    let yPos = MARGIN;
+
+    const addNewPageIfNeeded = (neededHeight: number) => {
+      if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
         doc.addPage();
-        yPos = margin;
+        yPos = MARGIN;
+        return true;
       }
-      doc.text(line, margin, yPos);
-      yPos += lineHeight;
+      return false;
+    };
+
+    const lines = text.split('\n');
+    let isFirstLine = true; // For potential name styling
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      if (!line) continue; // Skip empty lines
+
+      let fontSize = BODY_SIZE;
+      let fontStyle = 'normal';
+      let indent = 0;
+      let color: [number, number, number] = [0, 0, 0]; // Black
+
+      if (isFirstLine && line.startsWith("### ")) { // Candidate Name
+        line = line.substring(4).trim();
+        fontSize = NAME_SIZE;
+        fontStyle = 'bold';
+        addNewPageIfNeeded(fontSize * LINE_SPACING * 2); // Extra space for name
+        doc.setFont(FONT_FAMILY, fontStyle);
+        doc.setFontSize(fontSize);
+        doc.setTextColor(color[0], color[1], color[2]);
+        const nameWidth = doc.getTextWidth(line);
+        doc.text(line, (doc.internal.pageSize.getWidth() - nameWidth) / 2, yPos); // Centered name
+        yPos += fontSize * LINE_SPACING;
+        // Add a line under the name
+        addNewPageIfNeeded(5);
+        doc.setLineWidth(0.5);
+        doc.line(MARGIN, yPos, doc.internal.pageSize.getWidth() - MARGIN, yPos);
+        yPos += 5 * LINE_SPACING;
+        isFirstLine = false;
+        continue;
+      } else if (isFirstLine) { // Fallback for name if no ###
+        fontSize = NAME_SIZE;
+        fontStyle = 'bold';
+        addNewPageIfNeeded(fontSize * LINE_SPACING * 2);
+        doc.setFont(FONT_FAMILY, fontStyle);
+        doc.setFontSize(fontSize);
+        doc.setTextColor(color[0], color[1], color[2]);
+        const nameWidth = doc.getTextWidth(line);
+        doc.text(line, (doc.internal.pageSize.getWidth() - nameWidth) / 2, yPos);
+        yPos += fontSize * LINE_SPACING;
+        isFirstLine = false;
+        continue;
+      }
+
+
+      if (line.includes("Phone:") || line.includes("Email:") || line.includes("LinkedIn:") || line.includes("Location:")) {
+        fontSize = CONTACT_SIZE;
+        fontStyle = 'normal';
+        // Contact info typically below name, might be slightly smaller
+        // Simple left align for now
+      } else if (line.startsWith("## ")) { // Section Titles
+        line = line.substring(3).trim();
+        fontSize = SECTION_TITLE_SIZE;
+        fontStyle = 'bold';
+        color = [65, 105, 225]; // Primary color (Deep Sky Blue) for section titles
+        if (yPos > MARGIN + NAME_SIZE) { // Add spacing before new section unless it's the first after name/contact
+           yPos += SECTION_SPACING / 2;
+           addNewPageIfNeeded(SECTION_SPACING / 2);
+        }
+      } else if (line.startsWith("**") && line.endsWith("**")) { // Job Title / Degree
+        line = line.substring(2, line.length - 2).trim();
+        fontSize = HEADING_SIZE;
+        fontStyle = 'bold';
+         yPos += SUB_SECTION_SPACING / 2;
+         addNewPageIfNeeded(SUB_SECTION_SPACING /2);
+      } else if (line.startsWith("• ")) { // Bullet points
+        line = line.substring(2).trim();
+        indent = BULLET_INDENT;
+        fontSize = BODY_SIZE;
+        fontStyle = 'normal';
+      } else { // Company/Dates or general body text
+        fontSize = BODY_SIZE;
+        fontStyle = 'normal';
+      }
+      
+      doc.setFont(FONT_FAMILY, fontStyle);
+      doc.setFontSize(fontSize);
+      doc.setTextColor(color[0], color[1], color[2]);
+
+      const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH - indent);
+      for (let j = 0; j < splitText.length; j++) {
+        addNewPageIfNeeded(fontSize * LINE_SPACING);
+        if (j === 0 && indent > 0) { // Render bullet character for the first line of a bullet point
+           doc.text(BULLET_CHAR, MARGIN , yPos);
+        }
+        doc.text(splitText[j], MARGIN + indent, yPos);
+        yPos += fontSize * LINE_SPACING;
+      }
+      if (line.startsWith("## ")) { // Add a line under section titles
+         addNewPageIfNeeded(5);
+         doc.setLineWidth(0.25);
+         doc.line(MARGIN, yPos - (fontSize * LINE_SPACING / 2.5) , doc.internal.pageSize.getWidth() - MARGIN, yPos - (fontSize * LINE_SPACING / 2.5));
+         yPos += SECTION_SPACING / 2;
+      }
     }
     
-    doc.save('ai_improved_resume.pdf');
+    doc.save('ai_mentor_improved_resume.pdf');
     toast({ title: "Resume PDF Downloaded", description: "Your improved resume has been saved as a PDF." });
   };
 
@@ -611,7 +714,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. The AI will provide feedback, ATS keyword suggestions, and generate an improved version of your resume.</CardDescription>
+                        <CardDescription>Paste your resume text. The AI will provide feedback, ATS keyword suggestions, and generate an improved version of your resume formatted for clarity and professionalism.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
