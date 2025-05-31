@@ -75,7 +75,7 @@ const tools = [
   { id: 'document-qa', label: 'Document Q&A', icon: Brain, cardTitle: 'Document Q&A' },
   { id: 'summarizer', label: 'Summarizer', icon: FileType, cardTitle: 'AI Document Summarizer' },
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
-  { id: 'resume-review', label: 'Resume Review', icon: Edit3, cardTitle: 'AI Resume Feedback Tool (ATS Optimized)' },
+  { id: 'resume-review', label: 'Resume Review', icon: Edit3, cardTitle: 'AI Resume Improver (ATS Optimized)' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code Gen', icon: Code, cardTitle: 'AI Code Generator' },
@@ -361,7 +361,7 @@ export default function MentorAiPage() {
     try {
       const result = await getResumeFeedback({ resumeText, targetJobRole: resumeTargetJobRole || undefined });
       setResumeFeedback(result);
-      toast({ title: "Resume Feedback Ready!", description: "Suggestions for your resume have been generated." });
+      toast({ title: "Resume Feedback Ready!", description: "Your improved resume and suggestions have been generated." });
     } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
     finally { setIsGeneratingResumeFeedback(false); }
   };
@@ -578,8 +578,8 @@ export default function MentorAiPage() {
               {activeTool === 'resume-review' && (
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Feedback Tool (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text to get AI-driven feedback, focusing on ATS keywords and overall effectiveness for job applications.</CardDescription>
+                        <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
+                        <CardDescription>Paste your resume text. The AI will provide feedback, ATS keyword suggestions, and generate an improved version of your resume.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
@@ -587,26 +587,51 @@ export default function MentorAiPage() {
                         <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-full sm:w-auto">
                             {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
                         </Button>
+                        
                         {resumeFeedback && (
-                            <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
-                                <h4 className="font-semibold mb-2 text-foreground">Resume Feedback:</h4>
-                                <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
-                                {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary:</strong> {resumeFeedback.atsKeywordsSummary}</p>}
-                                <Accordion type="single" collapsible className="w-full">
-                                    {resumeFeedback.feedbackItems.map((item, index) => (
-                                    <AccordionItem value={`feedback-${index}`} key={index}>
-                                        <AccordionTrigger className="text-sm hover:no-underline text-left">
-                                        <div className="flex items-start">
-                                            <CheckCircle className={`mr-2 mt-1 h-4 w-4 flex-shrink-0 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}/>
-                                            <span><strong>{item.area}</strong> {item.importance && `(${item.importance})`}</span>
-                                        </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="text-xs pl-8">
-                                        {item.suggestion}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                    ))}
-                                </Accordion>
+                            <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-semibold text-foreground">AI-Modified Resume:</h4>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(resumeFeedback.modifiedResumeText);
+                                                toast({ title: "Copied!", description: "Modified resume text copied to clipboard." });
+                                            }}
+                                        >
+                                            <Copy className="mr-2 h-4 w-4" /> Copy
+                                        </Button>
+                                    </div>
+                                    <Textarea
+                                        value={resumeFeedback.modifiedResumeText}
+                                        readOnly
+                                        className="min-h-[250px] bg-background/80 border-primary/30"
+                                        aria-label="Modified Resume Text"
+                                    />
+                                </div>
+
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis:</h4>
+                                    <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment (Original):</strong> {resumeFeedback.overallAssessment}</p>
+                                    {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary (for Rewritten Resume):</strong> {resumeFeedback.atsKeywordsSummary}</p>}
+                                    <Accordion type="single" collapsible className="w-full">
+                                        {resumeFeedback.feedbackItems.map((item, index) => (
+                                        <AccordionItem value={`feedback-${index}`} key={index}>
+                                            <AccordionTrigger className="text-sm hover:no-underline text-left">
+                                            <div className="flex items-start">
+                                                <CheckCircle className={`mr-2 mt-1 h-4 w-4 flex-shrink-0 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-600' : 'text-green-500'}`}/>
+                                                <span><strong>{item.area}</strong> {item.importance && `(${item.importance})`}</span>
+                                            </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="text-xs pl-8">
+                                            {item.suggestion}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                        ))}
+                                    </Accordion>
+                                </div>
                             </div>
                         )}
                     </CardContent>
