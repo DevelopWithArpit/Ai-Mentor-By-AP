@@ -366,6 +366,38 @@ export default function MentorAiPage() {
     finally { setIsGeneratingResumeFeedback(false); }
   };
 
+  const handleDownloadResumePdf = () => {
+    if (!resumeFeedback?.modifiedResumeText) {
+      toast({ title: "Error", description: "No modified resume text to download.", variant: "destructive" });
+      return;
+    }
+    const doc = new jsPDF();
+    const text = resumeFeedback.modifiedResumeText;
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const maxLineWidth = pageWidth - margin * 2;
+    
+    doc.setFontSize(11); 
+    doc.setFont("helvetica", "normal");
+
+    const lines = doc.splitTextToSize(text, maxLineWidth);
+    
+    let yPos = margin;
+    const lineHeight = doc.getTextDimensions("M").h * 1.2; // Approximate line height with some spacing
+
+    for (const line of lines) {
+      if (yPos + lineHeight > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage();
+        yPos = margin;
+      }
+      doc.text(line, margin, yPos);
+      yPos += lineHeight;
+    }
+    
+    doc.save('ai_improved_resume.pdf');
+    toast({ title: "Resume PDF Downloaded", description: "Your improved resume has been saved as a PDF." });
+  };
+
   const handleGenerateCoverLetter = async () => {
     if (!coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()) {
       toast({ title: "Error", description: "Please provide both Job Description and Your Information.", variant: "destructive" }); return;
@@ -591,18 +623,28 @@ export default function MentorAiPage() {
                         {resumeFeedback && (
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
                                 <div>
-                                    <div className="flex justify-between items-center mb-2">
+                                    <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
                                         <h4 className="font-semibold text-foreground">AI-Modified Resume:</h4>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(resumeFeedback.modifiedResumeText);
-                                                toast({ title: "Copied!", description: "Modified resume text copied to clipboard." });
-                                            }}
-                                        >
-                                            <Copy className="mr-2 h-4 w-4" /> Copy
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(resumeFeedback.modifiedResumeText);
+                                                    toast({ title: "Copied!", description: "Modified resume text copied to clipboard." });
+                                                }}
+                                            >
+                                                <Copy className="mr-2 h-4 w-4" /> Copy Text
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleDownloadResumePdf}
+                                                disabled={!resumeFeedback?.modifiedResumeText || isGeneratingResumeFeedback}
+                                            >
+                                                <Download className="mr-2 h-4 w-4" /> Download PDF
+                                            </Button>
+                                        </div>
                                     </div>
                                     <Textarea
                                         value={resumeFeedback.modifiedResumeText}
