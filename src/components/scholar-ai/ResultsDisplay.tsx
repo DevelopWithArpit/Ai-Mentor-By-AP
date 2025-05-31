@@ -4,9 +4,11 @@
 import type { SmartSearchOutput } from '@/ai/flows/smart-search';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, FileText, BookOpen, AlertCircle, Loader2, Info } from 'lucide-react';
+import { Lightbulb, FileText, BookOpen, AlertCircle, Loader2, Info, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import jsPDF from 'jspdf';
 
 interface ResultsDisplayProps {
   searchResult: SmartSearchOutput | null;
@@ -14,7 +16,8 @@ interface ResultsDisplayProps {
   isLoading: boolean;
   error: string | null;
   language: string;
-  hasDocument?: boolean; // To provide better context for "no results"
+  hasDocument?: boolean; 
+  question: string;
 }
 
 export function ResultsDisplay({
@@ -24,7 +27,65 @@ export function ResultsDisplay({
   error,
   language,
   hasDocument = false,
+  question,
 }: ResultsDisplayProps) {
+
+  const handleDownloadPdf = () => {
+    if (!question && !searchResult?.answer && !explanation) {
+      // This case should ideally be prevented by disabling the button
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+    const margin = 15; // mm
+    const maxLineWidth = pageWidth - margin * 2;
+    let currentY = margin;
+
+    const addNewPageIfNeeded = (textHeight: number) => {
+      if (currentY + textHeight > pageHeight - margin) {
+        doc.addPage();
+        currentY = margin;
+      }
+    };
+
+    const addSection = (title: string, content: string | null | undefined, titleFontSize = 14, contentFontSize = 12) => {
+      if (!content || content.trim() === "") return;
+
+      doc.setFontSize(titleFontSize);
+      doc.setFont(undefined, 'bold');
+      let lines = doc.splitTextToSize(title, maxLineWidth);
+      let textBlockHeight = doc.getTextDimensions(lines).h;
+      addNewPageIfNeeded(textBlockHeight);
+      doc.text(lines, margin, currentY);
+      currentY += textBlockHeight + 2; 
+
+      doc.setFontSize(contentFontSize);
+      doc.setFont(undefined, 'normal');
+      lines = doc.splitTextToSize(content, maxLineWidth);
+      textBlockHeight = doc.getTextDimensions(lines).h;
+      addNewPageIfNeeded(textBlockHeight);
+      doc.text(lines, margin, currentY);
+      currentY += textBlockHeight + 7; 
+    };
+
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    let mainTitleLines = doc.splitTextToSize("ScholarAI Insights", maxLineWidth);
+    let mainTitleHeight = doc.getTextDimensions(mainTitleLines).h;
+    addNewPageIfNeeded(mainTitleHeight);
+    doc.text(mainTitleLines, margin, currentY);
+    currentY += mainTitleHeight + 10;
+
+    addSection("Question:", question);
+    addSection("Answer:", searchResult?.answer);
+    addSection("AI Explanation:", explanation);
+
+    doc.save('scholarai_insights.pdf');
+  };
+
+
   if (isLoading) {
     return (
       <Card className="shadow-lg">
@@ -73,6 +134,8 @@ export function ResultsDisplay({
       </Card>
     );
   }
+  
+  const hasContentToDownload = !!(question || searchResult?.answer || explanation);
 
   return (
     <Card className="shadow-lg bg-card">
@@ -121,6 +184,18 @@ export function ResultsDisplay({
               : "I couldn't find a specific answer to your question right now. Try rephrasing it."
             }
           </p>
+        )}
+
+        {hasContentToDownload && (
+          <>
+            <Separator className="my-6" />
+            <div className="flex justify-end">
+               <Button onClick={handleDownloadPdf} variant="outline" disabled={isLoading || !hasContentToDownload}>
+                 <Download className="mr-2 h-4 w-4" />
+                 Download PDF
+               </Button>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

@@ -146,6 +146,7 @@ export default function ScholarAiPage() {
               error={error}
               language={selectedLanguage}
               hasDocument={!!selectedFile}
+              question={question}
             />
           </div>
         </div>
