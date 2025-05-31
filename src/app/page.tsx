@@ -11,9 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Sparkles, Code, Image as ImageIcon, Presentation, Wand2, Brain, FileText, Loader2, Lightbulb, Download } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download } from 'lucide-react'; // Renamed ImageIcon to avoid conflict
 import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
+import Image from 'next/image'; // Standard Next.js Image component
 import jsPDF from 'jspdf';
 
 import { smartSearch, type SmartSearchInput, type SmartSearchOutput } from '@/ai/flows/smart-search';
@@ -21,7 +21,7 @@ import { explainAnswer, type ExplainAnswerInput, type ExplainAnswerOutput } from
 import { generateCode, type GenerateCodeInput, type GenerateCodeOutput } from '@/ai/flows/code-generator-flow';
 import { wrappedGenerateImage, type GenerateImageInput, type GenerateImageOutput } from '@/ai/flows/image-generator-flow';
 import { wrappedGenerateDiagram, type GenerateDiagramInput, type GenerateDiagramOutput } from '@/ai/flows/diagram-generator-flow';
-import { generatePresentationOutline, type GeneratePresentationInput, type GeneratePresentationOutput } from '@/ai/flows/presentation-generator-flow';
+import { generatePresentationOutline, type GeneratePresentationInput, type GeneratePresentationOutput, type SlideSchema } from '@/ai/flows/presentation-generator-flow';
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -59,7 +59,7 @@ export default function ScholarAiPage() {
   const [isGeneratingDiagram, setIsGeneratingDiagram] = useState<boolean>(false);
 
   const [presentationTopic, setPresentationTopic] = useState<string>('');
-  const [numSlides, setNumSlides] = useState<string>('5');
+  const [numSlides, setNumSlides] = useState<string>('3'); // Default to 3 for faster generation with images
   const [generatedPresentation, setGeneratedPresentation] = useState<GeneratePresentationOutput | null>(null);
   const [isGeneratingPresentation, setIsGeneratingPresentation] = useState<boolean>(false);
 
@@ -198,100 +198,158 @@ export default function ScholarAiPage() {
     }
     setIsGeneratingPresentation(true);
     setGeneratedPresentation(null);
+    toast({ title: "Generating Presentation...", description: "This may take a moment, especially with images." });
     try {
       const numSlidesParsed = parseInt(numSlides, 10);
       const input: GeneratePresentationInput = { 
         topic: presentationTopic, 
-        numSlides: isNaN(numSlidesParsed) ? undefined : numSlidesParsed 
+        numSlides: isNaN(numSlidesParsed) ? 3 : numSlidesParsed // Default to 3 if NaN
       };
       const result = await generatePresentationOutline(input);
       setGeneratedPresentation(result);
-      toast({ title: "Presentation Outline Generated!", description: "Outline created successfully." });
+      toast({ title: "Presentation Generated!", description: "Outline and images created successfully." });
     } catch (err: any) {
       console.error('Error generating presentation:', err);
-      toast({ title: "Presentation Generation Error", description: err.message || "Failed to generate presentation outline.", variant: "destructive" });
+      toast({ title: "Presentation Generation Error", description: err.message || "Failed to generate presentation.", variant: "destructive" });
     } finally {
       setIsGeneratingPresentation(false);
     }
   };
 
-  const handleDownloadPresentationPdf = () => {
+  const handleDownloadPresentationPdf = async () => {
     if (!generatedPresentation) return;
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
     const margin = 15;
-    const maxLineWidth = pageWidth - margin * 2;
+    const maxTextWidth = pageWidth - margin * 2;
     let currentY = margin;
 
-    const addNewPageIfNeeded = (textHeight: number) => {
-      if (currentY + textHeight > pageHeight - margin) {
+    const addNewPageIfNeeded = (neededHeight: number) => {
+      if (currentY + neededHeight > pageHeight - margin) {
         doc.addPage();
         currentY = margin;
+        return true; // Page was added
       }
+      return false; // No page added
     };
     
     // Presentation Title
     if (generatedPresentation.title) {
-      doc.setFontSize(18);
+      doc.setFontSize(20);
       doc.setFont(undefined, 'bold');
-      const titleLines = doc.splitTextToSize(generatedPresentation.title, maxLineWidth);
+      const titleLines = doc.splitTextToSize(generatedPresentation.title, maxTextWidth);
       const titleHeight = doc.getTextDimensions(titleLines).h;
       addNewPageIfNeeded(titleHeight);
       doc.text(titleLines, pageWidth / 2, currentY, { align: 'center' });
-      currentY += titleHeight + 10;
+      currentY += titleHeight + 12;
     }
 
-    generatedPresentation.slides.forEach((slide, index) => {
-      if (index > 0) { // Add space before new slide, or new page
-         currentY += 5; // Some space before next slide content
-         if (currentY > pageHeight - margin - 40) { // Check if enough space for slide title
-            doc.addPage();
-            currentY = margin;
-         }
+    for (let i = 0; i < generatedPresentation.slides.length; i++) {
+      const slide = generatedPresentation.slides[i];
+      
+      if (i > 0) {
+        currentY += 8; // Space before new slide content
+        addNewPageIfNeeded(40); // Check if enough space for slide title at least
       }
       
       // Slide Title
-      doc.setFontSize(14);
+      doc.setFontSize(16);
       doc.setFont(undefined, 'bold');
-      const slideTitle = `${index + 1}. ${slide.title}`;
-      let lines = doc.splitTextToSize(slideTitle, maxLineWidth);
+      const slideTitle = `${i + 1}. ${slide.title}`;
+      let lines = doc.splitTextToSize(slideTitle, maxTextWidth);
       let textBlockHeight = doc.getTextDimensions(lines).h;
       addNewPageIfNeeded(textBlockHeight);
       doc.text(lines, margin, currentY);
-      currentY += textBlockHeight + 5;
+      currentY += textBlockHeight + 6;
 
       // Bullet Points
       doc.setFontSize(12);
       doc.setFont(undefined, 'normal');
-      slide.bulletPoints.forEach(point => {
+      for (const point of slide.bulletPoints) {
         const bulletPointText = `- ${point}`;
-        lines = doc.splitTextToSize(bulletPointText, maxLineWidth - 5); // Indent bullets slightly
+        lines = doc.splitTextToSize(bulletPointText, maxTextWidth - 5); // Indent bullets
         textBlockHeight = doc.getTextDimensions(lines).h;
-        addNewPageIfNeeded(textBlockHeight);
+        addNewPageIfNeeded(textBlockHeight + 2); // +2 for small spacing
         doc.text(lines, margin + 5, currentY);
         currentY += textBlockHeight + 3;
-      });
+      }
 
-      // Suggested Image Description
-      if (slide.suggestedImageDescription) {
-        currentY += 2; // Little space before image suggestion
+      // Image (if exists)
+      if (slide.imageUrl) {
+        currentY += 5; // Space before image
+        const IMAGE_MAX_WIDTH = maxTextWidth * 0.85; // Image slightly smaller than text width
+        const IMAGE_MAX_HEIGHT = pageHeight * 0.5; // Max half a page for image
+
+        try {
+            // For jsPDF, it's often best to let it determine dimensions from the image data itself if possible,
+            // or provide one dimension and let it scale, then check.
+            // We'll try to give it a width and let it determine height to maintain aspect.
+            // However, jsPDF's handling of base64 image dimensions can be tricky without loading into an Image element first.
+            // For simplicity, let's define a target width and calculate height, then check for page fit.
+            // This part is complex to get perfect aspect ratio and fit without async operations.
+            // A common approach is to define a bounding box.
+            
+            // Simplified approach: add image with max width and let jsPDF scale height.
+            // Then check currentY. This might not be perfectly aspect-ratio controlled by us here.
+            const availableHeight = pageHeight - margin - currentY;
+            if (availableHeight < 50) { // If less than 50 units of space, new page for image
+                addNewPageIfNeeded(IMAGE_MAX_HEIGHT); // Force new page if not enough space
+            }
+            
+            // jsPDF addImage can take width & height. If one is 0, it uses aspect ratio.
+            // Let's give it a max width and 0 for height to preserve aspect ratio.
+            doc.addImage(slide.imageUrl, 'PNG', margin, currentY, IMAGE_MAX_WIDTH, 0);
+            
+            // The height of the added image is not directly returned.
+            // This is a known challenge with jsPDF synchronously.
+            // We'll estimate or add a fixed spacing, or assume it fits if availableHeight was enough.
+            // For a more robust solution, one would load the image into an <img> tag, get its dimensions, then add to PDF.
+            // Let's assume a typical image might take up to IMAGE_MAX_HEIGHT if scaled.
+            // A simpler but less accurate way is to add a fixed height or make the image smaller.
+            // We'll add a placeholder height and ensure new page if it's too large.
+            const placeholderImageHeight = IMAGE_MAX_HEIGHT * 0.6; // Estimate
+            
+            if (placeholderImageHeight > pageHeight - margin - currentY) { // If estimated height overflows
+                 doc.deletePage(doc.internal.getNumberOfPages()); // Remove potentially broken partial image
+                 doc.addPage();
+                 currentY = margin;
+                 doc.addImage(slide.imageUrl, 'PNG', margin, currentY, IMAGE_MAX_WIDTH, 0);
+                 currentY += placeholderImageHeight + 7;
+            } else {
+                 currentY += placeholderImageHeight + 7; // Add estimated height + spacing
+            }
+
+        } catch (e) {
+          console.error("Error adding image to PDF:", e);
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'italic');
+          lines = doc.splitTextToSize("[Image generation/embedding failed for this slide]", maxTextWidth);
+          textBlockHeight = doc.getTextDimensions(lines).h;
+          addNewPageIfNeeded(textBlockHeight);
+          doc.text(lines, margin, currentY);
+          currentY += textBlockHeight + 7;
+        }
+      } else if (slide.suggestedImageDescription) { // If no image URL but there was a suggestion
+        currentY += 2; 
         doc.setFontSize(10);
         doc.setFont(undefined, 'italic');
         const suggestionText = `Suggested Image: ${slide.suggestedImageDescription}`;
-        lines = doc.splitTextToSize(suggestionText, maxLineWidth);
+        lines = doc.splitTextToSize(suggestionText, maxTextWidth);
         textBlockHeight = doc.getTextDimensions(lines).h;
         addNewPageIfNeeded(textBlockHeight);
         doc.text(lines, margin, currentY);
         currentY += textBlockHeight + 7;
       }
-      if (index < generatedPresentation.slides.length - 1) {
-        currentY += 5; // Space between slides
-      }
-    });
 
-    doc.save('scholarai_presentation_outline.pdf');
+      if (i < generatedPresentation.slides.length - 1) {
+        currentY += 5; 
+      }
+    }
+
+    doc.save('scholarai_presentation.pdf');
+    toast({title: "PDF Downloaded", description: "Presentation PDF has been saved."});
   };
 
 
@@ -350,7 +408,7 @@ export default function ScholarAiPage() {
         <Card className="shadow-xl bg-card">
           <CardHeader>
             <CardTitle className="font-headline text-2xl text-primary flex items-center"><Sparkles className="mr-2 h-7 w-7"/> Creative AI Tools</CardTitle>
-            <CardDescription>Generate code, images, diagrams, and presentation outlines.</CardDescription>
+            <CardDescription>Generate code, images, diagrams, and presentations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             {/* Code Generator */}
@@ -383,7 +441,7 @@ export default function ScholarAiPage() {
             {/* Image Generator */}
             <Card className="bg-card/80">
               <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><ImageIcon className="mr-2 h-6 w-6"/>Image Generator</CardTitle>
+                <CardTitle className="font-headline text-xl text-accent flex items-center"><ImageIconLucide className="mr-2 h-6 w-6"/>Image Generator</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea placeholder="Describe the image you want (e.g., 'a futuristic cityscape at sunset')..." value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} disabled={isGeneratingImage} className="min-h-[80px]"/>
@@ -394,12 +452,12 @@ export default function ScholarAiPage() {
                 {generatedImageUrl && (
                   <div className="mt-4">
                     <h4 className="font-semibold mb-2 text-foreground">Generated Image:</h4>
-                    <Image src={generatedImageUrl} alt="Generated by AI" width={512} height={512} className="rounded-md border shadow-md" />
+                    <Image src={generatedImageUrl} alt="Generated by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" />
                   </div>
                 )}
                  {!generatedImageUrl && !isGeneratingImage && (
                      <div className="text-center text-muted-foreground py-4">
-                        <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                        <ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" />
                         <p>Your generated image will appear here.</p>
                         <img data-ai-hint="abstract creative" src="https://placehold.co/300x200.png" alt="Placeholder for image generation" className="mx-auto mt-2 rounded-md opacity-50" />
                     </div>
@@ -421,7 +479,7 @@ export default function ScholarAiPage() {
                 {generatedDiagramUrl && (
                   <div className="mt-4">
                     <h4 className="font-semibold mb-2 text-foreground">Generated Diagram:</h4>
-                    <Image src={generatedDiagramUrl} alt="Diagram generated by AI" width={512} height={512} className="rounded-md border shadow-md" />
+                    <Image src={generatedDiagramUrl} alt="Diagram generated by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" />
                   </div>
                 )}
                 {!generatedDiagramUrl && !isGeneratingDiagram && (
@@ -437,40 +495,51 @@ export default function ScholarAiPage() {
             {/* Presentation Outline Generator */}
             <Card className="bg-card/80">
               <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><Presentation className="mr-2 h-6 w-6"/>Presentation Outline Generator</CardTitle>
+                <CardTitle className="font-headline text-xl text-accent flex items-center"><PresentationIcon className="mr-2 h-6 w-6"/>Presentation Generator</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Input placeholder="Presentation Topic (e.g., 'The Future of AI')" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
-                <Input type="number" placeholder="Number of Slides (optional, default 5)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" />
+                <Input type="number" placeholder="Number of Slides (e.g., 3, default 3)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" max="7" />
+                 <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow. Start with 2-3 slides. Max 7 slides.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
                     {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Generate Outline
+                    Generate Presentation
                   </Button>
                   {generatedPresentation && (
-                    <Button onClick={handleDownloadPresentationPdf} variant="outline" className="flex-grow sm:flex-grow-0">
+                    <Button onClick={handleDownloadPresentationPdf} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}>
                       <Download className="mr-2 h-4 w-4" />
-                      Download PDF Outline
+                      Download PDF
                     </Button>
                   )}
                 </div>
                 {generatedPresentation && (
-                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
-                    <h4 className="font-semibold mb-2 text-foreground">Generated Presentation Outline:</h4>
-                    {generatedPresentation.title && <h5 className="text-lg font-semibold text-primary mb-3">{generatedPresentation.title}</h5>}
+                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto">
+                    <h4 className="font-semibold mb-2 text-foreground">Generated Presentation:</h4>
+                    {generatedPresentation.title && <h5 className="text-xl font-bold text-primary mb-4 text-center">{generatedPresentation.title}</h5>}
                     {generatedPresentation.slides.map((slide, index) => (
-                      <div key={index} className="mb-4 p-3 bg-background/50 rounded">
-                        <h6 className="font-semibold text-accent">{index + 1}. {slide.title}</h6>
-                        <ul className="list-disc list-inside ml-4 text-sm text-foreground">
+                      <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
+                        <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
+                        <ul className="list-disc list-inside ml-4 my-2 text-sm text-foreground">
                           {slide.bulletPoints.map((point, pIndex) => (
-                            <li key={pIndex}>{point}</li>
+                            <li key={pIndex} className="mb-1">{point}</li>
                           ))}
                         </ul>
-                        {slide.suggestedImageDescription && (
+                        {slide.imageUrl && (
+                           <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5">
+                             <p className="text-xs text-primary font-medium flex items-center mb-2">
+                               <ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />
+                               Generated Image for this slide:
+                             </p>
+                             <Image src={slide.imageUrl} alt={`AI generated for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" />
+                           </div>
+                        )}
+                        {!slide.imageUrl && slide.suggestedImageDescription && (
                            <div className="mt-2 p-2 bg-primary/10 rounded">
                              <p className="text-xs text-primary font-medium flex items-center">
                                <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />
-                               Suggested Image: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span>
+                               Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span>
+                                (Image not generated)
                              </p>
                            </div>
                         )}
@@ -480,8 +549,8 @@ export default function ScholarAiPage() {
                 )}
                  {!generatedPresentation && !isGeneratingPresentation && (
                      <div className="text-center text-muted-foreground py-4">
-                        <Presentation className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                        <p>Your presentation outline will appear here.</p>
+                        <PresentationIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                        <p>Your generated presentation (outline and images) will appear here.</p>
                     </div>
                 )}
               </CardContent>
@@ -496,4 +565,7 @@ export default function ScholarAiPage() {
     </div>
   );
 }
+
+// Helper type for the SlideSchema if needed directly in the component, though it's usually imported
+// export type SlideSchema = GeneratePresentationOutput['slides'][number];
 
