@@ -75,10 +75,10 @@ const tools = [
   { id: 'document-qa', label: 'Document Q&A', icon: Brain, cardTitle: 'Document Q&A' },
   { id: 'summarizer', label: 'Summarizer', icon: FileType, cardTitle: 'AI Document Summarizer' },
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
-  { id: 'resume-review', label: 'Resume Review', icon: Edit3, cardTitle: 'AI Resume Improver (ATS Optimized)' },
+  { id: 'resume-review', label: 'Resume Improver', icon: Edit3, cardTitle: 'AI Resume Improver (ATS Optimized)' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
-  { id: 'code-gen', label: 'Code Gen', icon: Code, cardTitle: 'AI Code Generator' },
+  { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
   { id: 'image-gen', label: 'Image Gen', icon: ImageIconLucide, cardTitle: 'AI Image Generator' },
   { id: 'diagram-gen', label: 'Diagram Gen', icon: Wand2, cardTitle: 'AI Diagram Generator' },
   { id: 'presentations', label: 'Presentations', icon: PresentationIcon, cardTitle: 'AI Presentation Generator' },
@@ -548,6 +548,7 @@ export default function MentorAiPage() {
     finally { setIsGeneratingSummary(false); }
   };
 
+  const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -883,11 +884,11 @@ export default function MentorAiPage() {
               {activeTool === 'code-gen' && (
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl text-primary flex items-center"><Code className="mr-2 h-7 w-7"/>AI Code Generator</CardTitle>
-                        <CardDescription>Generate code snippets in various programming languages based on your description.</CardDescription>
+                        <CardTitle className="font-headline text-2xl text-primary flex items-center"><SearchCode className="mr-2 h-7 w-7"/>AI Code &amp; DSA Helper</CardTitle>
+                        <CardDescription>Generate code snippets in various languages, or get help with Data Structures and Algorithm (DSA) problems by describing the logic or problem statement.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Textarea placeholder="Describe the code you want to generate..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
+                        <Textarea placeholder="Describe the code you want to generate (e.g., 'a Python function for quicksort', 'Java code for a linked list node', 'solve fizzbuzz')..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
                         <Input placeholder="Programming Language (e.g., Python, JavaScript, Java - optional)" value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} disabled={isGeneratingCode} />
                         <Button onClick={handleGenerateCode} disabled={isGeneratingCode || !codePrompt.trim()} className="w-full sm:w-auto">
                             {isGeneratingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Code
