@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -714,7 +714,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. The AI will provide feedback, ATS keyword suggestions, and generate an improved version of your resume formatted for clarity and professionalism.</CardDescription>
+                        <CardDescription>Paste your resume text. The AI will provide feedback, ATS keyword suggestions, generate an improved version of your resume, and extract key talking points.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
@@ -756,6 +756,17 @@ export default function MentorAiPage() {
                                         aria-label="Modified Resume Text"
                                     />
                                 </div>
+                                
+                                {resumeFeedback.talkingPoints && resumeFeedback.talkingPoints.length > 0 && (
+                                  <div className="p-3 bg-primary/10 rounded-md">
+                                    <h5 className="font-semibold text-primary flex items-center mb-2"><Mic className="mr-2 h-5 w-5"/>Key Talking Points from Your Resume:</h5>
+                                    <ul className="list-disc list-inside text-sm text-primary-foreground space-y-1 pl-2">
+                                      {resumeFeedback.talkingPoints.map((point, index) => (
+                                        <li key={index} className="text-foreground">{point}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
 
                                 <div>
                                     <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis:</h4>

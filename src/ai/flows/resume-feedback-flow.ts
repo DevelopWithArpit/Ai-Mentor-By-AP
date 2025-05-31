@@ -8,7 +8,7 @@
  * - ResumeFeedbackOutput - The return type for the getResumeFeedback function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai}from '@/ai/genkit';
 import {z}from 'genkit';
 
 const ResumeFeedbackInputSchema = z.object({
@@ -27,6 +27,7 @@ const ResumeFeedbackOutputSchema = z.object({
   overallAssessment: z.string().describe('A brief overall assessment of the original resume, including its potential ATS compatibility.'),
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten resume.'),
+  talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
   modifiedResumeText: z.string().describe('The rewritten resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output.'),
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
@@ -41,7 +42,7 @@ const prompt = ai.definePrompt({
   output: {schema: ResumeFeedbackOutputSchema},
   prompt: `You are an expert career coach and resume reviewer, specializing in optimizing resumes for Applicant Tracking Systems (ATS) and improving overall resume effectiveness.
 You will perform two main tasks:
-1.  **Analyze and Provide Feedback**: Analyze the provided resume text. Then, generate a detailed list of feedback items, an overall assessment, and an ATS keywords summary based on the original text.
+1.  **Analyze and Provide Feedback**: Analyze the provided resume text. Then, generate a detailed list of feedback items, an overall assessment, an ATS keywords summary, and key talking points based on the original text.
 2.  **Rewrite the Resume**: Based on your analysis and feedback, rewrite the entire resume text to incorporate these improvements. The rewritten resume should be well-structured, ATS-friendly, impactful, and professional.
 
 Resume Text to Analyze and Rewrite:
@@ -53,18 +54,19 @@ The resume is being targeted for the job role of "{{targetJobRole}}". Tailor you
 
 **Output Requirements:**
 
-**Part 1: Feedback (for \`overallAssessment\`, \`feedbackItems\`, \`atsKeywordsSummary\` fields)**
+**Part 1: Feedback (for \`overallAssessment\`, \`feedbackItems\`, \`atsKeywordsSummary\`, \`talkingPoints\` fields)**
 *   **Overall Assessment**: A brief summary of the original resume's strengths and weaknesses, especially concerning ATS compatibility and general effectiveness.
 *   **Feedback Items**: A list of specific, actionable feedback items on the original resume. For each item, specify:
     *   The **area** it applies to (e.g., 'Summary', 'Experience Section - Bullet Points', 'Skills Section', 'ATS Keywords', 'Formatting for ATS', 'Contact Information').
     *   The **suggestion** for improvement.
     *   An optional **importance** level (high, medium, low).
 *   **ATS Keywords Summary**: If a target job role is provided, list relevant keywords that are well-utilized in, or should be incorporated into, the *rewritten* resume for better ATS performance. If no job role is provided, give general advice on finding and using keywords.
+*   **Talking Points**: A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. These should be useful for quick self-introductions or elevator pitches.
 
 **Part 2: Rewritten Resume (for \`modifiedResumeText\` field)**
 *   Provide the **full, rewritten resume text**. This text MUST be structured for easy parsing and professional PDF generation. Use the following conventions:
     *   **Name**: Start with the candidate's full name on its own line, ideally prefixed with "### ". Example: "### JOHN DOE".
-    *   **Contact Information**: Immediately follow the name. Each piece of contact info (Phone, Email, LinkedIn URL, Location) on its own line. Example: "Phone: (555) 123-4567\nEmail: john.doe@email.com\nLinkedIn: linkedin.com/in/johndoe\nLocation: City, ST".
+    *   **Contact Information**: Immediately follow the name. Each piece of contact info (Phone, Email, LinkedIn URL, Location) on its own line. Example: "Phone: (555) 123-4567\\nEmail: john.doe@email.com\\nLinkedIn: linkedin.com/in/johndoe\\nLocation: City, ST".
     *   **Section Headings**: Use markdown H2 style headings (e.g., "## Summary", "## Professional Experience", "## Education", "## Skills", "## Projects"). Each section heading MUST be on its own line.
     *   **Experience Entries**:
         *   Job Title: On its own line, ideally bolded with markdown (e.g., "**Senior Software Engineer**").
