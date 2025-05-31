@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'ScholarAI',
-  description: 'AI-powered academic assistant',
+  title: 'AI Mentor By AP',
+  description: 'AI-powered academic, career, and creative assistant',
 };
 
 export default function RootLayout({

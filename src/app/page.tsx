@@ -62,7 +62,7 @@ const pdfThemes: Record<string, PdfTheme> = {
 };
 
 
-export default function ScholarAiPage() {
+export default function MentorAiPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [question, setQuestion] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
@@ -150,14 +150,14 @@ export default function ScholarAiPage() {
       if (result?.answer) {
         const explainerResult = await explainAnswer({ question, answer: result.answer });
         setExplanation(explainerResult.explanation);
-        toast({ title: "ScholarAI Success!", description: "Insights generated successfully." });
+        toast({ title: "AI Mentor Success!", description: "Insights generated successfully." });
       } else {
         toast({ title: "Search complete", description: selectedFile ? "Could not find a direct answer in the document." : "I couldn't find an answer to your question." });
       }
     } catch (err: any) {
       const errorMessage = err.message || 'An unexpected error occurred.';
       setError(errorMessage);
-      toast({ title: "ScholarAI Error", description: errorMessage, variant: "destructive" });
+      toast({ title: "AI Mentor Error", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +167,7 @@ export default function ScholarAiPage() {
     setSelectedFile(null); setQuestion(''); setSearchResult(null); setExplanation(null); setError(null); setIsLoading(false);
     const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
-    toast({ title: "Cleared", description: "ScholarAI inputs and results have been cleared." });
+    toast({ title: "Cleared", description: "Document Q&A inputs and results have been cleared." });
   };
 
   const handleGenerateCode = async () => {
@@ -315,7 +315,7 @@ export default function ScholarAiPage() {
         addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
       }
     }
-    doc.save(`scholarai_presentation_${themeKey}.pdf`);
+    doc.save(`ai_mentor_presentation_${themeKey}.pdf`);
     toast({title: "PDF Downloaded", description: `Presentation PDF with ${themeKey} theme has been saved.`});
   };
 
@@ -394,18 +394,24 @@ export default function ScholarAiPage() {
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        <Tabs defaultValue="study-research" className="w-full">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-6">
-            <TabsTrigger value="study-research"><BookOpen className="mr-2 h-5 w-5"/>Study & Research</TabsTrigger>
-            <TabsTrigger value="career-toolkit"><Briefcase className="mr-2 h-5 w-5"/>Career Toolkit</TabsTrigger>
-            <TabsTrigger value="creative-code"><Sparkles className="mr-2 h-5 w-5"/>Creative & Code</TabsTrigger>
+        <Tabs defaultValue="document-qa" className="w-full">
+          <TabsList className="flex flex-wrap h-auto justify-start rounded-md bg-muted p-1 text-muted-foreground mb-6">
+            <TabsTrigger value="document-qa" className="flex items-center"><Brain className="mr-2 h-5 w-5"/>Document Q&amp;A</TabsTrigger>
+            <TabsTrigger value="summarizer" className="flex items-center"><FileType className="mr-2 h-5 w-5"/>Summarizer</TabsTrigger>
+            <TabsTrigger value="interview-prep" className="flex items-center"><MessageSquareQuote className="mr-2 h-5 w-5"/>Interview Prep</TabsTrigger>
+            <TabsTrigger value="resume-review" className="flex items-center"><Edit3 className="mr-2 h-5 w-5"/>Resume Review</TabsTrigger>
+            <TabsTrigger value="cover-letter" className="flex items-center"><Send className="mr-2 h-5 w-5"/>Cover Letter</TabsTrigger>
+            <TabsTrigger value="career-paths" className="flex items-center"><Star className="mr-2 h-5 w-5"/>Career Paths</TabsTrigger>
+            <TabsTrigger value="code-gen" className="flex items-center"><Code className="mr-2 h-5 w-5"/>Code Gen</TabsTrigger>
+            <TabsTrigger value="image-gen" className="flex items-center"><ImageIconLucide className="mr-2 h-5 w-5"/>Image Gen</TabsTrigger>
+            <TabsTrigger value="diagram-gen" className="flex items-center"><Wand2 className="mr-2 h-5 w-5"/>Diagram Gen</TabsTrigger>
+            <TabsTrigger value="presentations" className="flex items-center"><PresentationIcon className="mr-2 h-5 w-5"/>Presentations</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="study-research" className="space-y-8">
-            {/* ScholarAI Document Q&A Section */}
+          <TabsContent value="document-qa" className="space-y-8">
             <Card className="shadow-xl bg-card">
               <CardHeader>
-                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Brain className="mr-2 h-7 w-7"/> ScholarAI Document Q&amp;A</CardTitle>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><Brain className="mr-2 h-7 w-7"/>Document Q&amp;A</CardTitle>
                 <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -414,7 +420,7 @@ export default function ScholarAiPage() {
                     <FileUpload selectedFile={selectedFile} onFileChange={handleFileChange} isLoading={isLoading} inputId="file-upload-input"/>
                     <QuestionInput question={question} onQuestionChange={setQuestion} onSubmit={handleSubmitScholarAI} isLoading={isLoading} isSubmitDisabled={!question.trim()}/>
                     <LanguageSelector selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isLoading={isLoading}/>
-                    <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear ScholarAI</Button>
+                    <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear Q&amp;A</Button>
                   </div>
                   <div className="lg:col-span-2">
                     <ResultsDisplay searchResult={searchResult} explanation={explanation} isLoading={isLoading} error={error} language={selectedLanguage} hasDocument={!!selectedFile} question={question}/>
@@ -422,8 +428,9 @@ export default function ScholarAiPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {/* AI Document Summarizer Section */}
+          <TabsContent value="summarizer" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><FileType className="mr-2 h-7 w-7"/>AI Document Summarizer</CardTitle>
@@ -481,8 +488,7 @@ export default function ScholarAiPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="career-toolkit" className="space-y-8">
-            {/* AI Interview Question Generator Section */}
+          <TabsContent value="interview-prep" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><MessageSquareQuote className="mr-2 h-7 w-7"/>AI Interview Question Generator</CardTitle>
@@ -527,8 +533,9 @@ export default function ScholarAiPage() {
                     )}
                 </CardContent>
             </Card>
+            </TabsContent>
 
-            {/* AI Resume Feedback Tool Section */}
+            <TabsContent value="resume-review" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Feedback Tool (ATS Optimized)</CardTitle>
@@ -564,8 +571,9 @@ export default function ScholarAiPage() {
                     )}
                 </CardContent>
             </Card>
+            </TabsContent>
 
-            {/* AI Cover Letter Assistant Section */}
+            <TabsContent value="cover-letter" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Send className="mr-2 h-7 w-7"/>AI Cover Letter Assistant</CardTitle>
@@ -602,8 +610,9 @@ export default function ScholarAiPage() {
                     )}
                 </CardContent>
             </Card>
+            </TabsContent>
 
-            {/* AI Career Path Suggester Section */}
+            <TabsContent value="career-paths" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
@@ -648,10 +657,9 @@ export default function ScholarAiPage() {
                     )}
                 </CardContent>
             </Card>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="creative-code" className="space-y-8">
-            {/* AI Code Generator Section */}
+            <TabsContent value="code-gen" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Code className="mr-2 h-7 w-7"/>AI Code Generator</CardTitle>
@@ -667,8 +675,9 @@ export default function ScholarAiPage() {
                     {!generatedCode && !isGeneratingCode && <div className="text-center text-muted-foreground py-4"><FileText className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated code will appear here.</p></div>}
                 </CardContent>
             </Card>
+            </TabsContent>
 
-            {/* AI Image Generator Section */}
+            <TabsContent value="image-gen" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><ImageIconLucide className="mr-2 h-7 w-7"/>AI Image Generator</CardTitle>
@@ -683,8 +692,9 @@ export default function ScholarAiPage() {
                     {!generatedImageUrl && !isGeneratingImage && <div className="text-center text-muted-foreground py-4"><ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated image will appear here.</p><img data-ai-hint="abstract creative" src="https://placehold.co/300x200.png" alt="Placeholder" className="mx-auto mt-2 rounded-md opacity-50" /></div>}
                 </CardContent>
             </Card>
+            </TabsContent>
 
-            {/* AI Diagram Generator Section */}
+            <TabsContent value="diagram-gen" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Wand2 className="mr-2 h-7 w-7"/>AI Diagram Generator</CardTitle>
@@ -699,8 +709,9 @@ export default function ScholarAiPage() {
                     {!generatedDiagramUrl && !isGeneratingDiagram && <div className="text-center text-muted-foreground py-4"><Wand2 className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated diagram will appear here.</p><img data-ai-hint="flowchart structure" src="https://placehold.co/300x200.png" alt="Placeholder" className="mx-auto mt-2 rounded-md opacity-50" /></div>}
                 </CardContent>
             </Card>
+            </TabsContent>
 
-            {/* AI Presentation Generator Section */}
+            <TabsContent value="presentations" className="space-y-8">
             <Card className="shadow-xl bg-card">
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><PresentationIcon className="mr-2 h-7 w-7"/>AI Presentation Generator</CardTitle>
@@ -742,13 +753,12 @@ export default function ScholarAiPage() {
                     {!generatedPresentation && !isGeneratingPresentation && <div className="text-center text-muted-foreground py-4"><PresentationIcon className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your presentation will appear here.</p></div>}
                 </CardContent>
             </Card>
-          </TabsContent>
+            </TabsContent>
         </Tabs>
       </main>
       <footer className="text-center p-4 text-muted-foreground text-sm border-t border-border/50 bg-card">
-        © {new Date().getFullYear()} ScholarAI. Empowering students, creators, and professionals with AI.
+        © {new Date().getFullYear()} AI Mentor By AP. Empowering students, creators, and professionals with AI.
       </footer>
     </div>
   );
 }
-
