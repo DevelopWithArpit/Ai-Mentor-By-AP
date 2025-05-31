@@ -13,9 +13,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info } from 'lucide-react'; // Renamed ImageIcon to avoid conflict
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image'; // Standard Next.js Image component
+import Image from 'next/image';
 import jsPDF from 'jspdf';
 
 import { smartSearch, type SmartSearchInput, type SmartSearchOutput } from '@/ai/flows/smart-search';
@@ -23,7 +24,10 @@ import { explainAnswer, type ExplainAnswerInput, type ExplainAnswerOutput } from
 import { generateCode, type GenerateCodeInput, type GenerateCodeOutput } from '@/ai/flows/code-generator-flow';
 import { wrappedGenerateImage, type GenerateImageInput, type GenerateImageOutput } from '@/ai/flows/image-generator-flow';
 import { wrappedGenerateDiagram, type GenerateDiagramInput, type GenerateDiagramOutput } from '@/ai/flows/diagram-generator-flow';
-import { generatePresentationOutline, type GeneratePresentationInput, type GeneratePresentationOutput, type SlideSchema } from '@/ai/flows/presentation-generator-flow';
+import { generatePresentationOutline, type GeneratePresentationInput, type GeneratePresentationOutput } from '@/ai/flows/presentation-generator-flow';
+import { generateInterviewQuestions, type GenerateInterviewQuestionsInput, type GenerateInterviewQuestionsOutput, type QuestionCategory } from '@/ai/flows/interview-question-generator-flow';
+import { getResumeFeedback, type ResumeFeedbackInput, type ResumeFeedbackOutput } from '@/ai/flows/resume-feedback-flow';
+
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -39,45 +43,18 @@ const fileToDataUri = (file: File): Promise<string> => {
 interface PdfTheme {
   titleFont: string;
   titleStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
-  titleColor: [number, number, number]; // RGB
+  titleColor: [number, number, number];
   bodyFont: string;
   bodyStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
-  bodyColor: [number, number, number]; // RGB
-  bulletColor: [number, number, number]; // RGB
-  accentColor?: [number, number, number]; // RGB for things like slide numbers
+  bodyColor: [number, number, number];
+  bulletColor: [number, number, number];
+  accentColor?: [number, number, number];
 }
 
 const pdfThemes: Record<string, PdfTheme> = {
-  default: {
-    titleFont: 'helvetica',
-    titleStyle: 'bold',
-    titleColor: [0, 0, 0], // Black
-    bodyFont: 'helvetica',
-    bodyStyle: 'normal',
-    bodyColor: [50, 50, 50], // Dark Gray
-    bulletColor: [0, 0, 0],
-    accentColor: [100, 100, 100], // Medium Gray
-  },
-  professional: {
-    titleFont: 'times',
-    titleStyle: 'bold',
-    titleColor: [0, 51, 102], // Dark Blue
-    bodyFont: 'times',
-    bodyStyle: 'normal',
-    bodyColor: [30, 30, 30], // Very Dark Gray
-    bulletColor: [0, 51, 102],
-    accentColor: [0, 51, 102],
-  },
-  creative: {
-    titleFont: 'courier',
-    titleStyle: 'bolditalic',
-    titleColor: [102, 0, 102], // Purple
-    bodyFont: 'courier',
-    bodyStyle: 'normal',
-    bodyColor: [70, 70, 70], // Gray
-    bulletColor: [102, 0, 102],
-    accentColor: [102, 0, 102],
-  },
+  default: { titleFont: 'helvetica', titleStyle: 'bold', titleColor: [0, 0, 0], bodyFont: 'helvetica', bodyStyle: 'normal', bodyColor: [50, 50, 50], bulletColor: [0, 0, 0], accentColor: [100, 100, 100] },
+  professional: { titleFont: 'times', titleStyle: 'bold', titleColor: [0, 51, 102], bodyFont: 'times', bodyStyle: 'normal', bodyColor: [30, 30, 30], bulletColor: [0, 51, 102], accentColor: [0, 51, 102] },
+  creative: { titleFont: 'courier', titleStyle: 'bolditalic', titleColor: [102, 0, 102], bodyFont: 'courier', bodyStyle: 'normal', bodyColor: [70, 70, 70], bulletColor: [102, 0, 102], accentColor: [102, 0, 102] },
 };
 
 
@@ -91,7 +68,6 @@ export default function ScholarAiPage() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // States for new features
   const [codePrompt, setCodePrompt] = useState<string>('');
   const [codeLanguage, setCodeLanguage] = useState<string>('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -106,11 +82,23 @@ export default function ScholarAiPage() {
   const [isGeneratingDiagram, setIsGeneratingDiagram] = useState<boolean>(false);
 
   const [presentationTopic, setPresentationTopic] = useState<string>('');
-  const [numSlides, setNumSlides] = useState<string>('3'); // Default to 3 for faster generation with images
+  const [numSlides, setNumSlides] = useState<string>('3');
   const [presentationTheme, setPresentationTheme] = useState<string>('default');
   const [imageStylePrompt, setImageStylePrompt] = useState<string>('');
   const [generatedPresentation, setGeneratedPresentation] = useState<GeneratePresentationOutput | null>(null);
   const [isGeneratingPresentation, setIsGeneratingPresentation] = useState<boolean>(false);
+
+  // Interview Prep States
+  const [interviewJobRole, setInterviewJobRole] = useState<string>('');
+  const [interviewNumQuestions, setInterviewNumQuestions] = useState<string>('5');
+  const [interviewQuestionCategory, setInterviewQuestionCategory] = useState<QuestionCategory>('any');
+  const [generatedInterviewQuestions, setGeneratedInterviewQuestions] = useState<GenerateInterviewQuestionsOutput | null>(null);
+  const [isGeneratingInterviewQuestions, setIsGeneratingInterviewQuestions] = useState<boolean>(false);
+
+  const [resumeText, setResumeText] = useState<string>('');
+  const [resumeTargetJobRole, setResumeTargetJobRole] = useState<string>('');
+  const [resumeFeedback, setResumeFeedback] = useState<ResumeFeedbackOutput | null>(null);
+  const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
 
 
   const handleFileChange = (file: File | null) => {
@@ -126,39 +114,21 @@ export default function ScholarAiPage() {
       toast({ title: "Error", description: "Please enter a question.", variant: "destructive" });
       return;
     }
-
-    setIsLoading(true);
-    setError(null);
-    setSearchResult(null);
-    setExplanation(null);
-
+    setIsLoading(true); setError(null); setSearchResult(null); setExplanation(null);
     try {
-      let documentDataUriForFlow: string | undefined = undefined;
-      if (selectedFile) {
-        documentDataUriForFlow = await fileToDataUri(selectedFile);
-      }
-
-      const searchInput: SmartSearchInput = {
-        documentDataUri: documentDataUriForFlow,
-        question,
-      };
+      const documentDataUriForFlow = selectedFile ? await fileToDataUri(selectedFile) : undefined;
+      const searchInput: SmartSearchInput = { documentDataUri: documentDataUriForFlow, question };
       const result = await smartSearch(searchInput);
       setSearchResult(result);
-
-      if (result && result.answer) {
-        const explainInput: ExplainAnswerInput = { question, answer: result.answer };
-        const explainerResult = await explainAnswer(explainInput);
+      if (result?.answer) {
+        const explainerResult = await explainAnswer({ question, answer: result.answer });
         setExplanation(explainerResult.explanation);
         toast({ title: "ScholarAI Success!", description: "Insights generated successfully." });
-      } else if (result && !result.answer) {
-         toast({ title: "No answer found", description: selectedFile ? "Could not find a direct answer in the document." : "I couldn't find an answer to your question." });
       } else {
-         toast({ title: "Search complete", description: "Search finished, but no specific answer or explanation generated." });
+        toast({ title: "Search complete", description: selectedFile ? "Could not find a direct answer in the document." : "I couldn't find an answer to your question." });
       }
-
     } catch (err: any) {
-      console.error('Error processing ScholarAI request:', err);
-      const errorMessage = err.message || 'An unexpected error occurred. Please try again.';
+      const errorMessage = err.message || 'An unexpected error occurred.';
       setError(errorMessage);
       toast({ title: "ScholarAI Error", description: errorMessage, variant: "destructive" });
     } finally {
@@ -167,108 +137,60 @@ export default function ScholarAiPage() {
   };
   
   const handleResetScholarAI = () => {
-    setSelectedFile(null);
-    setQuestion('');
-    setSearchResult(null);
-    setExplanation(null);
-    setError(null);
-    setIsLoading(false);
+    setSelectedFile(null); setQuestion(''); setSearchResult(null); setExplanation(null); setError(null); setIsLoading(false);
     const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
-    }
+    if (fileInput) fileInput.value = '';
     toast({ title: "Cleared", description: "ScholarAI inputs and results have been cleared." });
   };
 
   const handleGenerateCode = async () => {
-    if (!codePrompt.trim()) {
-      toast({ title: "Error", description: "Please enter a code description.", variant: "destructive" });
-      return;
-    }
-    setIsGeneratingCode(true);
-    setGeneratedCode(null);
+    if (!codePrompt.trim()) { toast({ title: "Error", description: "Please enter a code description.", variant: "destructive" }); return; }
+    setIsGeneratingCode(true); setGeneratedCode(null);
     try {
-      const input: GenerateCodeInput = { description: codePrompt, language: codeLanguage || undefined };
-      const result = await generateCode(input);
+      const result = await generateCode({ description: codePrompt, language: codeLanguage || undefined });
       setGeneratedCode(result.generatedCode);
       toast({ title: "Code Generated!", description: "Code snippet has been generated." });
-    } catch (err: any) {
-      console.error('Error generating code:', err);
-      toast({ title: "Code Generation Error", description: err.message || "Failed to generate code.", variant: "destructive" });
-    } finally {
-      setIsGeneratingCode(false);
-    }
+    } catch (err: any) { toast({ title: "Code Generation Error", description: err.message || "Failed to generate code.", variant: "destructive" }); }
+    finally { setIsGeneratingCode(false); }
   };
 
   const handleGenerateImage = async () => {
-    if (!imagePrompt.trim()) {
-      toast({ title: "Error", description: "Please enter an image prompt.", variant: "destructive" });
-      return;
-    }
-    setIsGeneratingImage(true);
-    setGeneratedImageUrl(null);
+    if (!imagePrompt.trim()) { toast({ title: "Error", description: "Please enter an image prompt.", variant: "destructive" }); return; }
+    setIsGeneratingImage(true); setGeneratedImageUrl(null);
     try {
-      const input: GenerateImageInput = { prompt: imagePrompt };
-      const result = await wrappedGenerateImage(input);
+      const result = await wrappedGenerateImage({ prompt: imagePrompt });
       setGeneratedImageUrl(result.imageUrl);
       toast({ title: "Image Generated!", description: "Image has been generated successfully." });
-    } catch (err: any) {
-      console.error('Error generating image:', err);
-      toast({ title: "Image Generation Error", description: err.message || "Failed to generate image.", variant: "destructive" });
-    } finally {
-      setIsGeneratingImage(false);
-    }
+    } catch (err: any) { toast({ title: "Image Generation Error", description: err.message || "Failed to generate image.", variant: "destructive" }); }
+    finally { setIsGeneratingImage(false); }
   };
 
   const handleGenerateDiagram = async () => {
-    if (!diagramPrompt.trim()) {
-      toast({ title: "Error", description: "Please enter a diagram description.", variant: "destructive" });
-      return;
-    }
-    setIsGeneratingDiagram(true);
-    setGeneratedDiagramUrl(null);
+    if (!diagramPrompt.trim()) { toast({ title: "Error", description: "Please enter a diagram description.", variant: "destructive" }); return; }
+    setIsGeneratingDiagram(true); setGeneratedDiagramUrl(null);
     try {
-      const input: GenerateDiagramInput = { prompt: diagramPrompt };
-      const result = await wrappedGenerateDiagram(input);
+      const result = await wrappedGenerateDiagram({ prompt: diagramPrompt });
       setGeneratedDiagramUrl(result.diagramImageUrl);
       toast({ title: "Diagram Generated!", description: "Diagram has been generated." });
-    } catch (err: any) {
-      console.error('Error generating diagram:', err);
-      toast({ title: "Diagram Generation Error", description: err.message || "Failed to generate diagram.", variant: "destructive" });
-    } finally {
-      setIsGeneratingDiagram(false);
-    }
+    } catch (err: any) { toast({ title: "Diagram Generation Error", description: err.message || "Failed to generate diagram.", variant: "destructive" }); }
+    finally { setIsGeneratingDiagram(false); }
   };
 
   const handleGeneratePresentation = async () => {
-    if (!presentationTopic.trim()) {
-      toast({ title: "Error", description: "Please enter a presentation topic.", variant: "destructive" });
-      return;
-    }
-    setIsGeneratingPresentation(true);
-    setGeneratedPresentation(null);
+    if (!presentationTopic.trim()) { toast({ title: "Error", description: "Please enter a presentation topic.", variant: "destructive" }); return; }
+    setIsGeneratingPresentation(true); setGeneratedPresentation(null);
     toast({ title: "Generating Presentation...", description: "This may take a moment, especially with images and styles." });
     try {
       const numSlidesParsed = parseInt(numSlides, 10);
-      const input: GeneratePresentationInput = { 
-        topic: presentationTopic, 
-        numSlides: isNaN(numSlidesParsed) ? 3 : numSlidesParsed, // Default to 3 if NaN
-        imageStylePrompt: imageStylePrompt || undefined,
-      };
-      const result = await generatePresentationOutline(input);
+      const result = await generatePresentationOutline({ topic: presentationTopic, numSlides: isNaN(numSlidesParsed) ? 3 : numSlidesParsed, imageStylePrompt: imageStylePrompt || undefined });
       setGeneratedPresentation(result);
       toast({ title: "Presentation Generated!", description: "Outline and images created successfully." });
-    } catch (err: any) {
-      console.error('Error generating presentation:', err);
-      toast({ title: "Presentation Generation Error", description: err.message || "Failed to generate presentation.", variant: "destructive" });
-    } finally {
-      setIsGeneratingPresentation(false);
-    }
+    } catch (err: any) { toast({ title: "Presentation Generation Error", description: err.message || "Failed to generate presentation.", variant: "destructive" }); }
+    finally { setIsGeneratingPresentation(false); }
   };
 
   const handleDownloadPresentationPdf = async (themeKey: string) => {
     if (!generatedPresentation) return;
-
     const theme = pdfThemes[themeKey] || pdfThemes.default;
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
@@ -278,19 +200,11 @@ export default function ScholarAiPage() {
     let currentY = margin;
 
     const addNewPageIfNeeded = (neededHeight: number) => {
-      if (currentY + neededHeight > pageHeight - margin) {
-        doc.addPage();
-        currentY = margin;
-        return true; 
-      }
-      return false; 
+      if (currentY + neededHeight > pageHeight - margin) { doc.addPage(); currentY = margin; return true; } return false;
     };
     
-    // Presentation Title
     if (generatedPresentation.title) {
-      doc.setFont(theme.titleFont, theme.titleStyle);
-      doc.setFontSize(22);
-      doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
+      doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(22); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       const titleLines = doc.splitTextToSize(generatedPresentation.title, maxTextWidth);
       const titleHeight = doc.getTextDimensions(titleLines).h;
       addNewPageIfNeeded(titleHeight);
@@ -298,11 +212,8 @@ export default function ScholarAiPage() {
       currentY += titleHeight + 10;
     }
 
-    // Add Image Style Prompt if used for the whole presentation
-    if (imageStylePrompt && imageStylePrompt.trim() !== "") {
-        doc.setFont(theme.bodyFont, 'italic');
-        doc.setFontSize(10);
-        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+    if (imageStylePrompt?.trim()) {
+        doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
         const stylePromptText = `Overall Image Style Applied: ${imageStylePrompt.trim()}`;
         let lines = doc.splitTextToSize(stylePromptText, maxTextWidth);
         let textBlockHeight = doc.getTextDimensions(lines).h;
@@ -311,149 +222,95 @@ export default function ScholarAiPage() {
         currentY += textBlockHeight + 7; 
     }
 
-
     for (let i = 0; i < generatedPresentation.slides.length; i++) {
       const slide = generatedPresentation.slides[i];
-      
-      if (i > 0 || (i === 0 && (!generatedPresentation.title && !(imageStylePrompt && imageStylePrompt.trim() !== "")))) { 
-        // Add a new page for subsequent slides, or for the first slide if no title/style prompt shifted currentY
-         if (i > 0) { // Always add page for slides after the first
-            doc.addPage();
-            currentY = margin;
-         } else if (currentY <= margin + 5) { // if currentY is still at the top for the very first slide
-            // no need to add page, it's the first content
-         } else { // Some content (title/style) was there, but not enough to push to new page, but we want separation
-            // Or, it's the first slide but something has already been written
-            if(addNewPageIfNeeded(40)){ // check if new page is needed for upcoming content
-                // new page was added
-            } else if (currentY > margin + 20) { // if substantial content already on page, force new page for clarity
-                doc.addPage();
-                currentY = margin;
-            } else {
-                 currentY += 8; // Add some spacing if not a new page
-            }
-         }
-      } else if (i === 0 && (generatedPresentation.title || (imageStylePrompt && imageStylePrompt.trim() !== ""))){
-         // currentY is already advanced by title or style prompt
-         // Potentially add a new page if the title/style prompt took up most of the page
-         if (pageHeight - currentY < pageHeight * 0.4) { // if less than 40% of page remaining
-            doc.addPage();
-            currentY = margin;
-         } else {
-            currentY += 5; // Add a little space after title/style prompt
-         }
+      if (i > 0 || (i === 0 && (!generatedPresentation.title && !imageStylePrompt?.trim()))) { 
+         if (i > 0) { doc.addPage(); currentY = margin; } 
+         else if (currentY <= margin + 5) { /* no-op */ } 
+         else { if(!addNewPageIfNeeded(40) && currentY > margin + 20) { doc.addPage(); currentY = margin; } else { currentY +=8; } }
+      } else if (i === 0 && (generatedPresentation.title || imageStylePrompt?.trim())){
+         if (pageHeight - currentY < pageHeight * 0.4) { doc.addPage(); currentY = margin; } else { currentY += 5; }
       }
       
-      // Slide Number
-      doc.setFont(theme.bodyFont, 'normal');
-      doc.setFontSize(10);
+      doc.setFont(theme.bodyFont, 'normal'); doc.setFontSize(10); 
       if(theme.accentColor) doc.setTextColor(theme.accentColor[0], theme.accentColor[1], theme.accentColor[2]);
-      else doc.setTextColor(pdfThemes.default.accentColor[0], pdfThemes.default.accentColor[1], pdfThemes.default.accentColor[2]);
+      else doc.setTextColor(pdfThemes.default.accentColor![0], pdfThemes.default.accentColor![1], pdfThemes.default.accentColor![2]);
       const slideNumberText = `Slide ${i + 1}`;
       doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY);
 
-
-      // Slide Title
-      doc.setFont(theme.titleFont, theme.titleStyle);
-      doc.setFontSize(18);
-      doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
-      const slideTitle = `${slide.title}`;
-      let lines = doc.splitTextToSize(slideTitle, maxTextWidth);
+      doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
+      let lines = doc.splitTextToSize(slide.title, maxTextWidth);
       let textBlockHeight = doc.getTextDimensions(lines).h;
-      if(addNewPageIfNeeded(textBlockHeight + 8)) { // +8 for title itself and spacing after
-          doc.setFont(theme.titleFont, theme.titleStyle);
-          doc.setFontSize(18);
-          doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
-          doc.text(lines, margin, currentY);
-      } else {
-          doc.text(lines, margin, currentY);
+      if(addNewPageIfNeeded(textBlockHeight + 8)) {
+          doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       }
+      doc.text(lines, margin, currentY);
       currentY += textBlockHeight + 8;
 
-      // Bullet Points
-      doc.setFont(theme.bodyFont, theme.bodyStyle);
-      doc.setFontSize(12);
-      doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+      doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
       for (const point of slide.bulletPoints) {
-        const bulletPointText = `• ${point}`; 
-        lines = doc.splitTextToSize(bulletPointText, maxTextWidth - 8); 
+        lines = doc.splitTextToSize(`• ${point}`, maxTextWidth - 8); 
         textBlockHeight = doc.getTextDimensions(lines).h;
         if (addNewPageIfNeeded(textBlockHeight + 4)) { 
-           doc.setFont(theme.bodyFont, theme.bodyStyle);
-           doc.setFontSize(12);
-           doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); // Set bullet color again
-           doc.text(lines, margin + 5, currentY); 
-           doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); // Reset to body color
-        } else {
-            doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
-            doc.text(lines, margin + 5, currentY);
-            doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
-        }
+           doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
+        } else { doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); }
+        doc.text(lines, margin + 5, currentY); 
+        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
         currentY += textBlockHeight + 4;
       }
 
-      // Image (if exists)
       if (slide.imageUrl) {
         currentY += 6; 
-        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; 
-        const IMAGE_MAX_HEIGHT = pageHeight * 0.45; 
-
+        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; const IMAGE_MAX_HEIGHT = pageHeight * 0.45; 
         try {
             const imgProps = doc.getImageProperties(slide.imageUrl);
-            let imgWidth = imgProps.width;
-            let imgHeight = imgProps.height;
-            const aspectRatio = imgWidth / imgHeight;
-
-            if (imgWidth > IMAGE_MAX_WIDTH) {
-                imgWidth = IMAGE_MAX_WIDTH;
-                imgHeight = imgWidth / aspectRatio;
-            }
-            if (imgHeight > IMAGE_MAX_HEIGHT) {
-                imgHeight = IMAGE_MAX_HEIGHT;
-                imgWidth = imgHeight * aspectRatio;
-            }
-            // Re-check width constraint after height adjustment
-            if (imgWidth > IMAGE_MAX_WIDTH) {
-                imgWidth = IMAGE_MAX_WIDTH;
-                imgHeight = imgWidth / aspectRatio;
-            }
-
+            let imgWidth = imgProps.width; let imgHeight = imgProps.height; const aspectRatio = imgWidth / imgHeight;
+            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; }
+            if (imgHeight > IMAGE_MAX_HEIGHT) { imgHeight = IMAGE_MAX_HEIGHT; imgWidth = imgHeight * aspectRatio; }
+            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; }
             if (addNewPageIfNeeded(imgHeight + 10)) { 
                 doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2 , currentY, imgWidth, imgHeight);
-            } else {
-                 doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight);
-            }
+            } else { doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight); }
             currentY += imgHeight + 10;
-
         } catch (e) {
-          console.error("Error adding image to PDF:", e);
-          doc.setFont(theme.bodyFont, 'italic');
-          doc.setFontSize(10);
-          doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-          lines = doc.splitTextToSize("[Image embedding failed for this slide]", maxTextWidth);
-          textBlockHeight = doc.getTextDimensions(lines).h;
-          addNewPageIfNeeded(textBlockHeight + 7);
-          doc.text(lines, margin, currentY);
-          currentY += textBlockHeight + 7;
+          doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+          lines = doc.splitTextToSize("[Image embedding failed]", maxTextWidth); textBlockHeight = doc.getTextDimensions(lines).h;
+          addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
         }
       } else if (slide.suggestedImageDescription) { 
-        currentY += 4; 
-        doc.setFont(theme.bodyFont, 'italic');
-        doc.setFontSize(10);
-        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-        const suggestionText = `Suggested Image Idea: ${slide.suggestedImageDescription}`;
-        lines = doc.splitTextToSize(suggestionText, maxTextWidth);
+        currentY += 4; doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+        lines = doc.splitTextToSize(`Suggested Image Idea: ${slide.suggestedImageDescription}`, maxTextWidth);
         textBlockHeight = doc.getTextDimensions(lines).h;
-        addNewPageIfNeeded(textBlockHeight + 7);
-        doc.text(lines, margin, currentY);
-        currentY += textBlockHeight + 7;
+        addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
       }
     }
-
     doc.save(`scholarai_presentation_${themeKey}.pdf`);
     toast({title: "PDF Downloaded", description: `Presentation PDF with ${themeKey} theme has been saved.`});
   };
 
+  // Interview Prep Handlers
+  const handleGenerateInterviewQuestions = async () => {
+    if (!interviewJobRole.trim()) { toast({ title: "Error", description: "Please enter a job role or topic.", variant: "destructive" }); return; }
+    setIsGeneratingInterviewQuestions(true); setGeneratedInterviewQuestions(null);
+    try {
+      const numQs = parseInt(interviewNumQuestions, 10) || 5;
+      const result = await generateInterviewQuestions({ jobRoleOrTopic: interviewJobRole, numQuestions: numQs, questionCategory: interviewQuestionCategory });
+      setGeneratedInterviewQuestions(result);
+      toast({ title: "Interview Questions Generated!", description: "Questions are ready for practice." });
+    } catch (err: any) { toast({ title: "Question Generation Error", description: err.message || "Failed to generate questions.", variant: "destructive" }); }
+    finally { setIsGeneratingInterviewQuestions(false); }
+  };
+
+  const handleGetResumeFeedback = async () => {
+    if (!resumeText.trim()) { toast({ title: "Error", description: "Please paste your resume text.", variant: "destructive" }); return; }
+    setIsGeneratingResumeFeedback(true); setResumeFeedback(null);
+    try {
+      const result = await getResumeFeedback({ resumeText, targetJobRole: resumeTargetJobRole || undefined });
+      setResumeFeedback(result);
+      toast({ title: "Resume Feedback Ready!", description: "Suggestions for your resume have been generated." });
+    } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
+    finally { setIsGeneratingResumeFeedback(false); }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -468,41 +325,107 @@ export default function ScholarAiPage() {
           <CardContent>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
               <div className="lg:col-span-1 space-y-6">
-                <FileUpload
-                  selectedFile={selectedFile}
-                  onFileChange={handleFileChange}
-                  isLoading={isLoading}
-                  inputId="file-upload-input"
-                />
-                <QuestionInput
-                  question={question}
-                  onQuestionChange={setQuestion}
-                  onSubmit={handleSubmitScholarAI}
-                  isLoading={isLoading}
-                  isSubmitDisabled={!question.trim()}
-                />
-                <LanguageSelector
-                  selectedLanguage={selectedLanguage}
-                  onLanguageChange={setSelectedLanguage}
-                  isLoading={isLoading}
-                />
-                <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full">
-                  <RefreshCcw className="mr-2 h-4 w-4" />
-                  Clear ScholarAI
-                </Button>
+                <FileUpload selectedFile={selectedFile} onFileChange={handleFileChange} isLoading={isLoading} inputId="file-upload-input"/>
+                <QuestionInput question={question} onQuestionChange={setQuestion} onSubmit={handleSubmitScholarAI} isLoading={isLoading} isSubmitDisabled={!question.trim()}/>
+                <LanguageSelector selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isLoading={isLoading}/>
+                <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear ScholarAI</Button>
               </div>
               <div className="lg:col-span-2">
-                <ResultsDisplay
-                  searchResult={searchResult}
-                  explanation={explanation}
-                  isLoading={isLoading}
-                  error={error}
-                  language={selectedLanguage}
-                  hasDocument={!!selectedFile}
-                  question={question}
-                />
+                <ResultsDisplay searchResult={searchResult} explanation={explanation} isLoading={isLoading} error={error} language={selectedLanguage} hasDocument={!!selectedFile} question={question}/>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Interview Preparation Suite Section */}
+        <Card className="shadow-xl bg-card">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Briefcase className="mr-2 h-7 w-7"/> Interview Preparation Suite</CardTitle>
+            <CardDescription>AI-powered tools to help you ace your next job interview. More features coming soon!</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Interview Question Generator */}
+            <Card className="bg-card/80">
+              <CardHeader>
+                <CardTitle className="font-headline text-xl text-accent flex items-center"><MessageSquareQuote className="mr-2 h-6 w-6"/>Interview Question Generator</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input placeholder="Job Role or Topic (e.g., 'Software Engineer', 'Leadership')" value={interviewJobRole} onChange={(e) => setInterviewJobRole(e.target.value)} disabled={isGeneratingInterviewQuestions} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input type="number" placeholder="Number of Questions (e.g., 5)" value={interviewNumQuestions} onChange={(e) => setInterviewNumQuestions(e.target.value)} disabled={isGeneratingInterviewQuestions} min="1" max="10" />
+                  <Select value={interviewQuestionCategory} onValueChange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
+                    <SelectTrigger><SelectValue placeholder="Question Category" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any Category</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="behavioral">Behavioral</SelectItem>
+                      <SelectItem value="situational">Situational</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleGenerateInterviewQuestions} disabled={isGeneratingInterviewQuestions || !interviewJobRole.trim()} className="w-full sm:w-auto">
+                  {isGeneratingInterviewQuestions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Questions
+                </Button>
+                {generatedInterviewQuestions && (
+                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
+                    <h4 className="font-semibold mb-2 text-foreground">Generated Interview Questions:</h4>
+                    <Accordion type="single" collapsible className="w-full">
+                      {generatedInterviewQuestions.questions.map((q, index) => (
+                        <AccordionItem value={`item-${index}`} key={index}>
+                          <AccordionTrigger className="text-sm hover:no-underline">
+                            <div className="flex items-center">
+                                <span className={`mr-2 h-2 w-2 rounded-full ${q.category === 'Technical' ? 'bg-blue-500' : q.category === 'Behavioral' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                {q.question} ({q.category})
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="text-xs pl-6">
+                            <strong>Suggested Approach:</strong> {q.suggestedApproach || "Consider the key aspects of the question and structure your answer clearly."}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Resume Feedback Tool */}
+            <Card className="bg-card/80">
+              <CardHeader>
+                <CardTitle className="font-headline text-xl text-accent flex items-center"><Edit3 className="mr-2 h-6 w-6"/>Resume Feedback Tool</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
+                <Input placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst', 'Healthcare')" value={resumeTargetJobRole} onChange={(e) => setResumeTargetJobRole(e.target.value)} disabled={isGeneratingResumeFeedback} />
+                <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-full sm:w-auto">
+                  {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
+                </Button>
+                {resumeFeedback && (
+                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
+                    <h4 className="font-semibold mb-2 text-foreground">Resume Feedback:</h4>
+                    <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
+                    <Accordion type="single" collapsible className="w-full">
+                      {resumeFeedback.feedbackItems.map((item, index) => (
+                        <AccordionItem value={`feedback-${index}`} key={index}>
+                          <AccordionTrigger className="text-sm hover:no-underline">
+                            <div className="flex items-center">
+                                <CheckCircle className={`mr-2 h-4 w-4 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}/>
+                                {item.area} {item.importance && `(${item.importance})`}
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="text-xs pl-6">
+                            {item.suggestion}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+             <p className="text-xs text-muted-foreground text-center">
+                Features like real-time mock interviews, voice coaching, and live assistance are planned for future updates.
+            </p>
           </CardContent>
         </Card>
 
@@ -515,180 +438,84 @@ export default function ScholarAiPage() {
           <CardContent className="space-y-8">
             {/* Code Generator */}
             <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><Code className="mr-2 h-6 w-6"/>Code Generator</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="font-headline text-xl text-accent flex items-center"><Code className="mr-2 h-6 w-6"/>Code Generator</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <Textarea placeholder="Describe the code you want to generate (e.g., 'a Python function to sort a list')..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
-                <Input placeholder="Language (optional, e.g., 'python', 'javascript')" value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} disabled={isGeneratingCode} />
+                <Textarea placeholder="Describe the code..." value={codePrompt} onChange={(e) => setCodePrompt(e.target.value)} disabled={isGeneratingCode} className="min-h-[80px]"/>
+                <Input placeholder="Language (optional)" value={codeLanguage} onChange={(e) => setCodeLanguage(e.target.value)} disabled={isGeneratingCode} />
                 <Button onClick={handleGenerateCode} disabled={isGeneratingCode || !codePrompt.trim()} className="w-full sm:w-auto">
-                  {isGeneratingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Code
+                  {isGeneratingCode && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Code
                 </Button>
-                {generatedCode && (
-                  <div className="mt-4 p-4 bg-muted rounded-md">
-                    <h4 className="font-semibold mb-2 text-foreground">Generated Code:</h4>
-                    <pre className="text-sm text-foreground whitespace-pre-wrap overflow-x-auto bg-background/50 p-3 rounded-md"><code>{generatedCode}</code></pre>
-                  </div>
-                )}
-                {!generatedCode && !isGeneratingCode && (
-                     <div className="text-center text-muted-foreground py-4">
-                        <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                        <p>Your generated code will appear here.</p>
-                    </div>
-                )}
+                {generatedCode && <div className="mt-4 p-4 bg-muted rounded-md"><h4 className="font-semibold mb-2">Generated Code:</h4><pre className="text-sm whitespace-pre-wrap overflow-x-auto bg-background/50 p-3 rounded-md"><code>{generatedCode}</code></pre></div>}
+                {!generatedCode && !isGeneratingCode && <div className="text-center text-muted-foreground py-4"><FileText className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated code will appear here.</p></div>}
               </CardContent>
             </Card>
 
             {/* Image Generator */}
             <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><ImageIconLucide className="mr-2 h-6 w-6"/>Image Generator</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="font-headline text-xl text-accent flex items-center"><ImageIconLucide className="mr-2 h-6 w-6"/>Image Generator</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <Textarea placeholder="Describe the image you want (e.g., 'a futuristic cityscape at sunset')..." value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} disabled={isGeneratingImage} className="min-h-[80px]"/>
+                <Textarea placeholder="Describe the image..." value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} disabled={isGeneratingImage} className="min-h-[80px]"/>
                 <Button onClick={handleGenerateImage} disabled={isGeneratingImage || !imagePrompt.trim()} className="w-full sm:w-auto">
-                  {isGeneratingImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Image
+                  {isGeneratingImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Image
                 </Button>
-                {generatedImageUrl && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold mb-2 text-foreground">Generated Image:</h4>
-                    <Image src={generatedImageUrl} alt="Generated by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" />
-                  </div>
-                )}
-                 {!generatedImageUrl && !isGeneratingImage && (
-                     <div className="text-center text-muted-foreground py-4">
-                        <ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                        <p>Your generated image will appear here.</p>
-                        <img data-ai-hint="abstract creative" src="https://placehold.co/300x200.png" alt="Placeholder for image generation" className="mx-auto mt-2 rounded-md opacity-50" />
-                    </div>
-                )}
+                {generatedImageUrl && <div className="mt-4"><h4 className="font-semibold mb-2">Generated Image:</h4><Image src={generatedImageUrl} alt="Generated by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" /></div>}
+                {!generatedImageUrl && !isGeneratingImage && <div className="text-center text-muted-foreground py-4"><ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated image will appear here.</p><img data-ai-hint="abstract creative" src="https://placehold.co/300x200.png" alt="Placeholder" className="mx-auto mt-2 rounded-md opacity-50" /></div>}
               </CardContent>
             </Card>
 
             {/* Diagram Generator */}
             <Card className="bg-card/80">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><Wand2 className="mr-2 h-6 w-6"/>Diagram Generator</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="font-headline text-xl text-accent flex items-center"><Wand2 className="mr-2 h-6 w-6"/>Diagram Generator</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <Textarea placeholder="Describe the diagram (e.g., 'flowchart for a login process', 'mind map about renewable energy')..." value={diagramPrompt} onChange={(e) => setDiagramPrompt(e.target.value)} disabled={isGeneratingDiagram} className="min-h-[80px]"/>
+                <Textarea placeholder="Describe the diagram..." value={diagramPrompt} onChange={(e) => setDiagramPrompt(e.target.value)} disabled={isGeneratingDiagram} className="min-h-[80px]"/>
                 <Button onClick={handleGenerateDiagram} disabled={isGeneratingDiagram || !diagramPrompt.trim()} className="w-full sm:w-auto">
-                  {isGeneratingDiagram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Generate Diagram
+                  {isGeneratingDiagram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Diagram
                 </Button>
-                {generatedDiagramUrl && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold mb-2 text-foreground">Generated Diagram:</h4>
-                    <Image src={generatedDiagramUrl} alt="Diagram generated by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" />
-                  </div>
-                )}
-                {!generatedDiagramUrl && !isGeneratingDiagram && (
-                     <div className="text-center text-muted-foreground py-4">
-                        <Wand2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                        <p>Your generated diagram will appear here.</p>
-                        <img data-ai-hint="flowchart structure" src="https://placehold.co/300x200.png" alt="Placeholder for diagram generation" className="mx-auto mt-2 rounded-md opacity-50" />
-                    </div>
-                )}
+                {generatedDiagramUrl && <div className="mt-4"><h4 className="font-semibold mb-2">Generated Diagram:</h4><Image src={generatedDiagramUrl} alt="Diagram by AI" width={512} height={512} className="rounded-md border shadow-md object-contain" /></div>}
+                {!generatedDiagramUrl && !isGeneratingDiagram && <div className="text-center text-muted-foreground py-4"><Wand2 className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your generated diagram will appear here.</p><img data-ai-hint="flowchart structure" src="https://placehold.co/300x200.png" alt="Placeholder" className="mx-auto mt-2 rounded-md opacity-50" /></div>}
               </CardContent>
             </Card>
 
-            {/* Presentation Outline Generator */}
+            {/* Presentation Generator */}
             <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="font-headline text-xl text-accent flex items-center"><PresentationIcon className="mr-2 h-6 w-6"/>Presentation Generator</CardTitle>
-                 <CardDescription>
-                  Create presentation outlines with AI-generated images for each slide.
-                  You can influence image style with an optional prompt and download the result as a themed PDF.
-                  Transitions and animations are not supported in PDF format.
-                </CardDescription>
+                <CardDescription>Create outlines with AI images. PDF theming applies to download. Transitions/animations not supported in PDF.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Input placeholder="Presentation Topic (e.g., 'The Future of AI')" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
-                <Input type="number" placeholder="Number of Slides (e.g., 3, default 3)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" max="7" />
-                <Input placeholder="Image Style Prompt (Optional, e.g., 'watercolor', 'photorealistic')" value={imageStylePrompt} onChange={(e) => setImageStylePrompt(e.target.value)} disabled={isGeneratingPresentation} />
-                
+                <Input placeholder="Presentation Topic" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
+                <Input type="number" placeholder="Number of Slides (e.g., 3)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" max="7" />
+                <Input placeholder="Image Style Prompt (Optional)" value={imageStylePrompt} onChange={(e) => setImageStylePrompt(e.target.value)} disabled={isGeneratingPresentation} />
                 <div className="space-y-2">
-                  <Label htmlFor="presentation-theme-select" className="text-md font-medium text-foreground flex items-center">
-                    <Palette className="mr-2 h-5 w-5 text-primary" />
-                    PDF Theme
-                  </Label>
-                  <Select
-                    value={presentationTheme}
-                    onValueChange={setPresentationTheme}
-                    disabled={isGeneratingPresentation}
-                  >
-                    <SelectTrigger id="presentation-theme-select" className="w-full sm:w-[200px] bg-card focus:ring-primary">
-                      <SelectValue placeholder="Select PDF theme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(pdfThemes).map((themeKey) => (
-                        <SelectItem key={themeKey} value={themeKey} className="capitalize">
-                          {themeKey}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                  <Label htmlFor="presentation-theme-select" className="text-md font-medium flex items-center"><Palette className="mr-2 h-5 w-5 text-primary" />PDF Theme</Label>
+                  <Select value={presentationTheme} onValueChange={setPresentationTheme} disabled={isGeneratingPresentation}>
+                    <SelectTrigger id="presentation-theme-select" className="w-full sm:w-[200px]"><SelectValue placeholder="Select PDF theme" /></SelectTrigger>
+                    <SelectContent>{Object.keys(pdfThemes).map((key) => <SelectItem key={key} value={key} className="capitalize">{key}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                
-                 <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow. Start with 2-3 slides. Max 7 slides. PDF theming applies to downloaded file.</p>
-                 <div className="flex items-center text-xs text-muted-foreground bg-muted/50 p-2 rounded-md">
-                    <Info className="mr-2 h-4 w-4 text-primary shrink-0" />
-                    <span>Slide transitions and animations are features of presentation software and cannot be included in the PDF download.</span>
-                 </div>
+                 <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow (2-3 slides recommended). Max 7 slides.</p>
+                 <div className="flex items-center text-xs text-muted-foreground bg-muted/50 p-2 rounded-md"><Info className="mr-2 h-4 w-4 text-primary shrink-0" /><span>Slide transitions/animations are not included in PDF.</span></div>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
-                    {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Generate Presentation
+                    {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Presentation
                   </Button>
-                  {generatedPresentation && (
-                    <Button onClick={() => handleDownloadPresentationPdf(presentationTheme)} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download PDF
-                    </Button>
-                  )}
+                  {generatedPresentation && <Button onClick={() => handleDownloadPresentationPdf(presentationTheme)} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}><Download className="mr-2 h-4 w-4" /> Download PDF</Button>}
                 </div>
                 {generatedPresentation && (
                   <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto">
-                    <h4 className="font-semibold mb-2 text-foreground">Generated Presentation:</h4>
+                    <h4 className="font-semibold mb-2">Generated Presentation:</h4>
                     {generatedPresentation.title && <h5 className="text-xl font-bold text-primary mb-4 text-center">{generatedPresentation.title}</h5>}
                     {generatedPresentation.slides.map((slide, index) => (
                       <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
                         <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
-                        <ul className="list-disc list-inside ml-4 my-2 text-sm text-foreground">
-                          {slide.bulletPoints.map((point, pIndex) => (
-                            <li key={pIndex} className="mb-1">{point}</li>
-                          ))}
-                        </ul>
-                        {slide.imageUrl && (
-                           <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5">
-                             <p className="text-xs text-primary font-medium flex items-center mb-2">
-                               <ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />
-                               Generated Image for this slide (style: {imageStylePrompt || 'default'}):
-                             </p>
-                             <Image src={slide.imageUrl} alt={`AI generated for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" />
-                           </div>
-                        )}
-                        {!slide.imageUrl && slide.suggestedImageDescription && (
-                           <div className="mt-2 p-2 bg-primary/10 rounded">
-                             <p className="text-xs text-primary font-medium flex items-center">
-                               <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />
-                               Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span>
-                                (Image not generated)
-                             </p>
-                           </div>
-                        )}
+                        <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>)}</ul>
+                        {slide.imageUrl && <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5"><p className="text-xs text-primary font-medium flex items-center mb-2"><ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />Generated Image (style: {imageStylePrompt || 'default'}):</p><Image src={slide.imageUrl} alt={`AI for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" /></div>}
+                        {!slide.imageUrl && slide.suggestedImageDescription && <div className="mt-2 p-2 bg-primary/10 rounded"><p className="text-xs text-primary font-medium flex items-center"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span> (Not generated)</p></div>}
                       </div>
                     ))}
                   </div>
                 )}
-                 {!generatedPresentation && !isGeneratingPresentation && (
-                     <div className="text-center text-muted-foreground py-4">
-                        <PresentationIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                        <p>Your generated presentation (outline and images) will appear here.</p>
-                    </div>
-                )}
+                {!generatedPresentation && !isGeneratingPresentation && <div className="text-center text-muted-foreground py-4"><PresentationIcon className="mx-auto h-12 w-12 text-muted-foreground/50" /><p>Your presentation will appear here.</p></div>}
               </CardContent>
             </Card>
           </CardContent>
@@ -696,12 +523,8 @@ export default function ScholarAiPage() {
 
       </main>
       <footer className="text-center p-4 text-muted-foreground text-sm border-t border-border/50 bg-card">
-        © {new Date().getFullYear()} ScholarAI. Empowering students and creators with AI.
+        © {new Date().getFullYear()} ScholarAI. Empowering students, creators, and professionals with AI.
       </footer>
     </div>
   );
 }
-
-    
-
-    
