@@ -24,6 +24,7 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
@@ -267,7 +268,9 @@ export default function MentorAiPage() {
         const stylePromptText = `Overall Image Style Applied: ${imageStylePrompt.trim()}`;
         let lines = doc.splitTextToSize(stylePromptText, maxTextWidth);
         let textBlockHeight = doc.getTextDimensions(lines).h;
-        if (addNewPageIfNeeded(textBlockHeight + 5)) { /* Font might need to be reset if new page */ doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); }
+        if (addNewPageIfNeeded(textBlockHeight + 5)) { 
+            doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
+        }
         doc.text(lines, margin, currentY);
         currentY += textBlockHeight + 7; 
     }
@@ -277,22 +280,21 @@ export default function MentorAiPage() {
       if (i > 0 || (i === 0 && (!generatedPresentation.title && !imageStylePrompt?.trim()))) { 
          if (i > 0) { doc.addPage(); currentY = margin; } 
          else if (currentY <= margin + 5 && !generatedPresentation.title && !imageStylePrompt?.trim() ) { /* no-op, likely first element on page */ } 
-         else { if(!addNewPageIfNeeded(40) && currentY > margin + 20) { doc.addPage(); currentY = margin; } else { currentY +=8; } } // Add space or new page if needed
-      } else if (i === 0 && (generatedPresentation.title || imageStylePrompt?.trim())){ // If there was a title or style prompt, check if enough space for first slide
-         if (pageHeight - currentY < pageHeight * 0.4) { doc.addPage(); currentY = margin; } else { currentY += 5; } // Add some space
+         else { if(!addNewPageIfNeeded(40) && currentY > margin + 20) { doc.addPage(); currentY = margin; } else { currentY +=8; } } 
+      } else if (i === 0 && (generatedPresentation.title || imageStylePrompt?.trim())){ 
+         if (pageHeight - currentY < pageHeight * 0.4) { doc.addPage(); currentY = margin; } else { currentY += 5; } 
       }
       
       doc.setFont(theme.bodyFont, 'normal'); doc.setFontSize(10); 
       if(theme.accentColor) doc.setTextColor(theme.accentColor[0], theme.accentColor[1], theme.accentColor[2]);
       else doc.setTextColor(pdfThemes.default.accentColor![0], pdfThemes.default.accentColor![1], pdfThemes.default.accentColor![2]);
       const slideNumberText = `Slide ${i + 1}`;
-      doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY); // Slide number top-right
+      doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY); 
 
       doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       let lines = doc.splitTextToSize(slide.title, maxTextWidth);
       let textBlockHeight = doc.getTextDimensions(lines).h;
       if(addNewPageIfNeeded(textBlockHeight + 8)) {
-          // Reset font if new page was added
           doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       }
       doc.text(lines, margin, currentY);
@@ -300,38 +302,37 @@ export default function MentorAiPage() {
 
       doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
       for (const point of slide.bulletPoints) {
-        lines = doc.splitTextToSize(`• ${point}`, maxTextWidth - 8); // Indent bullet points slightly
+        lines = doc.splitTextToSize(`• ${point}`, maxTextWidth - 8); 
         textBlockHeight = doc.getTextDimensions(lines).h;
         if (addNewPageIfNeeded(textBlockHeight + 4)) { 
-           // Reset font and color if new page was added
            doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
-        } else { doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); } // Set bullet color
-        doc.text(lines, margin + 5, currentY); // x-offset for bullet point
-        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); // Reset to body color for next point if not new page
+        } else { doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); } 
+        doc.text(lines, margin + 5, currentY); 
+        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
         currentY += textBlockHeight + 4;
       }
 
       if (slide.imageUrl) {
-        currentY += 6; // Space before image
-        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; const IMAGE_MAX_HEIGHT = pageHeight * 0.45; // Max image dimensions
+        currentY += 6; 
+        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; const IMAGE_MAX_HEIGHT = pageHeight * 0.45; 
         try {
             const imgProps = doc.getImageProperties(slide.imageUrl);
             let imgWidth = imgProps.width; let imgHeight = imgProps.height; const aspectRatio = imgWidth / imgHeight;
             if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; }
             if (imgHeight > IMAGE_MAX_HEIGHT) { imgHeight = IMAGE_MAX_HEIGHT; imgWidth = imgHeight * aspectRatio; }
-            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; } // Recheck width constraint
+            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; } 
 
-            if (addNewPageIfNeeded(imgHeight + 10)) { // Check if image fits, add new page if not
+            if (addNewPageIfNeeded(imgHeight + 10)) { 
                 doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2 , currentY, imgWidth, imgHeight);
-            } else { doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight); } // Center image
-            currentY += imgHeight + 10; // Space after image
+            } else { doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight); } 
+            currentY += imgHeight + 10; 
         } catch (e) {
           console.error("Error adding image to PDF:", e);
           doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
           lines = doc.splitTextToSize("[Image embedding failed or image format not supported by jsPDF]", maxTextWidth); textBlockHeight = doc.getTextDimensions(lines).h;
           addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
         }
-      } else if (slide.suggestedImageDescription) { // Fallback if no image URL but description exists
+      } else if (slide.suggestedImageDescription) { 
         currentY += 4; doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
         lines = doc.splitTextToSize(`Suggested Image Idea: ${slide.suggestedImageDescription}`, maxTextWidth);
         textBlockHeight = doc.getTextDimensions(lines).h;
@@ -418,7 +419,7 @@ export default function MentorAiPage() {
       <Header />
       <SidebarProvider defaultOpen={true}>
         <div className="flex flex-1">
-          <Sidebar>
+          <Sidebar collapsible="icon">
             <ShadSidebarContent>
               <SidebarMenu>
                 {tools.map(tool => (
@@ -436,6 +437,9 @@ export default function MentorAiPage() {
                 ))}
               </SidebarMenu>
             </ShadSidebarContent>
+            <SidebarFooter className="p-2">
+              <SidebarTrigger className="w-full" />
+            </SidebarFooter>
           </Sidebar>
 
           <SidebarInset className="container mx-auto p-4 md:p-8">
