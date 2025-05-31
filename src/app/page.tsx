@@ -11,7 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download } from 'lucide-react'; // Renamed ImageIcon to avoid conflict
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette } from 'lucide-react'; // Renamed ImageIcon to avoid conflict
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image'; // Standard Next.js Image component
 import jsPDF from 'jspdf';
@@ -33,6 +35,51 @@ const fileToDataUri = (file: File): Promise<string> => {
     reader.readAsDataURL(file);
   });
 };
+
+interface PdfTheme {
+  titleFont: string;
+  titleStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
+  titleColor: [number, number, number]; // RGB
+  bodyFont: string;
+  bodyStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
+  bodyColor: [number, number, number]; // RGB
+  bulletColor: [number, number, number]; // RGB
+  accentColor?: [number, number, number]; // RGB for things like slide numbers
+}
+
+const pdfThemes: Record<string, PdfTheme> = {
+  default: {
+    titleFont: 'helvetica',
+    titleStyle: 'bold',
+    titleColor: [0, 0, 0], // Black
+    bodyFont: 'helvetica',
+    bodyStyle: 'normal',
+    bodyColor: [50, 50, 50], // Dark Gray
+    bulletColor: [0, 0, 0],
+    accentColor: [100, 100, 100], // Medium Gray
+  },
+  professional: {
+    titleFont: 'times',
+    titleStyle: 'bold',
+    titleColor: [0, 51, 102], // Dark Blue
+    bodyFont: 'times',
+    bodyStyle: 'normal',
+    bodyColor: [30, 30, 30], // Very Dark Gray
+    bulletColor: [0, 51, 102],
+    accentColor: [0, 51, 102],
+  },
+  creative: {
+    titleFont: 'courier',
+    titleStyle: 'bolditalic',
+    titleColor: [102, 0, 102], // Purple
+    bodyFont: 'courier',
+    bodyStyle: 'normal',
+    bodyColor: [70, 70, 70], // Gray
+    bulletColor: [102, 0, 102],
+    accentColor: [102, 0, 102],
+  },
+};
+
 
 export default function ScholarAiPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -60,6 +107,7 @@ export default function ScholarAiPage() {
 
   const [presentationTopic, setPresentationTopic] = useState<string>('');
   const [numSlides, setNumSlides] = useState<string>('3'); // Default to 3 for faster generation with images
+  const [presentationTheme, setPresentationTheme] = useState<string>('default');
   const [generatedPresentation, setGeneratedPresentation] = useState<GeneratePresentationOutput | null>(null);
   const [isGeneratingPresentation, setIsGeneratingPresentation] = useState<boolean>(false);
 
@@ -216,9 +264,10 @@ export default function ScholarAiPage() {
     }
   };
 
-  const handleDownloadPresentationPdf = async () => {
+  const handleDownloadPresentationPdf = async (themeKey: string) => {
     if (!generatedPresentation) return;
 
+    const theme = pdfThemes[themeKey] || pdfThemes.default;
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
@@ -230,15 +279,16 @@ export default function ScholarAiPage() {
       if (currentY + neededHeight > pageHeight - margin) {
         doc.addPage();
         currentY = margin;
-        return true; // Page was added
+        return true; 
       }
-      return false; // No page added
+      return false; 
     };
     
     // Presentation Title
     if (generatedPresentation.title) {
-      doc.setFontSize(20);
-      doc.setFont(undefined, 'bold');
+      doc.setFont(theme.titleFont, theme.titleStyle);
+      doc.setFontSize(22);
+      doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
       const titleLines = doc.splitTextToSize(generatedPresentation.title, maxTextWidth);
       const titleHeight = doc.getTextDimensions(titleLines).h;
       addNewPageIfNeeded(titleHeight);
@@ -249,92 +299,106 @@ export default function ScholarAiPage() {
     for (let i = 0; i < generatedPresentation.slides.length; i++) {
       const slide = generatedPresentation.slides[i];
       
-      if (i > 0) {
-        currentY += 8; // Space before new slide content
-        addNewPageIfNeeded(40); // Check if enough space for slide title at least
+      if (i > 0 || (i === 0 && !generatedPresentation.title)) { // Add space if not first slide or if no main title
+        currentY += 8; 
+        addNewPageIfNeeded(40); // Check space for slide title
+      }
+      if (i === 0 && generatedPresentation.title){ // Less space if there was a main title
+         // currentY is already advanced
+      } else if (i > 0){
+        doc.addPage();
+        currentY = margin;
       }
       
+      // Slide Number (using accentColor)
+      doc.setFont(theme.bodyFont, 'normal');
+      doc.setFontSize(10);
+      if(theme.accentColor) doc.setTextColor(theme.accentColor[0], theme.accentColor[1], theme.accentColor[2]);
+      else doc.setTextColor(pdfThemes.default.accentColor[0], pdfThemes.default.accentColor[1], pdfThemes.default.accentColor[2]);
+      const slideNumberText = `Slide ${i + 1}`;
+      doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY);
+
+
       // Slide Title
-      doc.setFontSize(16);
-      doc.setFont(undefined, 'bold');
-      const slideTitle = `${i + 1}. ${slide.title}`;
+      doc.setFont(theme.titleFont, theme.titleStyle);
+      doc.setFontSize(18);
+      doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
+      const slideTitle = `${slide.title}`;
       let lines = doc.splitTextToSize(slideTitle, maxTextWidth);
       let textBlockHeight = doc.getTextDimensions(lines).h;
       addNewPageIfNeeded(textBlockHeight);
       doc.text(lines, margin, currentY);
-      currentY += textBlockHeight + 6;
+      currentY += textBlockHeight + 8;
 
       // Bullet Points
+      doc.setFont(theme.bodyFont, theme.bodyStyle);
       doc.setFontSize(12);
-      doc.setFont(undefined, 'normal');
+      doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
       for (const point of slide.bulletPoints) {
-        const bulletPointText = `- ${point}`;
-        lines = doc.splitTextToSize(bulletPointText, maxTextWidth - 5); // Indent bullets
+        const bulletPointText = `• ${point}`; // Using a proper bullet character
+        lines = doc.splitTextToSize(bulletPointText, maxTextWidth - 8); // Indent bullets
         textBlockHeight = doc.getTextDimensions(lines).h;
-        addNewPageIfNeeded(textBlockHeight + 2); // +2 for small spacing
+        if (addNewPageIfNeeded(textBlockHeight + 3)) { // if new page, add space for bullets
+           doc.setFont(theme.bodyFont, theme.bodyStyle);
+           doc.setFontSize(12);
+           doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+        }
+        doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
         doc.text(lines, margin + 5, currentY);
-        currentY += textBlockHeight + 3;
+        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); // Reset for next line if mixed
+        currentY += textBlockHeight + 4;
       }
 
       // Image (if exists)
       if (slide.imageUrl) {
-        currentY += 5; // Space before image
-        const IMAGE_MAX_WIDTH = maxTextWidth * 0.85; // Image slightly smaller than text width
-        const IMAGE_MAX_HEIGHT = pageHeight * 0.5; // Max half a page for image
+        currentY += 6; 
+        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; 
+        const IMAGE_MAX_HEIGHT = pageHeight * 0.45; 
 
         try {
-            // For jsPDF, it's often best to let it determine dimensions from the image data itself if possible,
-            // or provide one dimension and let it scale, then check.
-            // We'll try to give it a width and let it determine height to maintain aspect.
-            // However, jsPDF's handling of base64 image dimensions can be tricky without loading into an Image element first.
-            // For simplicity, let's define a target width and calculate height, then check for page fit.
-            // This part is complex to get perfect aspect ratio and fit without async operations.
-            // A common approach is to define a bounding box.
-            
-            // Simplified approach: add image with max width and let jsPDF scale height.
-            // Then check currentY. This might not be perfectly aspect-ratio controlled by us here.
-            const availableHeight = pageHeight - margin - currentY;
-            if (availableHeight < 50) { // If less than 50 units of space, new page for image
-                addNewPageIfNeeded(IMAGE_MAX_HEIGHT); // Force new page if not enough space
+            const imgProps = doc.getImageProperties(slide.imageUrl);
+            let imgWidth = imgProps.width;
+            let imgHeight = imgProps.height;
+            const aspectRatio = imgWidth / imgHeight;
+
+            if (imgWidth > IMAGE_MAX_WIDTH) {
+                imgWidth = IMAGE_MAX_WIDTH;
+                imgHeight = imgWidth / aspectRatio;
             }
-            
-            // jsPDF addImage can take width & height. If one is 0, it uses aspect ratio.
-            // Let's give it a max width and 0 for height to preserve aspect ratio.
-            doc.addImage(slide.imageUrl, 'PNG', margin, currentY, IMAGE_MAX_WIDTH, 0);
-            
-            // The height of the added image is not directly returned.
-            // This is a known challenge with jsPDF synchronously.
-            // We'll estimate or add a fixed spacing, or assume it fits if availableHeight was enough.
-            // For a more robust solution, one would load the image into an <img> tag, get its dimensions, then add to PDF.
-            // Let's assume a typical image might take up to IMAGE_MAX_HEIGHT if scaled.
-            // A simpler but less accurate way is to add a fixed height or make the image smaller.
-            // We'll add a placeholder height and ensure new page if it's too large.
-            const placeholderImageHeight = IMAGE_MAX_HEIGHT * 0.6; // Estimate
-            
-            if (placeholderImageHeight > pageHeight - margin - currentY) { // If estimated height overflows
-                 doc.deletePage(doc.internal.getNumberOfPages()); // Remove potentially broken partial image
-                 doc.addPage();
-                 currentY = margin;
-                 doc.addImage(slide.imageUrl, 'PNG', margin, currentY, IMAGE_MAX_WIDTH, 0);
-                 currentY += placeholderImageHeight + 7;
+            if (imgHeight > IMAGE_MAX_HEIGHT) {
+                imgHeight = IMAGE_MAX_HEIGHT;
+                imgWidth = imgHeight * aspectRatio;
+            }
+             // Recalculate if width constraint hit again after height constraint
+            if (imgWidth > IMAGE_MAX_WIDTH) {
+                imgWidth = IMAGE_MAX_WIDTH;
+                imgHeight = imgWidth / aspectRatio;
+            }
+
+            if (addNewPageIfNeeded(imgHeight + 10)) { // if new page, add image there
+                doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2 , currentY, imgWidth, imgHeight);
+                currentY += imgHeight + 10;
             } else {
-                 currentY += placeholderImageHeight + 7; // Add estimated height + spacing
+                 doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight);
+                 currentY += imgHeight + 10;
             }
 
         } catch (e) {
           console.error("Error adding image to PDF:", e);
+          doc.setFont(theme.bodyFont, 'italic');
           doc.setFontSize(10);
-          doc.setFont(undefined, 'italic');
-          lines = doc.splitTextToSize("[Image generation/embedding failed for this slide]", maxTextWidth);
+          doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
+          lines = doc.splitTextToSize("[Image embedding failed for this slide]", maxTextWidth);
           textBlockHeight = doc.getTextDimensions(lines).h;
           addNewPageIfNeeded(textBlockHeight);
           doc.text(lines, margin, currentY);
           currentY += textBlockHeight + 7;
         }
-      } else if (slide.suggestedImageDescription) { // If no image URL but there was a suggestion
-        currentY += 2; 
+      } else if (slide.suggestedImageDescription) { 
+        currentY += 4; 
+        doc.setFont(theme.bodyFont, 'italic');
         doc.setFontSize(10);
-        doc.setFont(undefined, 'italic');
+        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
         const suggestionText = `Suggested Image: ${slide.suggestedImageDescription}`;
         lines = doc.splitTextToSize(suggestionText, maxTextWidth);
         textBlockHeight = doc.getTextDimensions(lines).h;
@@ -342,14 +406,10 @@ export default function ScholarAiPage() {
         doc.text(lines, margin, currentY);
         currentY += textBlockHeight + 7;
       }
-
-      if (i < generatedPresentation.slides.length - 1) {
-        currentY += 5; 
-      }
     }
 
-    doc.save('scholarai_presentation.pdf');
-    toast({title: "PDF Downloaded", description: "Presentation PDF has been saved."});
+    doc.save(`scholarai_presentation_${themeKey}.pdf`);
+    toast({title: "PDF Downloaded", description: `Presentation PDF with ${themeKey} theme has been saved.`});
   };
 
 
@@ -500,14 +560,38 @@ export default function ScholarAiPage() {
               <CardContent className="space-y-4">
                 <Input placeholder="Presentation Topic (e.g., 'The Future of AI')" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
                 <Input type="number" placeholder="Number of Slides (e.g., 3, default 3)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" max="7" />
-                 <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow. Start with 2-3 slides. Max 7 slides.</p>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="presentation-theme-select" className="text-md font-medium text-foreground flex items-center">
+                    <Palette className="mr-2 h-5 w-5 text-primary" />
+                    PDF Theme
+                  </Label>
+                  <Select
+                    value={presentationTheme}
+                    onValueChange={setPresentationTheme}
+                    disabled={isGeneratingPresentation}
+                  >
+                    <SelectTrigger id="presentation-theme-select" className="w-full sm:w-[200px] bg-card focus:ring-primary">
+                      <SelectValue placeholder="Select PDF theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(pdfThemes).map((themeKey) => (
+                        <SelectItem key={themeKey} value={themeKey} className="capitalize">
+                          {themeKey}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                 <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow. Start with 2-3 slides. Max 7 slides. PDF theming applies to downloaded file.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
                     {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Generate Presentation
                   </Button>
                   {generatedPresentation && (
-                    <Button onClick={handleDownloadPresentationPdf} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}>
+                    <Button onClick={() => handleDownloadPresentationPdf(presentationTheme)} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}>
                       <Download className="mr-2 h-4 w-4" />
                       Download PDF
                     </Button>
@@ -566,6 +650,4 @@ export default function ScholarAiPage() {
   );
 }
 
-// Helper type for the SlideSchema if needed directly in the component, though it's usually imported
-// export type SlideSchema = GeneratePresentationOutput['slides'][number];
-
+    
