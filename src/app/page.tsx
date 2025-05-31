@@ -668,7 +668,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><MessageSquareQuote className="mr-2 h-7 w-7"/>AI Interview Question Generator</CardTitle>
-                        <CardDescription>Generate targeted interview questions based on job role, topic, and desired category (technical, behavioral, situational).</CardDescription>
+                        <CardDescription>Generate targeted interview questions based on job role, topic, and desired category (technical, behavioral, situational, or DSA).</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Job Role or Topic (e.g., 'Software Engineer', 'Leadership')" value={interviewJobRole} onChange={(e) => setInterviewJobRole(e.target.value)} disabled={isGeneratingInterviewQuestions} />
@@ -681,6 +681,7 @@ export default function MentorAiPage() {
                                     <SelectItem value="technical">Technical</SelectItem>
                                     <SelectItem value="behavioral">Behavioral</SelectItem>
                                     <SelectItem value="situational">Situational</SelectItem>
+                                    <SelectItem value="dsa">DSA (Data Structures & Algorithms)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -695,7 +696,13 @@ export default function MentorAiPage() {
                                     <AccordionItem value={`item-${index}`} key={index}>
                                         <AccordionTrigger className="text-sm hover:no-underline text-left">
                                         <div className="flex items-start">
-                                            <span className={`mr-2 mt-1 h-2 w-2 rounded-full flex-shrink-0 ${q.category.toLowerCase().includes('technical') ? 'bg-blue-500' : q.category.toLowerCase().includes('behavioral') ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                                            <span className={`mr-2 mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+                                                q.category.toLowerCase().includes('technical') ? 'bg-blue-500' : 
+                                                q.category.toLowerCase().includes('behavioral') ? 'bg-green-500' : 
+                                                q.category.toLowerCase().includes('situational') ? 'bg-yellow-500' : 
+                                                q.category.toLowerCase().includes('dsa') ? 'bg-purple-500' : 
+                                                'bg-gray-500'
+                                                }`}></span>
                                             {q.question} ({q.category})
                                         </div>
                                         </AccordionTrigger>
