@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -43,11 +44,6 @@ export default function ScholarAiPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile) {
-      setError('Please upload a PDF document first.');
-      toast({ title: "Error", description: "Please upload a PDF document first.", variant: "destructive" });
-      return;
-    }
     if (!question.trim()) {
       setError('Please enter a question.');
       toast({ title: "Error", description: "Please enter a question.", variant: "destructive" });
@@ -60,20 +56,25 @@ export default function ScholarAiPage() {
     setExplanation(null);
 
     try {
-      const documentDataUri = await fileToDataUri(selectedFile);
-      const searchInput: SmartSearchInput = { documentDataUri, question };
+      let documentDataUriForFlow: string | undefined = undefined;
+      if (selectedFile) {
+        documentDataUriForFlow = await fileToDataUri(selectedFile);
+      }
+
+      const searchInput: SmartSearchInput = {
+        documentDataUri: documentDataUriForFlow,
+        question,
+      };
       const result = await smartSearch(searchInput);
       setSearchResult(result);
 
       if (result && result.answer) {
         const explainInput: ExplainAnswerInput = { question, answer: result.answer };
-        // Note: The current explainAnswer flow does not use the language parameter.
-        // This is kept for UI consistency and future enhancements.
         const explainerResult = await explainAnswer(explainInput);
         setExplanation(explainerResult.explanation);
         toast({ title: "Success!", description: "Insights generated successfully." });
       } else if (result && !result.answer) {
-         toast({ title: "No answer found", description: "Could not find a direct answer in the document." });
+         toast({ title: "No answer found", description: selectedFile ? "Could not find a direct answer in the document." : "I couldn't find an answer to your question." });
       } else {
          toast({ title: "Search complete", description: "Search finished, but no specific answer or explanation generated." });
       }
@@ -95,7 +96,7 @@ export default function ScholarAiPage() {
     setExplanation(null);
     setError(null);
     setIsLoading(false);
-    const fileInput = document.getElementById('pdf-upload') as HTMLInputElement;
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
     }
@@ -116,13 +117,14 @@ export default function ScholarAiPage() {
                 selectedFile={selectedFile}
                 onFileChange={handleFileChange}
                 isLoading={isLoading}
+                inputId="file-upload-input"
               />
               <QuestionInput
                 question={question}
                 onQuestionChange={setQuestion}
                 onSubmit={handleSubmit}
                 isLoading={isLoading}
-                isSubmitDisabled={!selectedFile || !question.trim()}
+                isSubmitDisabled={!question.trim()}
               />
               <LanguageSelector
                 selectedLanguage={selectedLanguage}
@@ -143,6 +145,7 @@ export default function ScholarAiPage() {
               isLoading={isLoading}
               error={error}
               language={selectedLanguage}
+              hasDocument={!!selectedFile}
             />
           </div>
         </div>

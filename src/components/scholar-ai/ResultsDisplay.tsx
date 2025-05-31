@@ -1,9 +1,10 @@
+
 "use client";
 
 import type { SmartSearchOutput } from '@/ai/flows/smart-search';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, FileText, BookOpen, AlertCircle, Loader2 } from 'lucide-react';
+import { Lightbulb, FileText, BookOpen, AlertCircle, Loader2, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 
@@ -13,6 +14,7 @@ interface ResultsDisplayProps {
   isLoading: boolean;
   error: string | null;
   language: string;
+  hasDocument?: boolean; // To provide better context for "no results"
 }
 
 export function ResultsDisplay({
@@ -21,6 +23,7 @@ export function ResultsDisplay({
   isLoading,
   error,
   language,
+  hasDocument = false,
 }: ResultsDisplayProps) {
   if (isLoading) {
     return (
@@ -57,11 +60,13 @@ export function ResultsDisplay({
     return (
       <Card className="shadow-lg text-center bg-card">
         <CardHeader>
-          <CardTitle className="font-headline text-primary">Ready to Assist!</CardTitle>
+          <CardTitle className="font-headline text-primary flex items-center justify-center">
+             <Info className="mr-2 h-6 w-6" /> Ready to Assist!
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Upload a document and ask a question to get started. ScholarAI will help you find answers and understand complex topics.
+            Ask a question to get started. You can also upload an optional document (PDF, TXT, DOC, DOCX) for context-specific answers.
           </p>
           <img data-ai-hint="education study" src="https://placehold.co/300x200.png" alt="Decorative illustration of books and a lightbulb" className="mx-auto mt-4 rounded-md" />
         </CardContent>
@@ -111,7 +116,10 @@ export function ResultsDisplay({
 
         {!searchResult?.answer && !explanation && !isLoading && (
           <p className="text-muted-foreground text-center py-4">
-            No specific information found for your query, or an explanation could not be generated. Try rephrasing your question or uploading a different document.
+            {hasDocument 
+              ? "No specific information found in the document for your query, or an explanation could not be generated. Try rephrasing your question or checking the document."
+              : "I couldn't find a specific answer to your question right now. Try rephrasing it."
+            }
           </p>
         )}
       </CardContent>
