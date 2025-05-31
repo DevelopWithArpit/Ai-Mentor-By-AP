@@ -10,4 +10,7 @@ import '@/ai/flows/diagram-generator-flow.ts';
 import '@/ai/flows/presentation-generator-flow.ts';
 import '@/ai/flows/interview-question-generator-flow.ts';
 import '@/ai/flows/resume-feedback-flow.ts';
+import '@/ai/flows/cover-letter-assistant-flow.ts';
+import '@/ai/flows/career-path-suggester-flow.ts';
+import '@/ai/flows/document-summarizer-flow.ts';
 

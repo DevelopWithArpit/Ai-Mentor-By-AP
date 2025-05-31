@@ -3,7 +3,7 @@
 /**
  * @fileOverview A flow for generating images from text prompts.
  *
- * - generateImage - A function that generates an image.
+ * - wrappedGenerateImage - A function that generates an image using a defined flow.
  * - GenerateImageInput - The input type for the generateImage function.
  * - GenerateImageOutput - The return type for the generateImage function.
  */
@@ -21,7 +21,8 @@ const GenerateImageOutputSchema = z.object({
 });
 export type GenerateImageOutput = z.infer<typeof GenerateImageOutputSchema>;
 
-export async function generateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
+// Core logic for generating an image
+async function generateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
   const {media} = await ai.generate({
     model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: Use this specific model for image generation
     prompt: input.prompt,
@@ -36,10 +37,6 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
   throw new Error('Image generation failed or no image was returned.');
 }
 
-// Note: We don't define a flow with ai.defineFlow for direct ai.generate calls if no further logic is needed.
-// However, if you plan to add more steps or use tools, wrapping it in a flow is a good practice.
-// For consistency with other flows, let's wrap it.
-
 const generateImageFlow = ai.defineFlow(
   {
     name: 'generateImageFlow',
@@ -47,7 +44,7 @@ const generateImageFlow = ai.defineFlow(
     outputSchema: GenerateImageOutputSchema,
   },
   async (input) => {
-    return generateImage(input); // Call the function defined above
+    return generateImage(input); // Call the core logic function
   }
 );
 
@@ -55,3 +52,4 @@ const generateImageFlow = ai.defineFlow(
 export async function wrappedGenerateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
   return generateImageFlow(input);
 }
+

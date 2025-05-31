@@ -36,7 +36,7 @@ export type GeneratePresentationOutput = z.infer<typeof GeneratePresentationOutp
 const textOutlinePrompt = ai.definePrompt({
   name: 'generatePresentationTextPrompt',
   input: {schema: GeneratePresentationInputSchema}, // Input schema includes imageStylePrompt but it's not directly used in *this* prompt template
-  output: { 
+  output: {
     schema: z.object({
       slides: z.array(z.object({
         title: z.string(),
@@ -118,3 +118,4 @@ const generatePresentationOutlineFlow = ai.defineFlow(
 export async function generatePresentationOutline(input: GeneratePresentationInput): Promise<GeneratePresentationOutput> {
   return generatePresentationOutlineFlow(input);
 }
+

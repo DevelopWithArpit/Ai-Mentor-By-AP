@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3 } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import jsPDF from 'jspdf';
@@ -27,6 +27,9 @@ import { wrappedGenerateDiagram, type GenerateDiagramInput, type GenerateDiagram
 import { generatePresentationOutline, type GeneratePresentationInput, type GeneratePresentationOutput } from '@/ai/flows/presentation-generator-flow';
 import { generateInterviewQuestions, type GenerateInterviewQuestionsInput, type GenerateInterviewQuestionsOutput, type QuestionCategory } from '@/ai/flows/interview-question-generator-flow';
 import { getResumeFeedback, type ResumeFeedbackInput, type ResumeFeedbackOutput } from '@/ai/flows/resume-feedback-flow';
+import { generateCoverLetter, type GenerateCoverLetterInput, type GenerateCoverLetterOutput } from '@/ai/flows/cover-letter-assistant-flow';
+import { suggestCareerPaths, type SuggestCareerPathsInput, type SuggestCareerPathsOutput } from '@/ai/flows/career-path-suggester-flow';
+import { summarizeDocument, type SummarizeDocumentInput, type SummarizeDocumentOutput } from '@/ai/flows/document-summarizer-flow';
 
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -95,10 +98,33 @@ export default function ScholarAiPage() {
   const [generatedInterviewQuestions, setGeneratedInterviewQuestions] = useState<GenerateInterviewQuestionsOutput | null>(null);
   const [isGeneratingInterviewQuestions, setIsGeneratingInterviewQuestions] = useState<boolean>(false);
 
+  // Resume Feedback States
   const [resumeText, setResumeText] = useState<string>('');
   const [resumeTargetJobRole, setResumeTargetJobRole] = useState<string>('');
   const [resumeFeedback, setResumeFeedback] = useState<ResumeFeedbackOutput | null>(null);
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
+
+  // Cover Letter Assistant States
+  const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
+  const [coverLetterUserInfo, setCoverLetterUserInfo] = useState<string>('');
+  const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "formal" | "slightly-informal">("professional");
+  const [generatedCoverLetter, setGeneratedCoverLetter] = useState<GenerateCoverLetterOutput | null>(null);
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState<boolean>(false);
+
+  // Career Path Suggester States
+  const [careerInterests, setCareerInterests] = useState<string>(''); // Comma-separated
+  const [careerSkills, setCareerSkills] = useState<string>(''); // Comma-separated
+  const [careerExperienceLevel, setCareerExperienceLevel] = useState<"entry-level" | "mid-level" | "senior-level" | "executive">("entry-level");
+  const [generatedCareerPaths, setGeneratedCareerPaths] = useState<SuggestCareerPathsOutput | null>(null);
+  const [isGeneratingCareerPaths, setIsGeneratingCareerPaths] = useState<boolean>(false);
+
+  // Document Summarizer States
+  const [summarizerFile, setSummarizerFile] = useState<File | null>(null);
+  const [summaryLength, setSummaryLength] = useState<"short" | "medium" | "long">("medium");
+  const [summaryStyle, setSummaryStyle] = useState<"general" | "bullet_points" | "for_layperson" | "for_expert">("general");
+  const [summaryCustomPrompt, setSummaryCustomPrompt] = useState<string>('');
+  const [generatedSummary, setGeneratedSummary] = useState<SummarizeDocumentOutput | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState<boolean>(false);
 
 
   const handleFileChange = (file: File | null) => {
@@ -288,7 +314,6 @@ export default function ScholarAiPage() {
     toast({title: "PDF Downloaded", description: `Presentation PDF with ${themeKey} theme has been saved.`});
   };
 
-  // Interview Prep Handlers
   const handleGenerateInterviewQuestions = async () => {
     if (!interviewJobRole.trim()) { toast({ title: "Error", description: "Please enter a job role or topic.", variant: "destructive" }); return; }
     setIsGeneratingInterviewQuestions(true); setGeneratedInterviewQuestions(null);
@@ -311,6 +336,54 @@ export default function ScholarAiPage() {
     } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
     finally { setIsGeneratingResumeFeedback(false); }
   };
+
+  const handleGenerateCoverLetter = async () => {
+    if (!coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()) {
+      toast({ title: "Error", description: "Please provide both Job Description and Your Information.", variant: "destructive" }); return;
+    }
+    setIsGeneratingCoverLetter(true); setGeneratedCoverLetter(null);
+    try {
+      const result = await generateCoverLetter({ jobDescription: coverLetterJobDesc, userInformation: coverLetterUserInfo, tone: coverLetterTone });
+      setGeneratedCoverLetter(result);
+      toast({ title: "Cover Letter Drafted!", description: "Your cover letter is ready for review." });
+    } catch (err: any) { toast({ title: "Cover Letter Error", description: err.message || "Failed to generate cover letter.", variant: "destructive" }); }
+    finally { setIsGeneratingCoverLetter(false); }
+  };
+
+  const handleGenerateCareerPaths = async () => {
+    if (!careerInterests.trim() || !careerSkills.trim()) {
+      toast({ title: "Error", description: "Please provide both Interests and Skills.", variant: "destructive" }); return;
+    }
+    setIsGeneratingCareerPaths(true); setGeneratedCareerPaths(null);
+    try {
+      const interestsArray = careerInterests.split(',').map(s => s.trim()).filter(s => s);
+      const skillsArray = careerSkills.split(',').map(s => s.trim()).filter(s => s);
+      if (!interestsArray.length || !skillsArray.length) {
+        toast({ title: "Error", description: "Please provide valid comma-separated Interests and Skills.", variant: "destructive" });
+        setIsGeneratingCareerPaths(false);
+        return;
+      }
+      const result = await suggestCareerPaths({ interests: interestsArray, skills: skillsArray, experienceLevel: careerExperienceLevel });
+      setGeneratedCareerPaths(result);
+      toast({ title: "Career Paths Suggested!", description: "Potential career paths are ready for exploration." });
+    } catch (err: any) { toast({ title: "Career Path Error", description: err.message || "Failed to suggest career paths.", variant: "destructive" }); }
+    finally { setIsGeneratingCareerPaths(false); }
+  };
+
+  const handleSummarizeDocument = async () => {
+    if (!summarizerFile) {
+      toast({ title: "Error", description: "Please upload a document to summarize.", variant: "destructive" }); return;
+    }
+    setIsGeneratingSummary(true); setGeneratedSummary(null);
+    try {
+      const documentDataUri = await fileToDataUri(summarizerFile);
+      const result = await summarizeDocument({ documentDataUri, summaryLength, summaryStyle, customPrompt: summaryCustomPrompt || undefined });
+      setGeneratedSummary(result);
+      toast({ title: "Document Summarized!", description: "Summary is ready." });
+    } catch (err: any) { toast({ title: "Summarization Error", description: err.message || "Failed to summarize document.", variant: "destructive" }); }
+    finally { setIsGeneratingSummary(false); }
+  };
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -337,11 +410,69 @@ export default function ScholarAiPage() {
           </CardContent>
         </Card>
 
-        {/* Interview Preparation Suite Section */}
+        {/* Document Summarizer Section */}
+        <Card className="shadow-xl bg-card">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl text-primary flex items-center"><FileType className="mr-2 h-7 w-7"/>AI Document Summarizer</CardTitle>
+                <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) to get a concise summary. Useful for research papers, articles, and long texts.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <FileUpload selectedFile={summarizerFile} onFileChange={setSummarizerFile} isLoading={isGeneratingSummary} inputId="summarizer-file-upload"/>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <Label htmlFor="summary-length">Summary Length</Label>
+                        <Select value={summaryLength} onValueChange={(v) => setSummaryLength(v as any)} disabled={isGeneratingSummary}>
+                            <SelectTrigger id="summary-length"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="short">Short</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="long">Long</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="summary-style">Summary Style</Label>
+                        <Select value={summaryStyle} onValueChange={(v) => setSummaryStyle(v as any)} disabled={isGeneratingSummary}>
+                            <SelectTrigger id="summary-style"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="general">General</SelectItem>
+                                <SelectItem value="bullet_points">Bullet Points</SelectItem>
+                                <SelectItem value="for_layperson">For Layperson</SelectItem>
+                                <SelectItem value="for_expert">For Expert</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div>
+                    <Label htmlFor="summary-custom-prompt">Custom Instructions (Optional)</Label>
+                    <Input id="summary-custom-prompt" placeholder="e.g., Focus on methodology and results" value={summaryCustomPrompt} onChange={(e) => setSummaryCustomPrompt(e.target.value)} disabled={isGeneratingSummary}/>
+                </div>
+                <Button onClick={handleSummarizeDocument} disabled={isGeneratingSummary || !summarizerFile} className="w-full sm:w-auto">
+                    {isGeneratingSummary && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Summarize Document
+                </Button>
+                {generatedSummary && (
+                    <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
+                        <h4 className="font-semibold mb-2 text-foreground">Generated Summary:</h4>
+                        <p className="text-sm whitespace-pre-wrap mb-3">{generatedSummary.summary}</p>
+                        {generatedSummary.keyTakeaways && generatedSummary.keyTakeaways.length > 0 && (
+                            <>
+                                <h5 className="font-medium mt-3 mb-1 text-foreground">Key Takeaways:</h5>
+                                <ul className="list-disc list-inside text-sm space-y-1">
+                                    {generatedSummary.keyTakeaways.map((item, index) => <li key={index}>{item}</li>)}
+                                </ul>
+                            </>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+
+
+        {/* Interview Preparation & Career Building Suite Section */}
         <Card className="shadow-xl bg-card">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Briefcase className="mr-2 h-7 w-7"/> Interview Preparation Suite</CardTitle>
-            <CardDescription>AI-powered tools to help you ace your next job interview. More features coming soon!</CardDescription>
+            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Briefcase className="mr-2 h-7 w-7"/> Career Development Suite</CardTitle>
+            <CardDescription>AI-powered tools to help you prepare for interviews, build your resume & cover letter, and explore career paths.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             {/* Interview Question Generator */}
@@ -372,9 +503,9 @@ export default function ScholarAiPage() {
                     <Accordion type="single" collapsible className="w-full">
                       {generatedInterviewQuestions.questions.map((q, index) => (
                         <AccordionItem value={`item-${index}`} key={index}>
-                          <AccordionTrigger className="text-sm hover:no-underline">
-                            <div className="flex items-center">
-                                <span className={`mr-2 h-2 w-2 rounded-full ${q.category === 'Technical' ? 'bg-blue-500' : q.category === 'Behavioral' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                          <AccordionTrigger className="text-sm hover:no-underline text-left">
+                            <div className="flex items-start">
+                                <span className={`mr-2 mt-1 h-2 w-2 rounded-full flex-shrink-0 ${q.category.toLowerCase().includes('technical') ? 'bg-blue-500' : q.category.toLowerCase().includes('behavioral') ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
                                 {q.question} ({q.category})
                             </div>
                           </AccordionTrigger>
@@ -392,7 +523,8 @@ export default function ScholarAiPage() {
             {/* Resume Feedback Tool */}
             <Card className="bg-card/80">
               <CardHeader>
-                <CardTitle className="font-headline text-xl text-accent flex items-center"><Edit3 className="mr-2 h-6 w-6"/>Resume Feedback Tool</CardTitle>
+                <CardTitle className="font-headline text-xl text-accent flex items-center"><Edit3 className="mr-2 h-6 w-6"/>Resume Feedback Tool (ATS Optimized)</CardTitle>
+                <CardDescription>Get AI feedback on your resume, focusing on ATS keywords and overall effectiveness.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
@@ -401,19 +533,20 @@ export default function ScholarAiPage() {
                   {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
                 </Button>
                 {resumeFeedback && (
-                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[400px] overflow-y-auto">
+                  <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
                     <h4 className="font-semibold mb-2 text-foreground">Resume Feedback:</h4>
                     <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
+                    {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary:</strong> {resumeFeedback.atsKeywordsSummary}</p>}
                     <Accordion type="single" collapsible className="w-full">
                       {resumeFeedback.feedbackItems.map((item, index) => (
                         <AccordionItem value={`feedback-${index}`} key={index}>
-                          <AccordionTrigger className="text-sm hover:no-underline">
-                            <div className="flex items-center">
-                                <CheckCircle className={`mr-2 h-4 w-4 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}/>
-                                {item.area} {item.importance && `(${item.importance})`}
+                          <AccordionTrigger className="text-sm hover:no-underline text-left">
+                            <div className="flex items-start">
+                                <CheckCircle className={`mr-2 mt-1 h-4 w-4 flex-shrink-0 ${item.importance === 'high' ? 'text-red-500' : item.importance === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}/>
+                                <span><strong>{item.area}</strong> {item.importance && `(${item.importance})`}</span>
                             </div>
                           </AccordionTrigger>
-                          <AccordionContent className="text-xs pl-6">
+                          <AccordionContent className="text-xs pl-8">
                             {item.suggestion}
                           </AccordionContent>
                         </AccordionItem>
@@ -423,8 +556,93 @@ export default function ScholarAiPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Cover Letter Assistant */}
+            <Card className="bg-card/80">
+                <CardHeader>
+                    <CardTitle className="font-headline text-xl text-accent flex items-center"><Send className="mr-2 h-6 w-6"/>AI Cover Letter Assistant</CardTitle>
+                    <CardDescription>Generate a tailored cover letter draft based on the job description and your information.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Textarea placeholder="Paste the full Job Description here..." value={coverLetterJobDesc} onChange={(e) => setCoverLetterJobDesc(e.target.value)} disabled={isGeneratingCoverLetter} className="min-h-[150px]"/>
+                    <Textarea placeholder="Paste your resume text or key achievements, skills, and experiences relevant to this job..." value={coverLetterUserInfo} onChange={(e) => setCoverLetterUserInfo(e.target.value)} disabled={isGeneratingCoverLetter} className="min-h-[150px]"/>
+                    <Select value={coverLetterTone} onValueChange={(v) => setCoverLetterTone(v as any)} disabled={isGeneratingCoverLetter}>
+                        <SelectTrigger><SelectValue placeholder="Select Tone" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="professional">Professional</SelectItem>
+                            <SelectItem value="enthusiastic">Enthusiastic</SelectItem>
+                            <SelectItem value="formal">Formal</SelectItem>
+                            <SelectItem value="slightly-informal">Slightly Informal</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={handleGenerateCoverLetter} disabled={isGeneratingCoverLetter || !coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()} className="w-full sm:w-auto">
+                        {isGeneratingCoverLetter && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Cover Letter
+                    </Button>
+                    {generatedCoverLetter && (
+                        <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
+                            <h4 className="font-semibold mb-2 text-foreground">Draft Cover Letter:</h4>
+                            <pre className="text-sm whitespace-pre-wrap bg-background/50 p-3 rounded-md">{generatedCoverLetter.draftCoverLetter}</pre>
+                            {generatedCoverLetter.keyPointsCovered && generatedCoverLetter.keyPointsCovered.length > 0 && (
+                                <>
+                                  <h5 className="font-medium mt-3 mb-1 text-foreground">Key Points Addressed:</h5>
+                                  <ul className="list-disc list-inside text-xs space-y-1">
+                                      {generatedCoverLetter.keyPointsCovered.map((item, index) => <li key={index}>{item}</li>)}
+                                  </ul>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Career Path Suggester */}
+            <Card className="bg-card/80">
+                <CardHeader>
+                    <CardTitle className="font-headline text-xl text-accent flex items-center"><Star className="mr-2 h-6 w-6"/>AI Career Path Suggester</CardTitle>
+                    <CardDescription>Discover potential career paths based on your interests, skills, and experience.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
+                    <Input placeholder="Your Skills (comma-separated, e.g., Python, project management, writing)" value={careerSkills} onChange={(e) => setCareerSkills(e.target.value)} disabled={isGeneratingCareerPaths}/>
+                    <Select value={careerExperienceLevel} onValueChange={(v) => setCareerExperienceLevel(v as any)} disabled={isGeneratingCareerPaths}>
+                        <SelectTrigger><SelectValue placeholder="Select Experience Level"/></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="entry-level">Entry-Level</SelectItem>
+                            <SelectItem value="mid-level">Mid-Level</SelectItem>
+                            <SelectItem value="senior-level">Senior-Level</SelectItem>
+                            <SelectItem value="executive">Executive</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={handleGenerateCareerPaths} disabled={isGeneratingCareerPaths || !careerInterests.trim() || !careerSkills.trim()} className="w-full sm:w-auto">
+                        {isGeneratingCareerPaths && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Suggest Career Paths
+                    </Button>
+                    {generatedCareerPaths && (
+                        <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
+                            <h4 className="font-semibold mb-2 text-foreground">Suggested Career Paths:</h4>
+                            <Accordion type="single" collapsible className="w-full">
+                                {generatedCareerPaths.suggestions.map((path, index) => (
+                                    <AccordionItem value={`career-${index}`} key={index}>
+                                        <AccordionTrigger className="text-sm hover:no-underline text-left font-medium">{path.pathTitle}</AccordionTrigger>
+                                        <AccordionContent className="text-xs space-y-2 pl-4">
+                                            <p><strong>Description:</strong> {path.description}</p>
+                                            <p><strong>Why it aligns:</strong> {path.alignmentReason}</p>
+                                            {path.potentialSkillsToDevelop && path.potentialSkillsToDevelop.length > 0 && (
+                                                <p><strong>Skills to develop:</strong> {path.potentialSkillsToDevelop.join(', ')}</p>
+                                            )}
+                                            {path.typicalIndustries && path.typicalIndustries.length > 0 && (
+                                                <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
+                                            )}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
              <p className="text-xs text-muted-foreground text-center">
-                Features like real-time mock interviews, voice coaching, and live assistance are planned for future updates.
+                More advanced features like real-time mock interviews, voice coaching, and live assistance are complex and planned for future updates.
             </p>
           </CardContent>
         </Card>
@@ -528,3 +746,4 @@ export default function ScholarAiPage() {
     </div>
   );
 }
+

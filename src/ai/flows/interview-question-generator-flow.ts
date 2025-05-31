@@ -6,6 +6,7 @@
  * - generateInterviewQuestions - A function that generates interview questions based on a job role or topic.
  * - GenerateInterviewQuestionsInput - The input type for the generateInterviewQuestions function.
  * - GenerateInterviewQuestionsOutput - The return type for the generateInterviewQuestions function.
+ * - QuestionCategory - The type for question categories.
  */
 
 import {ai} from '@/ai/genkit';
@@ -68,3 +69,4 @@ const generateInterviewQuestionsFlow = ai.defineFlow(
     return output!;
   }
 );
+

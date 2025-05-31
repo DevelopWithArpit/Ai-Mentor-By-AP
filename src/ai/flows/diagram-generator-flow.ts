@@ -3,7 +3,7 @@
 /**
  * @fileOverview A flow for generating diagram-like images from text prompts.
  *
- * - generateDiagram - A function that generates a diagram image.
+ * - wrappedGenerateDiagram - A function that generates a diagram image using a defined flow.
  * - GenerateDiagramInput - The input type for the generateDiagram function.
  * - GenerateDiagramOutput - The return type for the generateDiagram function.
  */
@@ -21,7 +21,8 @@ const GenerateDiagramOutputSchema = z.object({
 });
 export type GenerateDiagramOutput = z.infer<typeof GenerateDiagramOutputSchema>;
 
-export async function generateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
+// Core logic for generating a diagram
+async function generateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
   const {media} = await ai.generate({
     model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: Use this specific model for image generation
     prompt: `You are an AI assistant that creates diagrams. Generate an image of a diagram based on the following description: ${input.prompt}`,
@@ -43,10 +44,12 @@ const generateDiagramFlow = ai.defineFlow(
     outputSchema: GenerateDiagramOutputSchema,
   },
   async (input) => {
-    return generateDiagram(input);
+    return generateDiagram(input); // Call the core logic function
   }
 );
 
+// Exported wrapper function that invokes the Genkit flow
 export async function wrappedGenerateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
   return generateDiagramFlow(input);
 }
+
