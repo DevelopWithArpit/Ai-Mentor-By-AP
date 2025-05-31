@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Sparkles, Code, Image as ImageIcon, Presentation, Wand2, Brain, FileText, Loader2 } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIcon, Presentation, Wand2, Brain, FileText, Loader2, Lightbulb } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 
@@ -371,13 +371,21 @@ export default function ScholarAiPage() {
                     <h4 className="font-semibold mb-2 text-foreground">Generated Presentation Outline:</h4>
                     {generatedPresentation.title && <h5 className="text-lg font-semibold text-primary mb-3">{generatedPresentation.title}</h5>}
                     {generatedPresentation.slides.map((slide, index) => (
-                      <div key={index} className="mb-3 p-3 bg-background/50 rounded">
+                      <div key={index} className="mb-4 p-3 bg-background/50 rounded">
                         <h6 className="font-semibold text-accent">{index + 1}. {slide.title}</h6>
                         <ul className="list-disc list-inside ml-4 text-sm text-foreground">
                           {slide.bulletPoints.map((point, pIndex) => (
                             <li key={pIndex}>{point}</li>
                           ))}
                         </ul>
+                        {slide.suggestedImageDescription && (
+                           <div className="mt-2 p-2 bg-primary/10 rounded">
+                             <p className="text-xs text-primary font-medium flex items-center">
+                               <Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />
+                               Suggested Image: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span>
+                             </p>
+                           </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -400,3 +408,4 @@ export default function ScholarAiPage() {
     </div>
   );
 }
+
