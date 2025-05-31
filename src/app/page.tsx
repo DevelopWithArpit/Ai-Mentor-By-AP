@@ -526,6 +526,14 @@ export default function MentorAiPage() {
     toast({ title: "Resume PDF Downloaded", description: "Your improved resume has been saved as a PDF." });
   };
 
+  const handleResetResumeImprover = () => {
+    setResumeText('');
+    setResumeTargetJobRole('');
+    setResumeFeedback(null);
+    setIsGeneratingResumeFeedback(false);
+    toast({ title: "Cleared", description: "Resume Improver form and results have been cleared." });
+  };
+
   const handleGenerateCoverLetter = async () => {
     if (!coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()) {
       toast({ title: "Error", description: "Please provide both Job Description and Your Information.", variant: "destructive" }); return;
@@ -752,9 +760,14 @@ export default function MentorAiPage() {
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
                         <Input placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst', 'Healthcare')" value={resumeTargetJobRole} onChange={(e) => setResumeTargetJobRole(e.target.value)} disabled={isGeneratingResumeFeedback} />
-                        <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-full sm:w-auto">
-                            {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-auto">
+                                {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
+                            </Button>
+                            <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
+                                <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
+                            </Button>
+                        </div>
                         
                         {resumeFeedback && (
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
