@@ -164,8 +164,8 @@ export default function MentorAiPage() {
   const [imageEditorSrc, setImageEditorSrc] = useState<string | File | null>(null); // Can be File or base64 string
   const [imageEditorTextElements, setImageEditorTextElements] = useState<TextElement[]>([]);
   const [imageEditorCurrentText, setImageEditorCurrentText] = useState<string>('Hello Text');
-  const [imageEditorTextColor, setImageEditorTextColor] = useState<string>('#007bff'); // Default blue
-  const [imageEditorTextFontSize, setImageEditorTextFontSize] = useState<number>(40); // Increased default size
+  const [imageEditorTextColor, setImageEditorTextColor] = useState<string>('#007bff'); 
+  const [imageEditorTextFontSize, setImageEditorTextFontSize] = useState<number>(40);
   const [imageEditorTextFontFamily, setImageEditorTextFontFamily] = useState<string>('Arial');
   const [isAddingTextMode, setIsAddingTextMode] = useState<boolean>(false);
   const [selectedTextElementId, setSelectedTextElementId] = useState<string | null>(null);
@@ -605,7 +605,7 @@ export default function MentorAiPage() {
 
   // Image Text Editor Handlers
   const handleImageEditorFileChange = (file: File | null) => {
-    setImageEditorSrc(file); // Store File object directly
+    setImageEditorSrc(file); 
     setImageEditorTextElements([]); 
     setSelectedTextElementId(null);
     setAiImageManipulationMessage('');
@@ -628,7 +628,7 @@ export default function MentorAiPage() {
         },
       ]);
       setIsAddingTextMode(false);
-      setSelectedTextElementId(null);
+      setSelectedTextElementId(null); // Deselect after adding new text
       toast({ title: "Text Added", description: "Text placed on image." });
     } else if (!isAddingTextMode) {
         handleSelectTextElement(logicalX, logicalY);
@@ -646,24 +646,25 @@ export default function MentorAiPage() {
     if (!ctx) return;
 
     let foundElement: TextElement | null = null;
+    const dpr = window.devicePixelRatio || 1;
 
     // Iterate in reverse to select topmost element if overlapping
     for (let i = imageEditorTextElements.length - 1; i >= 0; i--) {
         const el = imageEditorTextElements[i];
-        const dpr = window.devicePixelRatio || 1;
-        ctx.font = `${el.fontSize * dpr}px ${el.fontFamily}`; // Apply scaling for measurement
+        
+        // Apply canvas scaling for accurate measurement relative to logical coordinates
+        ctx.font = `${el.fontSize}px ${el.fontFamily}`; // Use logical font size for measurement
         
         const textMetrics = ctx.measureText(el.text);
-        // Approximate bounding box. For more accuracy, consider textMetrics.actualBoundingBoxAscent/Descent
-        const elWidth = textMetrics.width / dpr; // Scale back to logical for comparison
-        const elHeight = el.fontSize; // Approximate height
+        const elWidth = textMetrics.width; // This width is in logical pixels
+        const elHeight = el.fontSize; // Approximate height, also logical
         
-        // Check if click is within bounds (scaled coordinates)
+        // Check if click (already in logical coordinates) is within logical bounds of text
         if (
             clickX >= el.x &&
             clickX <= el.x + elWidth &&
-            clickY >= el.y && // Assuming y is top of text
-            clickY <= el.y + elHeight 
+            clickY >= el.y - elHeight * 0.8 && // Adjust y-check: from slightly above baseline
+            clickY <= el.y + elHeight * 0.2  // To slightly below baseline
         ) {
             foundElement = el;
             break;
@@ -676,7 +677,7 @@ export default function MentorAiPage() {
         setImageEditorTextColor(foundElement.color);
         setImageEditorTextFontSize(foundElement.fontSize);
         setImageEditorTextFontFamily(foundElement.fontFamily);
-        setIsAddingTextMode(false);
+        setIsAddingTextMode(false); // Ensure not in "add text" mode when selecting
         toast({ title: "Text Selected", description: "You can now edit or delete the selected text."});
     } else {
         setSelectedTextElementId(null); // Deselect if clicked on empty space
@@ -699,11 +700,11 @@ export default function MentorAiPage() {
     if (!selectedTextElementId) return;
     setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
     setSelectedTextElementId(null);
-    // Reset current text fields to default or clear them
     setImageEditorCurrentText('Hello Text');
     setImageEditorTextColor('#007bff');
     setImageEditorTextFontSize(40);
     setImageEditorTextFontFamily('Arial');
+    setIsAddingTextMode(false);
     toast({ title: "Text Deleted", description: "Selected text has been removed."});
   };
   
@@ -717,7 +718,7 @@ export default function MentorAiPage() {
         return;
     }
     setIsAddingTextMode(true);
-    setSelectedTextElementId(null); // Deselect any currently selected text
+    setSelectedTextElementId(null); // Deselect any currently selected text to ensure new text is added
     toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
   }
 
@@ -769,8 +770,8 @@ export default function MentorAiPage() {
       
       setAiImageManipulationMessage(result.statusMessage);
       if (result.processedImageUrl) {
-        setImageEditorSrc(result.processedImageUrl); // Update the source for the canvas
-        setImageEditorTextElements([]); // Clear overlay text as base image changed
+        setImageEditorSrc(result.processedImageUrl); 
+        setImageEditorTextElements([]); 
         setSelectedTextElementId(null);
         toast({ title: "AI Manipulation Complete", description: result.statusMessage });
       } else {
@@ -798,8 +799,8 @@ export default function MentorAiPage() {
       
       setWatermarkRemovalMessage(result.statusMessage);
       if (result.processedImageUrl) {
-        setImageEditorSrc(result.processedImageUrl); // Update the source for the canvas
-        setImageEditorTextElements([]); // Clear overlay text as base image changed
+        setImageEditorSrc(result.processedImageUrl); 
+        setImageEditorTextElements([]); 
         setSelectedTextElementId(null);
         toast({ title: "AI Watermark Removal Complete", description: result.statusMessage });
       } else {
@@ -985,13 +986,13 @@ export default function MentorAiPage() {
 
                         <div className="flex flex-col space-y-2">
                             <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || !imageEditorCurrentText.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                              <Type className="mr-2 h-4 w-4"/> {selectedTextElementId ? "Prepare to Add New Text" : "Prepare to Add Text"}
+                              <Type className="mr-2 h-4 w-4"/> {selectedTextElementId ? "Add New Text Instead" : "Prepare to Add Text"}
                             </Button>
                             {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
 
                             {selectedTextElementId && (
                                 <>
-                                <Button onClick={handleUpdateSelectedText} variant="secondary" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                <Button onClick={handleUpdateSelectedText} variant="secondary" disabled={isManipulatingImageAI || isRemovingWatermark || !imageEditorCurrentText.trim()} className="w-full">
                                     <CheckCircle className="mr-2 h-4 w-4"/> Update Selected Text
                                 </Button>
                                 <Button onClick={handleDeleteSelectedText} variant="destructive" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
@@ -1293,21 +1294,38 @@ export default function MentorAiPage() {
                                 )}
 
                                 {generatedCareerPaths.globallySuggestedStudyFields && generatedCareerPaths.globallySuggestedStudyFields.length > 0 && (
-                                    <div className="mb-6">
-                                        <h5 className="font-semibold text-foreground mb-2">Generally Suggested Study Fields:</h5>
-                                        <ul className="list-disc list-inside text-sm space-y-1 pl-2">
-                                            {generatedCareerPaths.globallySuggestedStudyFields.map((field, index) => <li key={`field-${index}`}>{field}</li>)}
-                                        </ul>
+                                    <div className="mb-4">
+                                        <h5 className="font-semibold text-foreground mb-2 flex items-center"><GraduationCap className="mr-2 h-5 w-5 text-primary"/>Generally Suggested Study Fields:</h5>
+                                        <Accordion type="multiple" className="w-full">
+                                            {generatedCareerPaths.globallySuggestedStudyFields.map((field, index) => (
+                                                <AccordionItem value={`field-${index}`} key={`field-${index}`}>
+                                                    <AccordionTrigger className="text-sm hover:no-underline text-left">{field.fieldName}</AccordionTrigger>
+                                                    <AccordionContent className="text-xs pl-4">
+                                                        {field.description || "No description provided."}
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
                                     </div>
                                 )}
 
                                 {generatedCareerPaths.globallySuggestedExampleInstitutions && generatedCareerPaths.globallySuggestedExampleInstitutions.length > 0 && (
                                   <div className="mt-2">
-                                    <h5 className="font-semibold text-foreground mb-2">Generally Suggested Example Institutions to Explore:</h5>
-                                    <ul className="list-disc list-inside text-sm space-y-1 pl-2">
-                                      {generatedCareerPaths.globallySuggestedExampleInstitutions.map((inst, i) => <li key={`inst-${i}`}>{inst}</li>)}
-                                    </ul>
-                                    <p className="text-xs italic text-muted-foreground mt-2">(Note: These are illustrative examples only, based on general information. Admission to any institution is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with the institutions.)</p>
+                                    <h5 className="font-semibold text-foreground mb-2 flex items-center"><BookOpen className="mr-2 h-5 w-5 text-primary"/>Generally Suggested Example Institutions & Outlook:</h5>
+                                     <Accordion type="multiple" className="w-full">
+                                        {generatedCareerPaths.globallySuggestedExampleInstitutions.map((inst, i) => (
+                                            <AccordionItem value={`inst-${i}`} key={`inst-${i}`}>
+                                                <AccordionTrigger className="text-sm hover:no-underline text-left">{inst.institutionName}</AccordionTrigger>
+                                                <AccordionContent className="text-xs pl-4">
+                                                    <p><strong>Outlook:</strong> {inst.admissionOutlook || "General outlook not specified."}</p>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        ))}
+                                    </Accordion>
+                                    <p className="text-xs italic text-muted-foreground mt-3 p-2 bg-background/50 rounded-md border border-dashed">
+                                      <AlertTriangle className="inline h-4 w-4 mr-1 text-yellow-600"/>
+                                      **Important Disclaimer:** Institutional examples and admission outlooks are illustrative and based on general information. Admission is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with institutions. This information is not a guarantee of admission.
+                                    </p>
                                   </div>
                                 )}
                             </div>

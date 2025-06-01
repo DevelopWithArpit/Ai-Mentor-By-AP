@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A flow for suggesting potential career paths, with general academic guidance.
+ * @fileOverview A flow for suggesting potential career paths, with general academic guidance including program descriptions and cautious admission outlooks.
  *
  * - suggestCareerPaths - A function that suggests career paths based on user inputs.
  * - SuggestCareerPathsInput - The input type for the suggestCareerPaths function.
@@ -27,13 +27,22 @@ const CareerPathSuggestionSchema = z.object({
   alignmentReason: z.string().describe("Explanation of why this path aligns with the user's interests and skills."),
   potentialSkillsToDevelop: z.array(z.string()).optional().describe("Key skills that might be beneficial to develop or strengthen for this path."),
   typicalIndustries: z.array(z.string()).optional().describe("Common industries where this role is found."),
-  // Removed suggestedStudyFields and exampleInstitutions from here
+});
+
+const GloballySuggestedStudyFieldSchema = z.object({
+  fieldName: z.string().describe("The name of the general academic program, degree/diploma, or field of study."),
+  description: z.string().optional().describe("A brief description of what this field of study typically entails or prepares students for.")
+});
+
+const GloballySuggestedExampleInstitutionSchema = z.object({
+  institutionName: z.string().describe("The name of the example institution."),
+  admissionOutlook: z.string().optional().describe("A general, cautious outlook or considerations regarding admission to this type of institution or for relevant programs, based on the user's profile. This is NOT a prediction or guarantee of admission. It should include disclaimers.")
 });
 
 const SuggestCareerPathsOutputSchema = z.object({
   suggestions: z.array(CareerPathSuggestionSchema).describe('A list of suggested career paths.'),
-  globallySuggestedStudyFields: z.array(z.string()).optional().describe("A list of general academic programs, degrees/diplomas, or fields of study suggested based on the user's overall profile (interests, skills, education, exam score), not tied to a specific career path. If a competitive exam score was provided, these suggestions should be generally informed by it."),
-  globallySuggestedExampleInstitutions: z.array(z.string()).optional().describe("A list of example institutions suggested based on the user's overall profile. These are illustrative examples only, based on general knowledge, and should NOT be taken as admission guarantees or endorsements. Admission criteria are complex and vary widely; users must research specific institutions directly. If a competitive exam score was provided, these suggestions should be generally informed by it, accompanied by strong disclaimers."),
+  globallySuggestedStudyFields: z.array(GloballySuggestedStudyFieldSchema).optional().describe("A list of general academic programs or fields of study suggested based on the user's overall profile, each with a brief description."),
+  globallySuggestedExampleInstitutions: z.array(GloballySuggestedExampleInstitutionSchema).optional().describe("A list of example institutions, each with a general admission outlook/consideration. These are illustrative and heavily caveated."),
 });
 export type SuggestCareerPathsOutput = z.infer<typeof SuggestCareerPathsOutputSchema>;
 
@@ -49,8 +58,8 @@ const prompt = ai.definePrompt({
 A user has provided their interests, skills, and optionally their experience, education level, and competitive exam scores.
 Based on this information:
 1.  Suggest {{{numSuggestions}}} potential career paths.
-2.  Provide a separate list of general academic programs/fields of study.
-3.  Provide a separate list of example institutions, if applicable and with strong disclaimers.
+2.  Provide a separate list of general academic programs/fields of study, each with a brief description.
+3.  Provide a separate list of example institutions, if applicable, each with a general admission outlook/consideration, and with strong disclaimers.
 
 User's Interests:
 {{#each interests}}
@@ -88,15 +97,17 @@ Do NOT include specific college programs or institutions within each career path
 Provide these as top-level fields in your output: \`globallySuggestedStudyFields\` and \`globallySuggestedExampleInstitutions\`.
 
 *   **Globally Suggested Study Fields**:
-    *   Based on the user's overall profile (interests, skills, education level, and competitive exam score if available), list 2-4 general academic programs (e.g., 'Bachelor of Engineering in Computer Science', 'Diploma in Hospitality Management', 'Master of Public Health') or relevant fields of study (e.g., 'Physics', 'Literature').
-    *   If a competitive exam score was provided, these suggestions should be generally informed by it. Focus on general types of institutions or program competitiveness levels that might align (e.g., "highly competitive research universities," "state universities with good engineering programs," "vocational diploma programs"). Do NOT suggest specific college names within this field itself.
+    *   Based on the user's overall profile (interests, skills, education level, and competitive exam score if available), list 2-4 general academic programs (e.g., 'Bachelor of Engineering in Computer Science', 'Diploma in Hospitality Management') or relevant fields of study (e.g., 'Physics', 'Literature').
+    *   For each field, provide a brief 'description' (1-2 sentences) of what it generally entails or prepares students for.
+    *   If a competitive exam score was provided, these suggestions should be generally informed by it. Focus on general types of institutions or program competitiveness levels that might align (e.g., "highly competitive research universities," "state universities with good engineering programs," "vocational diploma programs").
     *   You CAN indicate if certain highly competitive fields might require exceptionally high scores, or if the provided score is generally suitable for a range of programs in the suggested fields. Frame suggestions carefully.
 
-*   **Globally Suggested Example Institutions (Optional, use only if you can provide illustrative examples responsibly based on the competitive exam score and general profile)**:
-    *   Based on the user's overall profile, you MAY suggest 1-3 example institutions (e.g., 'University of California - Berkeley', 'Massachusetts Institute of Technology', 'Community College X') that are *illustrative* of places that *might* offer suitable programs and *could potentially* align with the user's general profile and score.
-    *   **YOU MUST preface these suggestions with strong disclaimers.** For example: 'Institutions such as [Example Institution 1] or [Example Institution 2] are known for programs in relevant fields. Given your profile, these represent a *potential* tier to explore, but admission is highly competitive and depends on many factors beyond scores. Always check their official websites for current requirements and do not consider this a guarantee of admission.'
+*   **Globally Suggested Example Institutions (Optional, use only if you can provide illustrative examples responsibly)**:
+    *   Based on the user's overall profile, you MAY suggest 1-3 example institutions (e.g., 'University of California - Berkeley', 'Massachusetts Institute of Technology', 'Community College X') that are *illustrative* of places that *might* offer suitable programs.
+    *   For each institution, provide an 'admissionOutlook'. This should be a brief, general statement about admission considerations (e.g., "Highly competitive, typically requires top-tier scores and a strong overall profile. Research specific program requirements.", "Admission is generally competitive; a strong score in [Exam Name] would be beneficial for programs in [Field].", "Offers a range of programs; your profile might align with some. Check specific prerequisites.").
+    *   **YOU MUST preface these suggestions with strong disclaimers within the 'admissionOutlook' or as a general note.** For example: 'The following are illustrative examples only. Admission is highly competitive and depends on many factors beyond scores. Always check their official websites for current requirements and do not consider this a guarantee of admission.'
     *   **DO NOT present these as definitive recommendations or guarantees of admission.** Your suggestions are illustrative and for informational purposes only.
-    *   If you cannot confidently provide even illustrative examples without overpromising or if the user's information is too vague for this section, OMIT the \`globallySuggestedExampleInstitutions\` field entirely or provide an empty list.
+    *   If you cannot confidently provide even illustrative examples with a responsible outlook, OMIT the \`globallySuggestedExampleInstitutions\` field entirely or provide an empty list.
     *   Your goal is to provide helpful pointers, not to make admissions predictions.
 
 Consider the combination of interests and skills. If experience level is provided, try to tailor career path suggestions accordingly.
