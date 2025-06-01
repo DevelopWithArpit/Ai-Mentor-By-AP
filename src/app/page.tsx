@@ -898,7 +898,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
-                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions on careers, study fields, degrees/diplomas, and courses. The AI provides general guidance based on scores and cannot predict specific admissions.</CardDescription>
+                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions on careers, study fields, degrees/diplomas, and courses. If institutional examples are provided, they are illustrative and not admission guarantees; always verify with institutions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
@@ -942,6 +942,15 @@ export default function MentorAiPage() {
                                                 )}
                                                 {path.suggestedCoursesOrCertifications && path.suggestedCoursesOrCertifications.length > 0 && (
                                                     <p><strong>Suggested Courses/Certifications:</strong> {path.suggestedCoursesOrCertifications.join(', ')}</p>
+                                                )}
+                                                {path.exampleInstitutions && path.exampleInstitutions.length > 0 && (
+                                                  <div className="mt-2">
+                                                    <p className="font-semibold">Example Institutions to Explore:</p>
+                                                    <ul className="list-disc list-inside pl-2">
+                                                      {path.exampleInstitutions.map((inst, i) => <li key={i}>{inst}</li>)}
+                                                    </ul>
+                                                    <p className="text-xs italic text-muted-foreground mt-1">(Note: These are illustrative examples only, based on general information. Admission to any institution is highly competitive and depends on many factors. Always research and verify current admission requirements directly with the institutions.)</p>
+                                                  </div>
                                                 )}
                                             </AccordionContent>
                                         </AccordionItem>
