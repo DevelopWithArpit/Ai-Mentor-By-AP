@@ -137,6 +137,7 @@ export default function MentorAiPage() {
 
   const [resumeText, setResumeText] = useState<string>('');
   const [resumeTargetJobRole, setResumeTargetJobRole] = useState<string>('');
+  const [resumeAdditionalInfo, setResumeAdditionalInfo] = useState<string>('');
   const [resumeFeedback, setResumeFeedback] = useState<ResumeFeedbackOutput | null>(null);
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
 
@@ -405,7 +406,11 @@ export default function MentorAiPage() {
     if (!resumeText.trim()) { toast({ title: "Error", description: "Please paste your resume text.", variant: "destructive" }); return; }
     setIsGeneratingResumeFeedback(true); setResumeFeedback(null);
     try {
-      const result = await getResumeFeedback({ resumeText, targetJobRole: resumeTargetJobRole || undefined });
+      const result = await getResumeFeedback({ 
+        resumeText, 
+        targetJobRole: resumeTargetJobRole || undefined,
+        additionalInformation: resumeAdditionalInfo || undefined 
+      });
       setResumeFeedback(result);
       toast({ title: "Resume Feedback Ready!", description: "Your improved resume and suggestions have been generated." });
     } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
@@ -546,6 +551,7 @@ export default function MentorAiPage() {
   const handleResetResumeImprover = () => {
     setResumeText('');
     setResumeTargetJobRole('');
+    setResumeAdditionalInfo('');
     setResumeFeedback(null);
     setIsGeneratingResumeFeedback(false);
     toast({ title: "Cleared", description: "Resume Improver form and results have been cleared." });
@@ -646,25 +652,22 @@ export default function MentorAiPage() {
     if (!ctx) return;
 
     let foundElement: TextElement | null = null;
-    const dpr = window.devicePixelRatio || 1;
-
     // Iterate in reverse to select topmost element if overlapping
     for (let i = imageEditorTextElements.length - 1; i >= 0; i--) {
         const el = imageEditorTextElements[i];
         
         // Apply canvas scaling for accurate measurement relative to logical coordinates
-        ctx.font = `${el.fontSize}px ${el.fontFamily}`; // Use logical font size for measurement
+        ctx.font = `${el.fontSize}px ${el.fontFamily}`; 
         
         const textMetrics = ctx.measureText(el.text);
-        const elWidth = textMetrics.width; // This width is in logical pixels
-        const elHeight = el.fontSize; // Approximate height, also logical
+        const elWidth = textMetrics.width; 
+        const elHeight = el.fontSize; 
         
-        // Check if click (already in logical coordinates) is within logical bounds of text
         if (
             clickX >= el.x &&
             clickX <= el.x + elWidth &&
-            clickY >= el.y - elHeight * 0.8 && // Adjust y-check: from slightly above baseline
-            clickY <= el.y + elHeight * 0.2  // To slightly below baseline
+            clickY >= el.y - elHeight * 0.8 && 
+            clickY <= el.y + elHeight * 0.2  
         ) {
             foundElement = el;
             break;
@@ -677,15 +680,15 @@ export default function MentorAiPage() {
         setImageEditorTextColor(foundElement.color);
         setImageEditorTextFontSize(foundElement.fontSize);
         setImageEditorTextFontFamily(foundElement.fontFamily);
-        setIsAddingTextMode(false); // Ensure not in "add text" mode when selecting
+        setIsAddingTextMode(false); 
         toast({ title: "Text Selected", description: "You can now edit or delete the selected text."});
     } else {
-        setSelectedTextElementId(null); // Deselect if clicked on empty space
+        setSelectedTextElementId(null); 
     }
   };
 
   const handleUpdateSelectedText = () => {
-    if (!selectedTextElementId) return;
+    if (!selectedTextElementId || !imageEditorCurrentText.trim()) return;
     setImageEditorTextElements(prev => 
         prev.map(el => 
             el.id === selectedTextElementId 
@@ -700,7 +703,7 @@ export default function MentorAiPage() {
     if (!selectedTextElementId) return;
     setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
     setSelectedTextElementId(null);
-    setImageEditorCurrentText('Hello Text');
+    setImageEditorCurrentText('Hello Text'); // Reset to default
     setImageEditorTextColor('#007bff');
     setImageEditorTextFontSize(40);
     setImageEditorTextFontFamily('Arial');
@@ -718,7 +721,7 @@ export default function MentorAiPage() {
         return;
     }
     setIsAddingTextMode(true);
-    setSelectedTextElementId(null); // Deselect any currently selected text to ensure new text is added
+    setSelectedTextElementId(null); 
     toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
   }
 
@@ -1117,11 +1120,18 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. The AI will provide feedback, ATS keyword suggestions, generate an improved version of your resume, and extract key talking points.</CardDescription>
+                        <CardDescription>Paste your resume text. Optionally, add specific projects or details you want the AI to include or highlight in the improved version.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
                         <Input placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst', 'Healthcare')" value={resumeTargetJobRole} onChange={(e) => setResumeTargetJobRole(e.target.value)} disabled={isGeneratingResumeFeedback} />
+                        <Textarea 
+                            placeholder="Optional: Describe projects, achievements, or other specific details you want the AI to add or highlight in your resume (e.g., 'Led a team of 5 in developing a mobile app that achieved 10k downloads. Technologies: React Native, Firebase.')"
+                            value={resumeAdditionalInfo}
+                            onChange={(e) => setResumeAdditionalInfo(e.target.value)}
+                            disabled={isGeneratingResumeFeedback}
+                            className="min-h-[100px]"
+                        />
                         <div className="flex flex-wrap gap-2">
                             <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-auto">
                                 {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback

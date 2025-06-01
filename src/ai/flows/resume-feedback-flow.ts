@@ -14,6 +14,7 @@ import {z}from 'genkit';
 const ResumeFeedbackInputSchema = z.object({
   resumeText: z.string().describe('The full text content of the resume to be analyzed and rewritten.'),
   targetJobRole: z.string().optional().describe('The target job role or industry the resume is for. This helps tailor feedback and the rewritten resume, especially for keyword optimization.'),
+  additionalInformation: z.string().optional().describe('Optional: Specific projects, achievements, skills, or other information the user wants to ensure is included or highlighted in the rewritten resume. The AI should attempt to integrate this information naturally into the resume structure, potentially creating a new "Projects" section if appropriate or weaving details into existing sections.'),
 });
 export type ResumeFeedbackInput = z.infer<typeof ResumeFeedbackInputSchema>;
 
@@ -43,13 +44,19 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert career coach and resume reviewer, specializing in optimizing resumes for Applicant Tracking Systems (ATS) and improving overall resume effectiveness.
 You will perform two main tasks:
 1.  **Analyze and Provide Feedback**: Analyze the provided resume text. Then, generate a detailed list of feedback items, an overall assessment, an ATS keywords summary, and key talking points based on the original text.
-2.  **Rewrite the Resume**: Based on your analysis and feedback, rewrite the entire resume text to incorporate these improvements. The rewritten resume should be well-structured, ATS-friendly, impactful, and professional.
+2.  **Rewrite the Resume**: Based on your analysis and feedback, rewrite the entire resume text to incorporate these improvements. If 'additionalInformation' is provided, thoughtfully integrate it into the rewritten resume.
 
 Resume Text to Analyze and Rewrite:
 {{{resumeText}}}
 
 {{#if targetJobRole}}
 The resume is being targeted for the job role of "{{targetJobRole}}". Tailor your feedback and the rewritten resume accordingly.
+{{/if}}
+
+{{#if additionalInformation}}
+Additional Information to Incorporate:
+"{{{additionalInformation}}}"
+When rewriting the resume, please thoughtfully integrate this additional information. This might involve creating a new "Projects" section (if not already present and relevant), adding detailed bullet points under existing experience, or highlighting specific skills mentioned. Ensure the integration is seamless, uses strong action verbs, quantifies achievements where possible, and maintains a professional resume format. Prioritize incorporating this information where it adds the most value.
 {{/if}}
 
 **Output Requirements:**
@@ -61,7 +68,7 @@ The resume is being targeted for the job role of "{{targetJobRole}}". Tailor you
     *   The **suggestion** for improvement.
     *   An optional **importance** level (high, medium, low).
 *   **ATS Keywords Summary**: If a target job role is provided, list relevant keywords that are well-utilized in, or should be incorporated into, the *rewritten* resume for better ATS performance. If no job role is provided, give general advice on finding and using keywords.
-*   **Talking Points**: A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. These should be useful for quick self-introductions or elevator pitches.
+*   **Talking Points**: A list of 2-4 concise and impactful statements derived from the resume (including any added information), highlighting key achievements or value propositions. These should be useful for quick self-introductions or elevator pitches.
 
 **Part 2: Rewritten Resume (for \`modifiedResumeText\` field)**
 *   Provide the **full, rewritten resume text**. This text MUST be structured for easy parsing and professional PDF generation. Use the following conventions:
@@ -75,7 +82,8 @@ The resume is being targeted for the job role of "{{targetJobRole}}". Tailor you
         *   Bullet Points: Each achievement/responsibility as a bullet point starting with "• " (a bullet symbol followed by a space) on its own line. Indent bullet points slightly if possible in the text representation.
     *   **Education Entries**: Similar structure for Degree, University, Dates.
     *   **Skills Section**: Can be a comma-separated list under the "## Skills" heading, or categorized subheadings (e.g., "Programming Languages:", "Tools:").
-*   This rewritten version should directly implement the suggestions you've identified.
+    *   **Projects Section**: If projects are included (either from original resume or additionalInformation), use a clear heading like "## Projects". Each project should have a title, optionally dates or technologies used, and bullet points describing the project and your role/achievements.
+*   This rewritten version should directly implement the suggestions you've identified and incorporate the 'additionalInformation' if provided.
 *   Focus on:
     *   **ATS Friendliness**: Standard formatting, clear headings, optimal keyword density.
     *   **Clarity and Conciseness**: Easy to read and understand, using professional language.
