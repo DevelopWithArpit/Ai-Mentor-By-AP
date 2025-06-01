@@ -16,6 +16,7 @@ const SuggestCareerPathsInputSchema = z.object({
   skills: z.array(z.string()).describe('A list of user\'s skills (e.g., "python programming", "project management", "graphic design", "data analysis").'),
   experienceLevel: z.enum(["entry-level", "mid-level", "senior-level", "executive"]).optional().describe("User's current general experience level."),
   educationLevel: z.string().optional().describe("User's highest education level (e.g., 'High School Diploma', 'Bachelor of Science in Computer Science', 'MBA')."),
+  competitiveExamScore: z.string().optional().describe("User's score or percentage in relevant competitive exams (e.g., '75 percentile in SAT', 'Rank 5000 in JEE Main', '85% in national entrance test for engineering'). This information, if provided, helps the AI offer more tailored general guidance on academic paths. The AI cannot predict admission to specific institutions or programs."),
   numSuggestions: z.number().optional().default(3).describe("The desired number of career path suggestions."),
 });
 export type SuggestCareerPathsInput = z.infer<typeof SuggestCareerPathsInputSchema>;
@@ -44,7 +45,7 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestCareerPathsInputSchema},
   output: {schema: SuggestCareerPathsOutputSchema},
   prompt: `You are an expert career advisor AI.
-A user has provided their interests, skills, and optionally their experience and education level.
+A user has provided their interests, skills, and optionally their experience, education level, and competitive exam scores.
 Based on this information, suggest {{{numSuggestions}}} potential career paths.
 
 User's Interests:
@@ -63,6 +64,15 @@ User's Experience Level: {{{experienceLevel}}}
 
 {{#if educationLevel}}
 User's Education Level: {{{educationLevel}}}
+{{/if}}
+
+{{#if competitiveExamScore}}
+User's Competitive Exam Score: {{{competitiveExamScore}}}
+If a competitive exam score is provided, consider it when suggesting study fields and courses. You should *not* make definitive statements about admission chances to specific universities or programs, as these vary widely. Instead, you can:
+- Suggest general types of institutions or program competitiveness levels that might align with such a score range (e.g., "highly competitive research universities," "state universities with good engineering programs," "vocational diploma programs").
+- Indicate if certain highly competitive fields might require exceptionally high scores, or if the provided score is generally suitable for a range of programs in the suggested fields.
+- Frame suggestions carefully, e.g., "With a score like X, you might explore programs in Y, which often have a range of entry requirements." or "Fields like Z are typically very competitive; your score could be a factor to consider alongside other application components."
+Focus on providing general guidance on how the score might influence their educational path within the suggested career areas.
 {{/if}}
 
 For each suggested career path, provide:

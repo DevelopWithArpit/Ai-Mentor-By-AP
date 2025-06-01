@@ -144,6 +144,7 @@ export default function MentorAiPage() {
   const [careerInterests, setCareerInterests] = useState<string>(''); // Comma-separated
   const [careerSkills, setCareerSkills] = useState<string>(''); // Comma-separated
   const [careerExperienceLevel, setCareerExperienceLevel] = useState<"entry-level" | "mid-level" | "senior-level" | "executive">("entry-level");
+  const [careerCompetitiveExamScore, setCareerCompetitiveExamScore] = useState<string>('');
   const [generatedCareerPaths, setGeneratedCareerPaths] = useState<SuggestCareerPathsOutput | null>(null);
   const [isGeneratingCareerPaths, setIsGeneratingCareerPaths] = useState<boolean>(false);
 
@@ -560,7 +561,12 @@ export default function MentorAiPage() {
         setIsGeneratingCareerPaths(false);
         return;
       }
-      const result = await suggestCareerPaths({ interests: interestsArray, skills: skillsArray, experienceLevel: careerExperienceLevel });
+      const result = await suggestCareerPaths({ 
+        interests: interestsArray, 
+        skills: skillsArray, 
+        experienceLevel: careerExperienceLevel,
+        competitiveExamScore: careerCompetitiveExamScore || undefined,
+      });
       setGeneratedCareerPaths(result);
       toast({ title: "Career Paths Suggested!", description: "Potential career paths are ready for exploration." });
     } catch (err: any) { toast({ title: "Career Path Error", description: err.message || "Failed to suggest career paths.", variant: "destructive" }); }
@@ -883,11 +889,17 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
-                        <CardDescription>Discover potential career paths, including relevant study fields and courses. Input your interests, skills, and experience level for personalized suggestions.</CardDescription>
+                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions on careers, study fields, degrees/diplomas, and courses.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
                         <Input placeholder="Your Skills (comma-separated, e.g., Python, project management, writing)" value={careerSkills} onChange={(e) => setCareerSkills(e.target.value)} disabled={isGeneratingCareerPaths}/>
+                         <Input 
+                            placeholder="Competitive Exam Score (Optional, e.g., '75 percentile SAT', 'Rank 5000 JEE')" 
+                            value={careerCompetitiveExamScore} 
+                            onChange={(e) => setCareerCompetitiveExamScore(e.target.value)} 
+                            disabled={isGeneratingCareerPaths}
+                        />
                         <Select value={careerExperienceLevel} onValueChange={(v) => setCareerExperienceLevel(v as any)} disabled={isGeneratingCareerPaths}>
                             <SelectTrigger><SelectValue placeholder="Select Experience Level"/></SelectTrigger>
                             <SelectContent>
