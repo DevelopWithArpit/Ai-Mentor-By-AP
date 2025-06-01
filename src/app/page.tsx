@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -1127,7 +1127,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. Optionally, add your target job role/industry and specific projects or details you want the AI to include or highlight in the improved version.</CardDescription>
+                        <CardDescription>Paste your resume text. Optionally, add your target job role/industry and specific projects or details you want the AI to include or highlight in the improved version. Get LinkedIn profile tips too!</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
@@ -1194,8 +1194,8 @@ export default function MentorAiPage() {
                                 )}
 
                                 <div>
-                                    <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis:</h4>
-                                    <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment (Original):</strong> {resumeFeedback.overallAssessment}</p>
+                                    <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis (Original Resume):</h4>
+                                    <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
                                     {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary (for Rewritten Resume):</strong> {resumeFeedback.atsKeywordsSummary}</p>}
                                     <Accordion type="single" collapsible className="w-full">
                                         {resumeFeedback.feedbackItems.map((item, index) => (
@@ -1206,13 +1206,24 @@ export default function MentorAiPage() {
                                                 <span><strong>{item.area}</strong> {item.importance && `(${item.importance})`}</span>
                                             </div>
                                             </AccordionTrigger>
-                                            <AccordionContent className="text-xs pl-8">
+                                            <AccordionContent className="text-xs pl-8 whitespace-pre-wrap">
                                             {item.suggestion}
                                             </AccordionContent>
                                         </AccordionItem>
                                         ))}
                                     </Accordion>
                                 </div>
+                                {resumeFeedback.linkedinProfileSuggestions && (
+                                    <div className="mt-4">
+                                        <h4 className="font-semibold text-foreground mb-2 flex items-center">
+                                            <Linkedin className="mr-2 h-5 w-5 text-blue-700" />
+                                            LinkedIn Profile Suggestions:
+                                        </h4>
+                                        <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                                            <p className="text-sm whitespace-pre-wrap text-blue-800">{resumeFeedback.linkedinProfileSuggestions}</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>
@@ -1317,7 +1328,7 @@ export default function MentorAiPage() {
                                             {generatedCareerPaths.globallySuggestedStudyFields.map((field, index) => (
                                                 <AccordionItem value={`field-${index}`} key={`field-${index}`}>
                                                     <AccordionTrigger className="text-sm hover:no-underline text-left">{field.fieldName}</AccordionTrigger>
-                                                    <AccordionContent className="text-xs pl-4">
+                                                    <AccordionContent className="text-xs pl-4 whitespace-pre-wrap">
                                                         {field.description || "No description provided."}
                                                     </AccordionContent>
                                                 </AccordionItem>
@@ -1333,7 +1344,7 @@ export default function MentorAiPage() {
                                         {generatedCareerPaths.globallySuggestedExampleInstitutions.map((inst, i) => (
                                             <AccordionItem value={`inst-${i}`} key={`inst-${i}`}>
                                                 <AccordionTrigger className="text-sm hover:no-underline text-left">{inst.institutionName}</AccordionTrigger>
-                                                <AccordionContent className="text-xs pl-4">
+                                                <AccordionContent className="text-xs pl-4 whitespace-pre-wrap">
                                                     <p><strong>Outlook:</strong> {inst.admissionOutlook || "General outlook not specified."}</p>
                                                 </AccordionContent>
                                             </AccordionItem>
