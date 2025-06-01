@@ -727,8 +727,8 @@ export default function MentorAiPage() {
         toast({title: "No Text", description: "Please enter some text in the input field first.", variant: "destructive"});
         return;
     }
-    setIsAddingTextMode(true);
     setSelectedTextElementId(null); // Ensure we are in "add" mode, not "edit" mode
+    setIsAddingTextMode(true);
     toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
   }
 
@@ -1221,6 +1221,9 @@ export default function MentorAiPage() {
                                         </h4>
                                         <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
                                             <p className="text-sm whitespace-pre-wrap text-blue-800">{resumeFeedback.linkedinProfileSuggestions}</p>
+                                            <p className="text-xs text-blue-700/80 mt-2 italic">
+                                              Note: These suggestions are generated based on your improved resume text above. The AI cannot directly access or modify your live LinkedIn profile via a URL.
+                                            </p>
                                         </div>
                                     </div>
                                 )}
