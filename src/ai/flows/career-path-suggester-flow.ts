@@ -26,7 +26,7 @@ const CareerPathSuggestionSchema = z.object({
   alignmentReason: z.string().describe("Explanation of why this path aligns with the user's interests and skills."),
   potentialSkillsToDevelop: z.array(z.string()).optional().describe("Key skills that might be beneficial to develop or strengthen for this path."),
   typicalIndustries: z.array(z.string()).optional().describe("Common industries where this role is found."),
-  suggestedStudyFields: z.array(z.string()).optional().describe("Relevant fields of study for this career path (e.g., 'Computer Science', 'Mechanical Engineering', 'Psychology')."),
+  suggestedStudyFields: z.array(z.string()).optional().describe("Relevant academic degrees, diplomas, or fields of study for this career path (e.g., 'Bachelor of Science in Computer Science', 'Diploma in Digital Marketing', 'Mechanical Engineering')."),
   suggestedCoursesOrCertifications: z.array(z.string()).optional().describe("Example courses, certifications, or specific learning areas beneficial for this path (e.g., 'Machine Learning Specialization', 'Certified Project Manager (PMP)', 'Digital Marketing Fundamentals')."),
 });
 
@@ -71,7 +71,7 @@ For each suggested career path, provide:
 3.  **Alignment Reason**: Clearly explain how this career path aligns with the user's provided interests and skills. Be specific.
 4.  **Potential Skills to Develop (Optional)**: List 2-3 key skills that would be beneficial for the user to acquire or improve for this path.
 5.  **Typical Industries (Optional)**: List 2-3 common industries where this role is prevalent.
-6.  **Suggested Study Fields (Optional)**: List 1-2 relevant academic fields of study (e.g., 'Computer Science', 'Marketing', 'Environmental Science').
+6.  **Suggested Degrees, Diplomas, or Study Fields (Optional)**: List 1-2 relevant academic qualifications, such as specific degrees (e.g., 'Bachelor of Science in Computer Science'), diplomas (e.g., 'Diploma in Network Administration'), or general fields of study if specific qualifications are less common (e.g., 'Marketing', 'Environmental Science').
 7.  **Suggested Courses/Certifications (Optional)**: List 1-3 specific example courses, certifications, or learning areas (e.g., 'Introduction to Python Programming', 'Google Digital Marketing Certificate', 'Agile Project Management').
 
 Consider the combination of interests and skills. If experience level is provided, try to tailor suggestions accordingly (e.g., more strategic roles for senior levels).
