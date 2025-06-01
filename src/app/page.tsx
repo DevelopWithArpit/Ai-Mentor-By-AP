@@ -1229,8 +1229,8 @@ export default function MentorAiPage() {
                                                 <div>
                                                     <Label className="text-blue-800 font-medium">Suggested Headline:</Label>
                                                     <div className="flex items-start gap-2">
-                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedHeadline} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1" rows={2} />
-                                                        <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedHeadline!); toast({ description: "Headline copied!" });}}><Copy className="h-4 w-4" /></Button>
+                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedHeadline} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1" rows={2} aria-label="Suggested LinkedIn Headline" />
+                                                        <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedHeadline!); toast({ description: "Headline copied!" });}} aria-label="Copy headline"><Copy className="h-4 w-4" /></Button>
                                                     </div>
                                                 </div>
                                             )}
@@ -1238,29 +1238,66 @@ export default function MentorAiPage() {
                                                 <div>
                                                     <Label className="text-blue-800 font-medium">Suggested About Section:</Label>
                                                      <div className="flex items-start gap-2">
-                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1 min-h-[100px]" />
-                                                        <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedAboutSection!); toast({ description: "About section copied!" });}}><Copy className="h-4 w-4" /></Button>
+                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1 min-h-[100px]" aria-label="Suggested LinkedIn About Section" />
+                                                        <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedAboutSection!); toast({ description: "About section copied!" });}} aria-label="Copy about section"><Copy className="h-4 w-4" /></Button>
                                                     </div>
                                                 </div>
                                             )}
-                                            {resumeFeedback.linkedinProfileSuggestions.experienceSectionTips && (
-                                                <div>
-                                                    <Label className="text-blue-800 font-medium">Experience Section Tips:</Label>
-                                                    <div className="flex items-start gap-2">
-                                                      <Textarea value={resumeFeedback.linkedinProfileSuggestions.experienceSectionTips} readOnly className="text-xs text-blue-900 bg-blue-100/50 flex-1" rows={3} />
-                                                      <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.experienceSectionTips!); toast({ description: "Experience tips copied!" });}}><Copy className="h-4 w-4" /></Button>
-                                                    </div>
+                                            
+                                            <div>
+                                                <Label className="text-blue-800 font-medium">Experience Section Tips:</Label>
+                                                <div className="flex items-start gap-2">
+                                                    <Textarea 
+                                                    value={resumeFeedback.linkedinProfileSuggestions.experienceSectionTips || "No specific tips provided by AI."} 
+                                                    readOnly 
+                                                    className="text-xs text-blue-900 bg-blue-100/50 flex-1" 
+                                                    rows={3} 
+                                                    aria-label="LinkedIn Experience Section Tips"
+                                                    />
+                                                    <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    onClick={() => { 
+                                                        if (resumeFeedback.linkedinProfileSuggestions?.experienceSectionTips) {
+                                                        navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions.experienceSectionTips); 
+                                                        toast({ description: "Experience tips copied!" });
+                                                        }
+                                                    }}
+                                                    disabled={!resumeFeedback.linkedinProfileSuggestions?.experienceSectionTips}
+                                                    aria-label="Copy experience tips"
+                                                    >
+                                                    <Copy className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
-                                            )}
-                                            {resumeFeedback.linkedinProfileSuggestions.skillsSectionTips && (
-                                                 <div>
-                                                    <Label className="text-blue-800 font-medium">Skills Section Tips:</Label>
-                                                    <div className="flex items-start gap-2">
-                                                      <Textarea value={resumeFeedback.linkedinProfileSuggestions.skillsSectionTips} readOnly className="text-xs text-blue-900 bg-blue-100/50 flex-1" rows={3} />
-                                                      <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.skillsSectionTips!); toast({ description: "Skills tips copied!" });}}><Copy className="h-4 w-4" /></Button>
-                                                    </div>
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-blue-800 font-medium">Skills Section Tips:</Label>
+                                                <div className="flex items-start gap-2">
+                                                    <Textarea 
+                                                    value={resumeFeedback.linkedinProfileSuggestions.skillsSectionTips || "No specific tips provided by AI."} 
+                                                    readOnly 
+                                                    className="text-xs text-blue-900 bg-blue-100/50 flex-1" 
+                                                    rows={3} 
+                                                    aria-label="LinkedIn Skills Section Tips"
+                                                    />
+                                                    <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    onClick={() => { 
+                                                        if (resumeFeedback.linkedinProfileSuggestions?.skillsSectionTips) {
+                                                        navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions.skillsSectionTips); 
+                                                        toast({ description: "Skills tips copied!" });
+                                                        }
+                                                    }}
+                                                    disabled={!resumeFeedback.linkedinProfileSuggestions?.skillsSectionTips}
+                                                    aria-label="Copy skills tips"
+                                                    >
+                                                    <Copy className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
-                                            )}
+                                            </div>
+                                            
                                             <p className="text-xs text-blue-700/80 mt-2 italic">
                                               Note: These suggestions are generated based on your improved resume text. The AI cannot directly access or modify your live LinkedIn profile via a URL.
                                             </p>
