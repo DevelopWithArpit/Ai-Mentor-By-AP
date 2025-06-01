@@ -27,7 +27,7 @@ const CareerPathSuggestionSchema = z.object({
   alignmentReason: z.string().describe("Explanation of why this path aligns with the user's interests and skills."),
   potentialSkillsToDevelop: z.array(z.string()).optional().describe("Key skills that might be beneficial to develop or strengthen for this path."),
   typicalIndustries: z.array(z.string()).optional().describe("Common industries where this role is found."),
-  suggestedStudyFields: z.array(z.string()).optional().describe("Relevant academic degrees, diplomas, or fields of study for this career path (e.g., 'Bachelor of Science in Computer Science', 'Diploma in Digital Marketing', 'Mechanical Engineering'). If a competitive exam score was provided, these suggestions should be informed by it in general terms."),
+  suggestedStudyFields: z.array(z.string()).optional().describe("Specific academic programs (e.g., 'Bachelor of Engineering in Computer Science', 'Diploma in Hospitality Management', 'Master of Public Health') or relevant fields of study (e.g., 'Physics', 'Literature'). If a competitive exam score was provided, these suggestions should be informed by it in general terms regarding program competitiveness or institutional tiers, without naming specific colleges."),
   suggestedCoursesOrCertifications: z.array(z.string()).optional().describe("Example courses, certifications, or specific learning areas beneficial for this path (e.g., 'Machine Learning Specialization', 'Certified Project Manager (PMP)', 'Digital Marketing Fundamentals')."),
 });
 
@@ -84,7 +84,7 @@ For each suggested career path, provide:
 3.  **Alignment Reason**: Clearly explain how this career path aligns with the user's provided interests and skills.
 4.  **Potential Skills to Develop (Optional)**: List 2-3 key skills that would be beneficial for the user to acquire or improve for this path.
 5.  **Typical Industries (Optional)**: List 2-3 common industries where this role is prevalent.
-6.  **Suggested Degrees, Diplomas, or Study Fields (Optional)**: List 1-2 relevant academic qualifications, such as specific degrees (e.g., 'Bachelor of Science in Computer Science'), diplomas (e.g., 'Diploma in Network Administration'), or general fields of study if specific qualifications are less common (e.g., 'Marketing', 'Environmental Science'). If a competitive exam score was provided, these suggestions should be informed by it in general terms.
+6.  **Suggested College Programs (Degrees/Diplomas) (Optional)**: List 1-2 specific academic programs by name (e.g., 'Bachelor of Science in Computer Science', 'Diploma in Digital Marketing', 'Master of Business Administration', 'Associate of Applied Science in Cybersecurity'). If general fields of study are more appropriate (e.g., 'Fine Arts'), list those. If a competitive exam score was provided, your suggestions for these programs should be generally informed by the score, considering the types of institutions or program competitiveness that might align, without naming specific colleges.
 7.  **Suggested Courses/Certifications (Optional)**: List 1-3 specific example courses, certifications, or learning areas (e.g., 'Introduction to Python Programming', 'Google Digital Marketing Certificate', 'Agile Project Management').
 
 Consider the combination of interests and skills. If experience level is provided, try to tailor suggestions accordingly (e.g., more strategic roles for senior levels).
