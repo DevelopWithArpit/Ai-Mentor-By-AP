@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/scholar-ai/Header';
 import { FileUpload } from '@/components/scholar-ai/FileUpload';
 import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
-import { LanguageSelector } from '@/components/scholar-ai/LanguageSelector';
+// LanguageSelector is now global, removed from here
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -29,6 +28,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import jsPDF from 'jspdf';
+import { useTheme, type Theme } from "@/components/theme-provider";
+
 
 import { smartSearch, type SmartSearchInput, type SmartSearchOutput } from '@/ai/flows/smart-search';
 import { explainAnswer, type ExplainAnswerInput, type ExplainAnswerOutput } from '@/ai/flows/ai-explanation';
@@ -90,12 +91,13 @@ export default function MentorAiPage() {
   const [activeTool, setActiveTool] = useState<string>(tools[0].id);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [question, setQuestion] = useState<string>('');
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en'); // Global AI explanation language
   const [searchResult, setSearchResult] = useState<SmartSearchOutput | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme(); // Get theme context
 
   const [codePrompt, setCodePrompt] = useState<string>('');
   const [codeLanguage, setCodeLanguage] = useState<string>('');
@@ -177,6 +179,7 @@ export default function MentorAiPage() {
       const result = await smartSearch(searchInput);
       setSearchResult(result);
       if (result?.answer) {
+        // TODO: Pass selectedLanguage to explainAnswer flow if/when it supports it
         const explainerResult = await explainAnswer({ question, answer: result.answer });
         setExplanation(explainerResult.explanation);
         toast({ title: "AI Mentor Success!", description: "Insights generated successfully." });
@@ -591,7 +594,12 @@ export default function MentorAiPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header />
+      <Header 
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={setSelectedLanguage}
+        currentTheme={theme}
+        onThemeChange={setTheme}
+      />
       <SidebarProvider defaultOpen={true}>
         <div className="flex flex-1">
           <Sidebar collapsible="icon">
@@ -627,14 +635,14 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                   <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Brain className="mr-2 h-7 w-7"/>Document Q&amp;A</CardTitle>
-                    <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document.</CardDescription>
+                    <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document. AI explanation language can be set in global Settings (gear icon in header).</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                       <div className="lg:col-span-1 space-y-6">
                         <FileUpload selectedFile={selectedFile} onFileChange={handleFileChange} isLoading={isLoading} inputId="file-upload-input"/>
                         <QuestionInput question={question} onQuestionChange={setQuestion} onSubmit={handleSubmitScholarAI} isLoading={isLoading} isSubmitDisabled={!question.trim()}/>
-                        <LanguageSelector selectedLanguage={selectedLanguage} onLanguageChange={setSelectedLanguage} isLoading={isLoading}/>
+                        {/* LanguageSelector removed from here */}
                         <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear Q&amp;A</Button>
                       </div>
                       <div className="lg:col-span-2">
@@ -1119,12 +1127,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-
-    
-
-    
-
-
-
-
-    

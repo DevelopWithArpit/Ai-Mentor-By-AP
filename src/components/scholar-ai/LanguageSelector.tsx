@@ -13,7 +13,7 @@ import { Globe } from 'lucide-react';
 interface LanguageSelectorProps {
   selectedLanguage: string;
   onLanguageChange: (language: string) => void;
-  isLoading: boolean;
+  isLoading: boolean; // Kept for potential future use, but will be passed false from SettingsDialog
 }
 
 const languages = [
@@ -22,6 +22,7 @@ const languages = [
   { value: 'fr', label: 'Français (French)' },
   { value: 'de', label: 'Deutsch (German)' },
   { value: 'hi', label: 'हिन्दी (Hindi)' },
+  // Add more languages as needed
 ];
 
 export function LanguageSelector({
@@ -33,12 +34,12 @@ export function LanguageSelector({
     <div className="space-y-2">
       <Label htmlFor="language-select" className="text-md font-medium text-foreground flex items-center">
         <Globe className="mr-2 h-5 w-5 text-primary" />
-        Explanation Language
+        AI Explanation Language
       </Label>
       <Select
         value={selectedLanguage}
         onValueChange={onLanguageChange}
-        disabled={isLoading}
+        disabled={isLoading} // Will be false when used in SettingsDialog
       >
         <SelectTrigger id="language-select" className="w-full sm:w-[200px] bg-card focus:ring-primary">
           <SelectValue placeholder="Select language" />
@@ -51,9 +52,12 @@ export function LanguageSelector({
           ))}
         </SelectContent>
       </Select>
+      {/* This note is context-dependent, maybe better placed where LanguageSelector is used.
+          For now, kept here, but if it's in settings dialog, the dialog can add more context.
       <p className="text-xs text-muted-foreground">
         Note: AI explanation is currently provided in English. Language selection is for future enhancements.
       </p>
+      */}
     </div>
   );
 }
