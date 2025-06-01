@@ -24,13 +24,20 @@ const FeedbackItemSchema = z.object({
     importance: z.enum(["high", "medium", "low"]).optional().describe("The perceived importance of addressing this feedback."),
 });
 
+const LinkedInProfileSuggestionsSchema = z.object({
+  suggestedHeadline: z.string().optional().describe("A suggested, impactful LinkedIn headline (around 120-220 characters) based on the rewritten resume and target job role. It should be concise and keyword-rich."),
+  suggestedAboutSection: z.string().optional().describe("A draft for the LinkedIn 'About' section (summary), written in a professional yet engaging tone (ideally 2-4 paragraphs), based on the rewritten resume. It should highlight key skills, experiences, and career aspirations."),
+  experienceSectionTips: z.string().optional().describe("Actionable tips on how to adapt the resume's experience bullet points for LinkedIn (e.g., writing in first-person, focusing on impact, using keywords, and potentially adding links to projects or media). Provide 2-3 concise bullet points or a short paragraph."),
+  skillsSectionTips: z.string().optional().describe("Recommendations for the LinkedIn skills section, including which key skills from the resume to highlight, the importance of getting endorsements, and how to order them. Provide 2-3 concise bullet points or a short paragraph.")
+}).optional();
+
 const ResumeFeedbackOutputSchema = z.object({
   overallAssessment: z.string().describe('A brief overall assessment of the original resume, including its potential ATS compatibility.'),
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten resume.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
   modifiedResumeText: z.string().describe('The rewritten resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output.'),
-  linkedinProfileSuggestions: z.string().optional().describe("Actionable suggestions for improving the user's LinkedIn profile based on the content of the modifiedResumeText. This should cover areas like headline, about section (summary), experience descriptions, skills, and keyword optimization relevant to the targetJobRole, if provided. Provide advice in a paragraph or bullet points format."),
+  linkedinProfileSuggestions: LinkedInProfileSuggestionsSchema,
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
 
@@ -46,7 +53,7 @@ const prompt = ai.definePrompt({
 You will perform three main tasks:
 1.  **Analyze and Provide Feedback**: Analyze the provided resume text. Then, generate a detailed list of feedback items, an overall assessment, an ATS keywords summary, and key talking points based on the original text.
 2.  **Rewrite the Resume**: Based on your analysis and feedback, rewrite the entire resume text to incorporate these improvements. If 'additionalInformation' is provided, thoughtfully integrate it into the rewritten resume.
-3.  **Provide LinkedIn Profile Suggestions**: Based on the rewritten resume, offer actionable advice for improving the user's LinkedIn profile.
+3.  **Provide Detailed LinkedIn Profile Suggestions**: Based on the rewritten resume, offer specific, actionable, and copy-paste-friendly advice for improving the user's LinkedIn profile for key sections.
 
 Resume Text to Analyze and Rewrite:
 {{{resumeText}}}
@@ -88,20 +95,17 @@ When rewriting the resume, please thoughtfully integrate this additional informa
 *   This rewritten version should directly implement the suggestions you've identified and incorporate the 'additionalInformation' if provided.
 *   Focus on: ATS Friendliness, Clarity, Impact, Relevance{{#if targetJobRole}} to "{{targetJobRole}}"{{/if}}, Grammar, Structure.
 
-**Part 3: LinkedIn Profile Suggestions (for \`linkedinProfileSuggestions\` field)**
+**Part 3: Detailed LinkedIn Profile Suggestions (for \`linkedinProfileSuggestions\` field and its sub-fields)**
 *   Based on the \`modifiedResumeText\` you have just generated (and considering the \`targetJobRole\` if provided):
-*   Provide actionable suggestions for improving the user's LinkedIn profile.
-*   Cover key areas such as:
-    *   **Headline**: How to make it impactful and keyword-rich.
-    *   **About Section (Summary)**: Tips for writing an engaging summary that reflects their strengths and career goals from the improved resume.
-    *   **Experience Section**: How to adapt the resume's experience bullet points for LinkedIn (e.g., first-person, slightly more conversational, multimedia).
-    *   **Skills**: Reinforce the importance of adding relevant skills and seeking endorsements.
-    *   **Keywords**: How to strategically use keywords from the \`targetJobRole\` and resume throughout the profile.
-*   Present these suggestions as a concise paragraph or a few key bullet points.
-*   Example: "LinkedIn Suggestions: For your headline, consider '[Job Title] at [Company] | Seeking opportunities in [Industry] | Key Skills: A, B, C'. Your 'About' section can expand on your resume summary, highlighting your passion for X and Y. For each experience, rephrase your resume bullet points to be more narrative and add any relevant project links or media. Ensure your Skills section includes keywords like 'Python', 'Data Analysis', and 'Project Management' from your resume."
+*   Provide specific, detailed, and largely copy-paste-ready suggestions for the user's LinkedIn profile. Structure this output with the following sub-fields:
+    *   **\`suggestedHeadline\`**: Generate an impactful and keyword-rich LinkedIn headline (120-220 characters). Example: "Senior Software Engineer at Innovatech | Java, Python, Cloud Solutions | Driving Scalable System Architecture | Ex-Googler".
+    *   **\`suggestedAboutSection\`**: Draft a compelling "About" section (summary) for LinkedIn. This should be 2-4 paragraphs, written in a professional yet engaging first-person or third-person (as appropriate for LinkedIn style) tone. It should translate the resume's summary and key achievements into a narrative format, highlighting strengths, career goals, and passion.
+    *   **\`experienceSectionTips\`**: Provide 2-3 concise bullet points or a short paragraph of actionable tips on how to adapt the resume's experience bullet points for LinkedIn. For example: "Rephrase bullet points in the first person (e.g., 'I led...' instead of 'Led...'). Quantify achievements with numbers whenever possible. Consider adding links to relevant projects, publications, or company websites in the media section of each role."
+    *   **\`skillsSectionTips\`**: Offer 2-3 concise bullet points or a short paragraph of recommendations for the LinkedIn skills section. For example: "List at least 5 key skills from your resume, prioritizing those most relevant to '{{targetJobRole}}'. Seek endorsements for your top skills from colleagues and connections. Ensure your listed skills align with keywords used in job descriptions for '{{targetJobRole}}'."
+*   Ensure the content for \`suggestedHeadline\` and \`suggestedAboutSection\` is well-written and almost ready to be copied and pasted.
 
 The \`modifiedResumeText\` should be a complete, well-formatted, ready-to-use version of the resume.
-The \`linkedinProfileSuggestions\` should provide clear, practical advice.
+The \`linkedinProfileSuggestions\` should provide clear, practical, and detailed advice for specific LinkedIn sections.
 `,
 });
 

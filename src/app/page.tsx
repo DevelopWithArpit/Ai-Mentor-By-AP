@@ -693,6 +693,8 @@ export default function MentorAiPage() {
     if (!selectedTextElementId || !imageEditorCurrentText.trim()) {
         if (!imageEditorCurrentText.trim()) {
             toast({ title: "Cannot Update", description: "Text content cannot be empty.", variant: "destructive" });
+        } else {
+          toast({ title: "No Text Selected", description: "Click on a text element on the image to select it first.", variant: "default" });
         }
         return;
     }
@@ -707,7 +709,10 @@ export default function MentorAiPage() {
   };
 
   const handleDeleteSelectedText = () => {
-    if (!selectedTextElementId) return;
+    if (!selectedTextElementId) {
+        toast({ title: "No Text Selected", description: "Click on a text element on the image to select it for deletion.", variant: "default" });
+        return;
+    }
     setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
     setSelectedTextElementId(null);
     setImageEditorCurrentText('Hello Text'); // Reset to default
@@ -1217,12 +1222,41 @@ export default function MentorAiPage() {
                                     <div className="mt-4">
                                         <h4 className="font-semibold text-foreground mb-2 flex items-center">
                                             <Linkedin className="mr-2 h-5 w-5 text-blue-700" />
-                                            LinkedIn Profile Suggestions:
+                                            Detailed LinkedIn Profile Suggestions:
                                         </h4>
-                                        <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-                                            <p className="text-sm whitespace-pre-wrap text-blue-800">{resumeFeedback.linkedinProfileSuggestions}</p>
+                                        <div className="space-y-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                                            {resumeFeedback.linkedinProfileSuggestions.suggestedHeadline && (
+                                                <div>
+                                                    <Label className="text-blue-800 font-medium">Suggested Headline:</Label>
+                                                    <div className="flex items-start gap-2">
+                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedHeadline} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1" rows={2} />
+                                                        <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedHeadline!); toast({ description: "Headline copied!" });}}><Copy className="h-4 w-4" /></Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection && (
+                                                <div>
+                                                    <Label className="text-blue-800 font-medium">Suggested About Section:</Label>
+                                                     <div className="flex items-start gap-2">
+                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1 min-h-[100px]" />
+                                                        <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedAboutSection!); toast({ description: "About section copied!" });}}><Copy className="h-4 w-4" /></Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {resumeFeedback.linkedinProfileSuggestions.experienceSectionTips && (
+                                                <div>
+                                                    <Label className="text-blue-800 font-medium">Experience Section Tips:</Label>
+                                                    <p className="text-xs text-blue-800 whitespace-pre-wrap p-2 bg-blue-100/50 rounded-sm">{resumeFeedback.linkedinProfileSuggestions.experienceSectionTips}</p>
+                                                </div>
+                                            )}
+                                            {resumeFeedback.linkedinProfileSuggestions.skillsSectionTips && (
+                                                 <div>
+                                                    <Label className="text-blue-800 font-medium">Skills Section Tips:</Label>
+                                                    <p className="text-xs text-blue-800 whitespace-pre-wrap p-2 bg-blue-100/50 rounded-sm">{resumeFeedback.linkedinProfileSuggestions.skillsSectionTips}</p>
+                                                </div>
+                                            )}
                                             <p className="text-xs text-blue-700/80 mt-2 italic">
-                                              Note: These suggestions are generated based on your improved resume text above. The AI cannot directly access or modify your live LinkedIn profile via a URL.
+                                              Note: These suggestions are generated based on your improved resume text. The AI cannot directly access or modify your live LinkedIn profile via a URL.
                                             </p>
                                         </div>
                                     </div>
@@ -1327,7 +1361,7 @@ export default function MentorAiPage() {
                                 {generatedCareerPaths.globallySuggestedStudyFields && generatedCareerPaths.globallySuggestedStudyFields.length > 0 && (
                                     <div className="mb-4">
                                         <h5 className="font-semibold text-foreground mb-2 flex items-center"><GraduationCap className="mr-2 h-5 w-5 text-primary"/>Generally Suggested Study Fields:</h5>
-                                        <Accordion type="multiple" className="w-full">
+                                        <Accordion type="multiple" className="w-full" defaultValue={generatedCareerPaths.globallySuggestedStudyFields.map((_,i) => `field-${i}`)}>
                                             {generatedCareerPaths.globallySuggestedStudyFields.map((field, index) => (
                                                 <AccordionItem value={`field-${index}`} key={`field-${index}`}>
                                                     <AccordionTrigger className="text-sm hover:no-underline text-left">{field.fieldName}</AccordionTrigger>
@@ -1343,7 +1377,7 @@ export default function MentorAiPage() {
                                 {generatedCareerPaths.globallySuggestedExampleInstitutions && generatedCareerPaths.globallySuggestedExampleInstitutions.length > 0 && (
                                   <div className="mt-2">
                                     <h5 className="font-semibold text-foreground mb-2 flex items-center"><BookOpen className="mr-2 h-5 w-5 text-primary"/>Generally Suggested Example Institutions & Outlook:</h5>
-                                     <Accordion type="multiple" className="w-full">
+                                     <Accordion type="multiple" className="w-full" defaultValue={generatedCareerPaths.globallySuggestedExampleInstitutions.map((_,i) => `inst-${i}`)}>
                                         {generatedCareerPaths.globallySuggestedExampleInstitutions.map((inst, i) => (
                                             <AccordionItem value={`inst-${i}`} key={`inst-${i}`}>
                                                 <AccordionTrigger className="text-sm hover:no-underline text-left">{inst.institutionName}</AccordionTrigger>
