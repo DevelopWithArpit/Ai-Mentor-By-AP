@@ -883,7 +883,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
-                        <CardDescription>Discover potential career paths. Input your interests, skills, and experience level for personalized suggestions.</CardDescription>
+                        <CardDescription>Discover potential career paths, including relevant study fields and courses. Input your interests, skills, and experience level for personalized suggestions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
@@ -915,6 +915,12 @@ export default function MentorAiPage() {
                                                 )}
                                                 {path.typicalIndustries && path.typicalIndustries.length > 0 && (
                                                     <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
+                                                )}
+                                                {path.suggestedStudyFields && path.suggestedStudyFields.length > 0 && (
+                                                    <p><strong>Suggested Study Fields:</strong> {path.suggestedStudyFields.join(', ')}</p>
+                                                )}
+                                                {path.suggestedCoursesOrCertifications && path.suggestedCoursesOrCertifications.length > 0 && (
+                                                    <p><strong>Suggested Courses/Certifications:</strong> {path.suggestedCoursesOrCertifications.join(', ')}</p>
                                                 )}
                                             </AccordionContent>
                                         </AccordionItem>
@@ -1105,4 +1111,5 @@ export default function MentorAiPage() {
     
 
     
+
 
