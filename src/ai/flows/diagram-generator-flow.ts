@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A flow for generating diagram-like images from text prompts.
+ * @fileOverview A flow for generating diagram-like images from text prompts, including engineering graphics.
  *
  * - wrappedGenerateDiagram - A function that generates a diagram image using a defined flow.
  * - GenerateDiagramInput - The input type for the generateDiagram function.
@@ -12,7 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z}from 'genkit';
 
 const GenerateDiagramInputSchema = z.object({
-  prompt: z.string().describe('A text prompt describing the diagram to be generated (e.g., flowchart, mind map, sequence diagram).'),
+  prompt: z.string().describe('A text prompt describing the diagram to be generated (e.g., flowchart, mind map, sequence diagram, basic engineering schematic).'),
 });
 export type GenerateDiagramInput = z.infer<typeof GenerateDiagramInputSchema>;
 
@@ -25,7 +25,7 @@ export type GenerateDiagramOutput = z.infer<typeof GenerateDiagramOutputSchema>;
 async function generateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
   const {media} = await ai.generate({
     model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: Use this specific model for image generation
-    prompt: `You are an AI assistant that creates diagrams. Generate an image of a diagram based on the following description: ${input.prompt}`,
+    prompt: `You are an AI assistant that creates technical diagrams and engineering graphics. Generate an image based on the following description. Aim for clarity and accuracy typical of engineering drawings or schematics where appropriate: ${input.prompt}`,
     config: {
       responseModalities: ['TEXT', 'IMAGE'], // Must include TEXT and IMAGE
     },

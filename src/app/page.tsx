@@ -1035,10 +1035,10 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Wand2 className="mr-2 h-7 w-7"/>AI Diagram Generator</CardTitle>
-                        <CardDescription>Generate visual diagrams (flowcharts, mind maps, etc.) as images from your text descriptions.</CardDescription>
+                        <CardDescription>Generate visual diagrams, including flowcharts, mind maps, basic engineering graphics, and technical drawings as images from your text descriptions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Textarea placeholder="Describe the diagram (e.g., 'A flowchart for a login process', 'A mind map about photosynthesis')..." value={diagramPrompt} onChange={(e) => setDiagramPrompt(e.target.value)} disabled={isGeneratingDiagram} className="min-h-[80px]"/>
+                        <Textarea placeholder="Describe the diagram (e.g., 'A flowchart for a login process', 'P&ID for a simple heat exchanger', 'Isometric view of a cube with rounded edges')..." value={diagramPrompt} onChange={(e) => setDiagramPrompt(e.target.value)} disabled={isGeneratingDiagram} className="min-h-[80px]"/>
                         <Button onClick={handleGenerateDiagram} disabled={isGeneratingDiagram || !diagramPrompt.trim()} className="w-full sm:w-auto">
                             {isGeneratingDiagram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Diagram
                         </Button>
@@ -1105,3 +1105,4 @@ export default function MentorAiPage() {
     
 
     
+
