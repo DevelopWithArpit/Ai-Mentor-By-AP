@@ -1,12 +1,13 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { Header } from '@/components/scholar-ai/Header';
 import { FileUpload } from '@/components/scholar-ai/FileUpload';
 import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 // LanguageSelector is now global, removed from here
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
+import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -83,6 +84,7 @@ const tools = [
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
   { id: 'image-gen', label: 'Image Gen', icon: ImageIconLucide, cardTitle: 'AI Image Generator' },
+  { id: 'image-text-editor', label: 'Image-Text Editor', icon: Edit, cardTitle: 'Image Text Editor' },
   { id: 'diagram-gen', label: 'Diagram Gen', icon: Wand2, cardTitle: 'AI Diagram Generator' },
   { id: 'presentations', label: 'Presentations', icon: PresentationIcon, cardTitle: 'AI Presentation Generator' },
 ];
@@ -158,6 +160,16 @@ export default function MentorAiPage() {
   const [summaryCustomPrompt, setSummaryCustomPrompt] = useState<string>('');
   const [generatedSummary, setGeneratedSummary] = useState<SummarizeDocumentOutput | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<boolean>(false);
+
+  // Image Text Editor States
+  const [imageEditorFile, setImageEditorFile] = useState<File | null>(null);
+  const [imageEditorTextElements, setImageEditorTextElements] = useState<TextElement[]>([]);
+  const [imageEditorCurrentText, setImageEditorCurrentText] = useState<string>('Hello World');
+  const [imageEditorTextColor, setImageEditorTextColor] = useState<string>('#000000');
+  const [imageEditorTextFontSize, setImageEditorTextFontSize] = useState<number>(30);
+  const [imageEditorTextFontFamily, setImageEditorTextFontFamily] = useState<string>('Arial');
+  const [isAddingTextMode, setIsAddingTextMode] = useState<boolean>(false);
+  const imageEditorCanvasRef = useRef<HTMLCanvasElement>(null); // To access canvas for download
 
 
   const handleFileChange = (file: File | null) => {
@@ -591,7 +603,85 @@ export default function MentorAiPage() {
     finally { setIsGeneratingSummary(false); }
   };
 
+  // Image Text Editor Handlers
+  const handleImageEditorFileChange = (file: File | null) => {
+    setImageEditorFile(file);
+    setImageEditorTextElements([]); // Clear text elements when new image is loaded
+  };
+
+  const handleImageEditorCanvasClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
+    if (!isAddingTextMode || !imageEditorCurrentText.trim()) {
+      if (isAddingTextMode && !imageEditorCurrentText.trim()) {
+        toast({ title: "Add Text", description: "Please enter some text before placing it.", variant: "default" });
+      }
+      return;
+    }
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    setImageEditorTextElements(prev => [
+      ...prev,
+      {
+        id: new Date().toISOString(), // Simple unique ID
+        text: imageEditorCurrentText,
+        x,
+        y,
+        color: imageEditorTextColor,
+        fontSize: imageEditorTextFontSize,
+        fontFamily: imageEditorTextFontFamily,
+      },
+    ]);
+    //setImageEditorCurrentText(''); // Optionally clear text after adding
+    setIsAddingTextMode(false); // Exit adding text mode
+    toast({ title: "Text Added", description: "Text placed on image. You can add more or adjust settings." });
+  };
+  
+  const handlePrepareToAddText = () => {
+    if (!imageEditorFile) {
+        toast({title: "No Image", description: "Please upload an image first to add text.", variant: "destructive"});
+        return;
+    }
+    if (!imageEditorCurrentText.trim()) {
+        toast({title: "No Text", description: "Please enter some text in the input field first.", variant: "destructive"});
+        return;
+    }
+    setIsAddingTextMode(true);
+    toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
+  }
+
+  const handleImageEditorDownload = () => {
+    const canvas = document.querySelector('[data-ai-hint="image editor canvas"]') as HTMLCanvasElement; // A bit hacky, ideally use ref if ImageEditorCanvas is child here
+    if (canvas) {
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = 'edited-image.png';
+      link.href = dataUrl;
+      link.click();
+      toast({ title: "Image Downloaded", description: "Your edited image has been saved." });
+    } else {
+      toast({ title: "Download Error", description: "Could not find canvas to download.", variant: "destructive" });
+    }
+  };
+  
+  const handleImageEditorReset = () => {
+    setImageEditorFile(null);
+    setImageEditorTextElements([]);
+    setImageEditorCurrentText('Hello World');
+    setImageEditorTextColor('#000000');
+    setImageEditorTextFontSize(30);
+    setImageEditorTextFontFamily('Arial');
+    setIsAddingTextMode(false);
+    const fileInput = document.getElementById('image-editor-file-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+    toast({ title: "Editor Reset", description: "Image text editor has been cleared." });
+  };
+
+
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
+  const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS'];
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -711,6 +801,77 @@ export default function MentorAiPage() {
                     </CardContent>
                 </Card>
               )}
+
+               {activeTool === 'image-text-editor' && (
+                <Card className="shadow-xl bg-card">
+                  <CardHeader>
+                    <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
+                    <CardDescription>Upload an image, add text overlays, customize styles, and download your creation. Click "Prepare to Add Text" then click on the image to place text.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-1 space-y-4">
+                        <FileUpload selectedFile={imageEditorFile} onFileChange={handleImageEditorFileChange} isLoading={false} inputId="image-editor-file-upload"/>
+                        
+                        <div>
+                          <Label htmlFor="image-editor-text">Text Content</Label>
+                          <Input id="image-editor-text" value={imageEditorCurrentText} onChange={(e) => setImageEditorCurrentText(e.target.value)} placeholder="Enter text to add"/>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="image-editor-font-size">Font Size</Label>
+                                <Input id="image-editor-font-size" type="number" value={imageEditorTextFontSize} onChange={(e) => setImageEditorTextFontSize(Number(e.target.value))} placeholder="Size"/>
+                            </div>
+                            <div>
+                                <Label htmlFor="image-editor-text-color">Color</Label>
+                                <Input id="image-editor-text-color" type="color" value={imageEditorTextColor} onChange={(e) => setImageEditorTextColor(e.target.value)} className="h-10"/>
+                            </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="image-editor-font-family">Font Family</Label>
+                          <Select value={imageEditorTextFontFamily} onValueChange={setImageEditorTextFontFamily}>
+                            <SelectTrigger id="image-editor-font-family"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {availableFonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <Button onClick={handlePrepareToAddText} disabled={!imageEditorFile || !imageEditorCurrentText.trim()} className="w-full">
+                          <Type className="mr-2 h-4 w-4"/> Prepare to Add Text
+                        </Button>
+                         {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place your text.</p>}
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <ImageEditorCanvas
+                          imageFile={imageEditorFile}
+                          textElements={imageEditorTextElements}
+                          onCanvasClick={handleImageEditorCanvasClick}
+                          canvasWidth={600}
+                          canvasHeight={450}
+                        />
+                         {!imageEditorFile && (
+                            <div className="mt-2 text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/30">
+                                <ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                                <p>Upload an image to start editing.</p>
+                            </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
+                        <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorFile && imageEditorTextElements.length === 0}>
+                            <DownloadCloud className="mr-2 h-4 w-4"/> Download Image
+                        </Button>
+                        <Button onClick={handleImageEditorReset} variant="outline">
+                            <Trash2 className="mr-2 h-4 w-4"/> Reset Editor
+                        </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
 
               {activeTool === 'interview-prep' && (
                 <Card className="shadow-xl bg-card">
@@ -949,7 +1110,7 @@ export default function MentorAiPage() {
                                                     <ul className="list-disc list-inside pl-2">
                                                       {path.exampleInstitutions.map((inst, i) => <li key={i}>{inst}</li>)}
                                                     </ul>
-                                                    <p className="text-xs italic text-muted-foreground mt-1">(Note: These are illustrative examples only, based on general information. Admission to any institution is highly competitive and depends on many factors. Always research and verify current admission requirements directly with the institutions.)</p>
+                                                    <p className="text-xs italic text-muted-foreground mt-1">(Note: These are illustrative examples only, based on general information. Admission to any institution is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with the institutions.)</p>
                                                   </div>
                                                 )}
                                             </AccordionContent>
