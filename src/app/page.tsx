@@ -89,6 +89,9 @@ const tools = [
   { id: 'presentations', label: 'Presentations', icon: PresentationIcon, cardTitle: 'AI Presentation Generator' },
 ];
 
+const COMMON_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/*'];
+const COMMON_IMAGE_EXTENSIONS_STRING = ".jpg, .jpeg, .png, .gif, .webp, .bmp";
+
 
 export default function MentorAiPage() {
   const [activeTool, setActiveTool] = useState<string>(tools[0].id);
@@ -654,7 +657,7 @@ export default function MentorAiPage() {
   const handleImageEditorDownload = () => {
     const canvas = document.querySelector('[data-ai-hint="image editor canvas"]') as HTMLCanvasElement; // A bit hacky, ideally use ref if ImageEditorCanvas is child here
     if (canvas) {
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/png'); // Default to PNG, can be 'image/jpeg'
       const link = document.createElement('a');
       link.download = 'edited-image.png';
       link.href = dataUrl;
@@ -806,12 +809,20 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                   <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
-                    <CardDescription>Upload an image, add text overlays, customize styles, and download your creation. Click "Prepare to Add Text" then click on the image to place text.</CardDescription>
+                    <CardDescription>Upload an image (JPEG, PNG, GIF, WEBP, BMP), add text overlays, customize styles, and download your creation. Click "Prepare to Add Text" then click on the image to place text.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="md:col-span-1 space-y-4">
-                        <FileUpload selectedFile={imageEditorFile} onFileChange={handleImageEditorFileChange} isLoading={false} inputId="image-editor-file-upload"/>
+                        <FileUpload 
+                            selectedFile={imageEditorFile} 
+                            onFileChange={handleImageEditorFileChange} 
+                            isLoading={false} 
+                            inputId="image-editor-file-upload"
+                            label="Upload Image"
+                            acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                            acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
+                        />
                         
                         <div>
                           <Label htmlFor="image-editor-text">Text Content</Label>
@@ -1059,7 +1070,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
-                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions on careers, study fields, degrees/diplomas, and courses. If institutional examples are provided, they are illustrative and not admission guarantees; always verify with institutions.</CardDescription>
+                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions. If institutional examples are provided, they are illustrative and not admission guarantees; always verify with institutions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
@@ -1083,40 +1094,48 @@ export default function MentorAiPage() {
                             {isGeneratingCareerPaths && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Suggest Career Paths
                         </Button>
                         {generatedCareerPaths && (
-                            <div className="mt-4 p-4 bg-muted rounded-md max-h-[500px] overflow-y-auto">
-                                <h4 className="font-semibold mb-2 text-foreground">Suggested Career Paths:</h4>
-                                <Accordion type="single" collapsible className="w-full">
-                                    {generatedCareerPaths.suggestions.map((path, index) => (
-                                        <AccordionItem value={`career-${index}`} key={index}>
-                                            <AccordionTrigger className="text-sm hover:no-underline text-left font-medium">{path.pathTitle}</AccordionTrigger>
-                                            <AccordionContent className="text-xs space-y-2 pl-4">
-                                                <p><strong>Description:</strong> {path.description}</p>
-                                                <p><strong>Why it aligns:</strong> {path.alignmentReason}</p>
-                                                {path.potentialSkillsToDevelop && path.potentialSkillsToDevelop.length > 0 && (
-                                                    <p><strong>Skills to develop:</strong> {path.potentialSkillsToDevelop.join(', ')}</p>
-                                                )}
-                                                {path.typicalIndustries && path.typicalIndustries.length > 0 && (
-                                                    <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
-                                                )}
-                                                {path.suggestedStudyFields && path.suggestedStudyFields.length > 0 && (
-                                                    <p><strong>Suggested Degrees/Diplomas/Study Fields:</strong> {path.suggestedStudyFields.join(', ')}</p>
-                                                )}
-                                                {path.suggestedCoursesOrCertifications && path.suggestedCoursesOrCertifications.length > 0 && (
-                                                    <p><strong>Suggested Courses/Certifications:</strong> {path.suggestedCoursesOrCertifications.join(', ')}</p>
-                                                )}
-                                                {path.exampleInstitutions && path.exampleInstitutions.length > 0 && (
-                                                  <div className="mt-2">
-                                                    <p className="font-semibold">Example Institutions to Explore:</p>
-                                                    <ul className="list-disc list-inside pl-2">
-                                                      {path.exampleInstitutions.map((inst, i) => <li key={i}>{inst}</li>)}
-                                                    </ul>
-                                                    <p className="text-xs italic text-muted-foreground mt-1">(Note: These are illustrative examples only, based on general information. Admission to any institution is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with the institutions.)</p>
-                                                  </div>
-                                                )}
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    ))}
-                                </Accordion>
+                            <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto">
+                                <h4 className="font-semibold mb-3 text-foreground">Suggested Career Paths:</h4>
+                                {generatedCareerPaths.suggestions.length > 0 ? (
+                                    <Accordion type="single" collapsible className="w-full mb-6">
+                                        {generatedCareerPaths.suggestions.map((path, index) => (
+                                            <AccordionItem value={`career-${index}`} key={index}>
+                                                <AccordionTrigger className="text-sm hover:no-underline text-left font-medium">{path.pathTitle}</AccordionTrigger>
+                                                <AccordionContent className="text-xs space-y-2 pl-4">
+                                                    <p><strong>Description:</strong> {path.description}</p>
+                                                    <p><strong>Why it aligns:</strong> {path.alignmentReason}</p>
+                                                    {path.potentialSkillsToDevelop && path.potentialSkillsToDevelop.length > 0 && (
+                                                        <p><strong>Skills to develop:</strong> {path.potentialSkillsToDevelop.join(', ')}</p>
+                                                    )}
+                                                    {path.typicalIndustries && path.typicalIndustries.length > 0 && (
+                                                        <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
+                                                    )}
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        ))}
+                                    </Accordion>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No specific career paths generated. Check the general academic suggestions below.</p>
+                                )}
+
+                                {generatedCareerPaths.globallySuggestedStudyFields && generatedCareerPaths.globallySuggestedStudyFields.length > 0 && (
+                                    <div className="mb-6">
+                                        <h5 className="font-semibold text-foreground mb-2">Generally Suggested Study Fields:</h5>
+                                        <ul className="list-disc list-inside text-sm space-y-1 pl-2">
+                                            {generatedCareerPaths.globallySuggestedStudyFields.map((field, index) => <li key={`field-${index}`}>{field}</li>)}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {generatedCareerPaths.globallySuggestedExampleInstitutions && generatedCareerPaths.globallySuggestedExampleInstitutions.length > 0 && (
+                                  <div className="mt-2">
+                                    <h5 className="font-semibold text-foreground mb-2">Generally Suggested Example Institutions to Explore:</h5>
+                                    <ul className="list-disc list-inside text-sm space-y-1 pl-2">
+                                      {generatedCareerPaths.globallySuggestedExampleInstitutions.map((inst, i) => <li key={`inst-${i}`}>{inst}</li>)}
+                                    </ul>
+                                    <p className="text-xs italic text-muted-foreground mt-2">(Note: These are illustrative examples only, based on general information. Admission to any institution is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with the institutions.)</p>
+                                  </div>
+                                )}
                             </div>
                         )}
                     </CardContent>

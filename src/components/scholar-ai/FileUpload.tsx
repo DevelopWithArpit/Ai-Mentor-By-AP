@@ -13,46 +13,57 @@ interface FileUploadProps {
   selectedFile: File | null;
   isLoading: boolean;
   inputId?: string;
+  acceptedFileTypes?: string[];
+  acceptedFileExtensionsString?: string;
+  label?: string;
 }
 
-const ACCEPTED_FILE_TYPES = [
+const DEFAULT_ACCEPTED_DOC_TYPES = [
   "application/pdf",
   "text/plain",
   "application/msword", // .doc
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document" // .docx
 ];
+const DEFAULT_ACCEPTED_DOC_EXTENSIONS_STRING = ".pdf, .txt, .doc, .docx";
 
-const ACCEPTED_FILE_EXTENSIONS_STRING = ".pdf, .txt, .doc, .docx";
-
-export function FileUpload({ onFileChange, selectedFile, isLoading, inputId = "file-upload" }: FileUploadProps) {
+export function FileUpload({ 
+  onFileChange, 
+  selectedFile, 
+  isLoading, 
+  inputId = "file-upload",
+  acceptedFileTypes,
+  acceptedFileExtensionsString,
+  label = "Upload Document (Optional)"
+}: FileUploadProps) {
   const { toast } = useToast();
+
+  const currentAcceptedTypes = acceptedFileTypes || DEFAULT_ACCEPTED_DOC_TYPES;
+  const currentAcceptedExtensionsString = acceptedFileExtensionsString || DEFAULT_ACCEPTED_DOC_EXTENSIONS_STRING;
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (ACCEPTED_FILE_TYPES.includes(file.type)) {
+      if (currentAcceptedTypes.includes(file.type) || currentAcceptedTypes.some(type => type.endsWith('/*') && file.type.startsWith(type.slice(0, -2)))) {
         onFileChange(file);
       } else {
         onFileChange(null);
         toast({
           title: "Invalid File Type",
-          description: `Please upload a ${ACCEPTED_FILE_EXTENSIONS_STRING} file.`,
+          description: `Please upload a ${currentAcceptedExtensionsString} file.`,
           variant: "destructive",
         });
-         // Reset file input value if invalid file was chosen
         const fileInput = document.getElementById(inputId) as HTMLInputElement;
         if (fileInput) {
           fileInput.value = '';
         }
       }
     } else {
-      onFileChange(null); // No file selected or dialog cancelled
+      onFileChange(null);
     }
   };
 
   const handleRemoveFile = () => {
     onFileChange(null);
-    // Reset file input value
     const fileInput = document.getElementById(inputId) as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
@@ -62,13 +73,13 @@ export function FileUpload({ onFileChange, selectedFile, isLoading, inputId = "f
   return (
     <div className="space-y-4">
       <Label htmlFor={inputId} className="text-lg font-medium text-foreground font-headline">
-        Upload Document (Optional)
+        {label}
       </Label>
       <div className="flex items-center space-x-3">
         <Input
           id={inputId}
           type="file"
-          accept={ACCEPTED_FILE_EXTENSIONS_STRING}
+          accept={currentAcceptedExtensionsString}
           onChange={handleFileChange}
           className="hidden"
           disabled={isLoading}
@@ -84,7 +95,7 @@ export function FileUpload({ onFileChange, selectedFile, isLoading, inputId = "f
         </Button>
       </div>
        <p className="text-xs text-muted-foreground">
-        Supported formats: {ACCEPTED_FILE_EXTENSIONS_STRING}.
+        Supported formats: {currentAcceptedExtensionsString}.
       </p>
       {selectedFile && (
         <div className="mt-3 flex items-center justify-between p-3 border rounded-md bg-secondary/30 text-secondary-foreground">
