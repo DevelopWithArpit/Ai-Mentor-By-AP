@@ -50,7 +50,7 @@ Resume Text to Analyze and Rewrite:
 {{{resumeText}}}
 
 {{#if targetJobRole}}
-The resume is being targeted for the job role of "{{targetJobRole}}". Tailor your feedback and the rewritten resume accordingly.
+The resume is being targeted for the job role of "{{targetJobRole}}". Tailor your feedback and the rewritten resume accordingly. Focus on incorporating relevant keywords and highlighting skills and experiences pertinent to this role/industry.
 {{/if}}
 
 {{#if additionalInformation}}
@@ -62,12 +62,12 @@ When rewriting the resume, please thoughtfully integrate this additional informa
 **Output Requirements:**
 
 **Part 1: Feedback (for \`overallAssessment\`, \`feedbackItems\`, \`atsKeywordsSummary\`, \`talkingPoints\` fields)**
-*   **Overall Assessment**: A brief summary of the original resume's strengths and weaknesses, especially concerning ATS compatibility and general effectiveness.
+*   **Overall Assessment**: A brief summary of the original resume's strengths and weaknesses, especially concerning ATS compatibility and general effectiveness. {{#if targetJobRole}}Comment on its suitability for "{{targetJobRole}}".{{/if}}
 *   **Feedback Items**: A list of specific, actionable feedback items on the original resume. For each item, specify:
     *   The **area** it applies to (e.g., 'Summary', 'Experience Section - Bullet Points', 'Skills Section', 'ATS Keywords', 'Formatting for ATS', 'Contact Information').
     *   The **suggestion** for improvement.
     *   An optional **importance** level (high, medium, low).
-*   **ATS Keywords Summary**: If a target job role is provided, list relevant keywords that are well-utilized in, or should be incorporated into, the *rewritten* resume for better ATS performance. If no job role is provided, give general advice on finding and using keywords.
+*   **ATS Keywords Summary**: If a target job role is provided, list relevant keywords that are well-utilized in, or should be incorporated into, the *rewritten* resume for better ATS performance, tailored to "{{targetJobRole}}". If no job role is provided, give general advice on finding and using keywords.
 *   **Talking Points**: A list of 2-4 concise and impactful statements derived from the resume (including any added information), highlighting key achievements or value propositions. These should be useful for quick self-introductions or elevator pitches.
 
 **Part 2: Rewritten Resume (for \`modifiedResumeText\` field)**

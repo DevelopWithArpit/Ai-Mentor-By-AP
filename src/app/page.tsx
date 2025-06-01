@@ -663,11 +663,13 @@ export default function MentorAiPage() {
         const elWidth = textMetrics.width; 
         const elHeight = el.fontSize; 
         
+        // Adjust hit box to be more generous, especially around the baseline
+        // y is typically the baseline, so text extends upwards mostly
         if (
             clickX >= el.x &&
             clickX <= el.x + elWidth &&
-            clickY >= el.y - elHeight * 0.8 && 
-            clickY <= el.y + elHeight * 0.2  
+            clickY >= el.y - elHeight * 0.8 && // Check from slightly above the text
+            clickY <= el.y + elHeight * 0.2  // Check slightly below the baseline
         ) {
             foundElement = el;
             break;
@@ -688,7 +690,12 @@ export default function MentorAiPage() {
   };
 
   const handleUpdateSelectedText = () => {
-    if (!selectedTextElementId || !imageEditorCurrentText.trim()) return;
+    if (!selectedTextElementId || !imageEditorCurrentText.trim()) {
+        if (!imageEditorCurrentText.trim()) {
+            toast({ title: "Cannot Update", description: "Text content cannot be empty.", variant: "destructive" });
+        }
+        return;
+    }
     setImageEditorTextElements(prev => 
         prev.map(el => 
             el.id === selectedTextElementId 
@@ -721,7 +728,7 @@ export default function MentorAiPage() {
         return;
     }
     setIsAddingTextMode(true);
-    setSelectedTextElementId(null); 
+    setSelectedTextElementId(null); // Ensure we are in "add" mode, not "edit" mode
     toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
   }
 
@@ -757,7 +764,7 @@ export default function MentorAiPage() {
   };
 
   const handleAiImageManipulation = async () => {
-    if (!imageEditorSrc || !(imageEditorSrc instanceof File) && typeof imageEditorSrc !== 'string') {
+    if (!imageEditorSrc || (!(imageEditorSrc instanceof File) && typeof imageEditorSrc !== 'string')) {
       toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive" });
       return;
     }
@@ -790,7 +797,7 @@ export default function MentorAiPage() {
   };
 
   const handleAiWatermarkRemoval = async () => {
-    if (!imageEditorSrc || !(imageEditorSrc instanceof File) && typeof imageEditorSrc !== 'string') {
+    if (!imageEditorSrc || (!(imageEditorSrc instanceof File) && typeof imageEditorSrc !== 'string')) {
       toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive" });
       return;
     }
@@ -1120,7 +1127,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. Optionally, add specific projects or details you want the AI to include or highlight in the improved version.</CardDescription>
+                        <CardDescription>Paste your resume text. Optionally, add your target job role/industry and specific projects or details you want the AI to include or highlight in the improved version.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
