@@ -5,7 +5,6 @@ import { useState, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 
 import { Header } from '@/components/scholar-ai/Header';
 import { FileUpload } from '@/components/scholar-ai/FileUpload';
 import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
-// LanguageSelector is now global, removed from here
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -27,6 +26,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import jsPDF from 'jspdf';
@@ -45,6 +45,8 @@ import { generateCoverLetter, type GenerateCoverLetterInput, type GenerateCoverL
 import { suggestCareerPaths, type SuggestCareerPathsInput, type SuggestCareerPathsOutput } from '@/ai/flows/career-path-suggester-flow';
 import { summarizeDocument, type SummarizeDocumentInput, type SummarizeDocumentOutput } from '@/ai/flows/document-summarizer-flow';
 import { analyzeGeneratedCode, type AnalyzeCodeInput, type AnalyzeCodeOutput } from '@/ai/flows/code-analyzer-flow';
+import { manipulateImageText, type ManipulateImageTextInput, type ManipulateImageTextOutput } from '@/ai/flows/image-text-manipulation-flow';
+import { removeWatermarkFromImage, type WatermarkRemoverInput, type WatermarkRemoverOutput } from '@/ai/flows/watermark-remover-flow';
 
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -97,13 +99,13 @@ export default function MentorAiPage() {
   const [activeTool, setActiveTool] = useState<string>(tools[0].id);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [question, setQuestion] = useState<string>('');
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en'); // Global AI explanation language
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en'); 
   const [searchResult, setSearchResult] = useState<SmartSearchOutput | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme(); // Get theme context
+  const { theme, setTheme } = useTheme();
 
   const [codePrompt, setCodePrompt] = useState<string>('');
   const [codeLanguage, setCodeLanguage] = useState<string>('');
@@ -111,7 +113,6 @@ export default function MentorAiPage() {
   const [isGeneratingCode, setIsGeneratingCode] = useState<boolean>(false);
   const [codeAnalysis, setCodeAnalysis] = useState<AnalyzeCodeOutput | null>(null);
   const [isAnalyzingCode, setIsAnalyzingCode] = useState<boolean>(false);
-
 
   const [imagePrompt, setImagePrompt] = useState<string>('');
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
@@ -128,35 +129,30 @@ export default function MentorAiPage() {
   const [generatedPresentation, setGeneratedPresentation] = useState<GeneratePresentationOutput | null>(null);
   const [isGeneratingPresentation, setIsGeneratingPresentation] = useState<boolean>(false);
 
-  // Interview Prep States
   const [interviewJobRole, setInterviewJobRole] = useState<string>('');
   const [interviewNumQuestions, setInterviewNumQuestions] = useState<string>('5');
   const [interviewQuestionCategory, setInterviewQuestionCategory] = useState<QuestionCategory>('any');
   const [generatedInterviewQuestions, setGeneratedInterviewQuestions] = useState<GenerateInterviewQuestionsOutput | null>(null);
   const [isGeneratingInterviewQuestions, setIsGeneratingInterviewQuestions] = useState<boolean>(false);
 
-  // Resume Feedback States
   const [resumeText, setResumeText] = useState<string>('');
   const [resumeTargetJobRole, setResumeTargetJobRole] = useState<string>('');
   const [resumeFeedback, setResumeFeedback] = useState<ResumeFeedbackOutput | null>(null);
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
 
-  // Cover Letter Assistant States
   const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
   const [coverLetterUserInfo, setCoverLetterUserInfo] = useState<string>('');
   const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "formal" | "slightly-informal">("professional");
   const [generatedCoverLetter, setGeneratedCoverLetter] = useState<GenerateCoverLetterOutput | null>(null);
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState<boolean>(false);
 
-  // Career Path Suggester States
-  const [careerInterests, setCareerInterests] = useState<string>(''); // Comma-separated
-  const [careerSkills, setCareerSkills] = useState<string>(''); // Comma-separated
+  const [careerInterests, setCareerInterests] = useState<string>(''); 
+  const [careerSkills, setCareerSkills] = useState<string>(''); 
   const [careerExperienceLevel, setCareerExperienceLevel] = useState<"entry-level" | "mid-level" | "senior-level" | "executive">("entry-level");
   const [careerCompetitiveExamScore, setCareerCompetitiveExamScore] = useState<string>('');
   const [generatedCareerPaths, setGeneratedCareerPaths] = useState<SuggestCareerPathsOutput | null>(null);
   const [isGeneratingCareerPaths, setIsGeneratingCareerPaths] = useState<boolean>(false);
 
-  // Document Summarizer States
   const [summarizerFile, setSummarizerFile] = useState<File | null>(null);
   const [summaryLength, setSummaryLength] = useState<"short" | "medium" | "long">("medium");
   const [summaryStyle, setSummaryStyle] = useState<"general" | "bullet_points" | "for_layperson" | "for_expert">("general");
@@ -165,14 +161,20 @@ export default function MentorAiPage() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<boolean>(false);
 
   // Image Text Editor States
-  const [imageEditorFile, setImageEditorFile] = useState<File | null>(null);
+  const [imageEditorSrc, setImageEditorSrc] = useState<string | File | null>(null); // Can be File or base64 string
   const [imageEditorTextElements, setImageEditorTextElements] = useState<TextElement[]>([]);
-  const [imageEditorCurrentText, setImageEditorCurrentText] = useState<string>('Hello World');
-  const [imageEditorTextColor, setImageEditorTextColor] = useState<string>('#000000');
-  const [imageEditorTextFontSize, setImageEditorTextFontSize] = useState<number>(30);
+  const [imageEditorCurrentText, setImageEditorCurrentText] = useState<string>('Hello Text');
+  const [imageEditorTextColor, setImageEditorTextColor] = useState<string>('#007bff'); // Default blue
+  const [imageEditorTextFontSize, setImageEditorTextFontSize] = useState<number>(40); // Increased default size
   const [imageEditorTextFontFamily, setImageEditorTextFontFamily] = useState<string>('Arial');
   const [isAddingTextMode, setIsAddingTextMode] = useState<boolean>(false);
-  const imageEditorCanvasRef = useRef<HTMLCanvasElement>(null); // To access canvas for download
+  const [selectedTextElementId, setSelectedTextElementId] = useState<string | null>(null);
+  const imageEditorCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [aiImageInstruction, setAiImageInstruction] = useState<string>('');
+  const [isManipulatingImageAI, setIsManipulatingImageAI] = useState<boolean>(false);
+  const [aiImageManipulationMessage, setAiImageManipulationMessage] = useState<string>('');
+  const [isRemovingWatermark, setIsRemovingWatermark] = useState<boolean>(false);
+  const [watermarkRemovalMessage, setWatermarkRemovalMessage] = useState<string>('');
 
 
   const handleFileChange = (file: File | null) => {
@@ -195,7 +197,6 @@ export default function MentorAiPage() {
       const result = await smartSearch(searchInput);
       setSearchResult(result);
       if (result?.answer) {
-        // TODO: Pass selectedLanguage to explainAnswer flow if/when it supports it
         const explainerResult = await explainAnswer({ question, answer: result.answer });
         setExplanation(explainerResult.explanation);
         toast({ title: "AI Mentor Success!", description: "Insights generated successfully." });
@@ -419,18 +420,18 @@ export default function MentorAiPage() {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const text = resumeFeedback.modifiedResumeText;
     
-    const FONT_FAMILY = "Helvetica"; // Times or Helvetica
+    const FONT_FAMILY = "Helvetica"; 
     const NAME_SIZE = 20;
     const SECTION_TITLE_SIZE = 14;
-    const HEADING_SIZE = 11; // Job titles, Degree
+    const HEADING_SIZE = 11; 
     const BODY_SIZE = 10;
     const CONTACT_SIZE = 9;
     
     const LINE_SPACING = 1.4;
-    const SECTION_SPACING = 10; // Space after a major section
-    const SUB_SECTION_SPACING = 5; // Space after job title/company before bullets
+    const SECTION_SPACING = 10; 
+    const SUB_SECTION_SPACING = 5; 
     
-    const MARGIN = 50; // points
+    const MARGIN = 50; 
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
     const BULLET_INDENT = 15;
     const BULLET_CHAR = '•';
@@ -447,36 +448,35 @@ export default function MentorAiPage() {
     };
 
     const lines = text.split('\n');
-    let isFirstLine = true; // For potential name styling
+    let isFirstLine = true; 
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
-      if (!line) continue; // Skip empty lines
+      if (!line) continue; 
 
       let fontSize = BODY_SIZE;
       let fontStyle = 'normal';
       let indent = 0;
-      let color: [number, number, number] = [0, 0, 0]; // Black
+      let color: [number, number, number] = [0, 0, 0]; 
 
-      if (isFirstLine && line.startsWith("### ")) { // Candidate Name
+      if (isFirstLine && line.startsWith("### ")) { 
         line = line.substring(4).trim();
         fontSize = NAME_SIZE;
         fontStyle = 'bold';
-        addNewPageIfNeeded(fontSize * LINE_SPACING * 2); // Extra space for name
+        addNewPageIfNeeded(fontSize * LINE_SPACING * 2); 
         doc.setFont(FONT_FAMILY, fontStyle);
         doc.setFontSize(fontSize);
         doc.setTextColor(color[0], color[1], color[2]);
         const nameWidth = doc.getTextWidth(line);
-        doc.text(line, (doc.internal.pageSize.getWidth() - nameWidth) / 2, yPos); // Centered name
+        doc.text(line, (doc.internal.pageSize.getWidth() - nameWidth) / 2, yPos); 
         yPos += fontSize * LINE_SPACING;
-        // Add a line under the name
         addNewPageIfNeeded(5);
         doc.setLineWidth(0.5);
         doc.line(MARGIN, yPos, doc.internal.pageSize.getWidth() - MARGIN, yPos);
         yPos += 5 * LINE_SPACING;
         isFirstLine = false;
         continue;
-      } else if (isFirstLine) { // Fallback for name if no ###
+      } else if (isFirstLine) { 
         fontSize = NAME_SIZE;
         fontStyle = 'bold';
         addNewPageIfNeeded(fontSize * LINE_SPACING * 2);
@@ -490,33 +490,30 @@ export default function MentorAiPage() {
         continue;
       }
 
-
       if (line.includes("Phone:") || line.includes("Email:") || line.includes("LinkedIn:") || line.includes("Location:")) {
         fontSize = CONTACT_SIZE;
         fontStyle = 'normal';
-        // Contact info typically below name, might be slightly smaller
-        // Simple left align for now
-      } else if (line.startsWith("## ")) { // Section Titles
+      } else if (line.startsWith("## ")) { 
         line = line.substring(3).trim();
         fontSize = SECTION_TITLE_SIZE;
         fontStyle = 'bold';
-        color = [65, 105, 225]; // Primary color (Deep Sky Blue) for section titles
-        if (yPos > MARGIN + NAME_SIZE) { // Add spacing before new section unless it's the first after name/contact
+        color = [65, 105, 225]; 
+        if (yPos > MARGIN + NAME_SIZE) { 
            yPos += SECTION_SPACING / 2;
            addNewPageIfNeeded(SECTION_SPACING / 2);
         }
-      } else if (line.startsWith("**") && line.endsWith("**")) { // Job Title / Degree
+      } else if (line.startsWith("**") && line.endsWith("**")) { 
         line = line.substring(2, line.length - 2).trim();
         fontSize = HEADING_SIZE;
         fontStyle = 'bold';
          yPos += SUB_SECTION_SPACING / 2;
          addNewPageIfNeeded(SUB_SECTION_SPACING /2);
-      } else if (line.startsWith("• ")) { // Bullet points
+      } else if (line.startsWith("• ")) { 
         line = line.substring(2).trim();
         indent = BULLET_INDENT;
         fontSize = BODY_SIZE;
         fontStyle = 'normal';
-      } else { // Company/Dates or general body text
+      } else { 
         fontSize = BODY_SIZE;
         fontStyle = 'normal';
       }
@@ -528,13 +525,13 @@ export default function MentorAiPage() {
       const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH - indent);
       for (let j = 0; j < splitText.length; j++) {
         addNewPageIfNeeded(fontSize * LINE_SPACING);
-        if (j === 0 && indent > 0) { // Render bullet character for the first line of a bullet point
+        if (j === 0 && indent > 0) { 
            doc.text(BULLET_CHAR, MARGIN , yPos);
         }
         doc.text(splitText[j], MARGIN + indent, yPos);
         yPos += fontSize * LINE_SPACING;
       }
-      if (line.startsWith("## ")) { // Add a line under section titles
+      if (line.startsWith("## ")) { 
          addNewPageIfNeeded(5);
          doc.setLineWidth(0.25);
          doc.line(MARGIN, yPos - (fontSize * LINE_SPACING / 2.5) , doc.internal.pageSize.getWidth() - MARGIN, yPos - (fontSize * LINE_SPACING / 2.5));
@@ -608,41 +605,110 @@ export default function MentorAiPage() {
 
   // Image Text Editor Handlers
   const handleImageEditorFileChange = (file: File | null) => {
-    setImageEditorFile(file);
-    setImageEditorTextElements([]); // Clear text elements when new image is loaded
+    setImageEditorSrc(file); // Store File object directly
+    setImageEditorTextElements([]); 
+    setSelectedTextElementId(null);
+    setAiImageManipulationMessage('');
+    setWatermarkRemovalMessage('');
+    setAiImageInstruction('');
   };
 
-  const handleImageEditorCanvasClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (!isAddingTextMode || !imageEditorCurrentText.trim()) {
-      if (isAddingTextMode && !imageEditorCurrentText.trim()) {
-        toast({ title: "Add Text", description: "Please enter some text before placing it.", variant: "default" });
-      }
-      return;
+  const handleImageEditorCanvasClick = (logicalX: number, logicalY: number) => {
+    if (isAddingTextMode && imageEditorCurrentText.trim()) {
+      setImageEditorTextElements(prev => [
+        ...prev,
+        {
+          id: new Date().toISOString(),
+          text: imageEditorCurrentText,
+          x: logicalX,
+          y: logicalY,
+          color: imageEditorTextColor,
+          fontSize: imageEditorTextFontSize,
+          fontFamily: imageEditorTextFontFamily,
+        },
+      ]);
+      setIsAddingTextMode(false);
+      setSelectedTextElementId(null);
+      toast({ title: "Text Added", description: "Text placed on image." });
+    } else if (!isAddingTextMode) {
+        handleSelectTextElement(logicalX, logicalY);
+    } else {
+        if (isAddingTextMode && !imageEditorCurrentText.trim()) {
+            toast({ title: "Add Text", description: "Please enter some text before placing it.", variant: "default" });
+        }
     }
-    const canvas = event.currentTarget;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+  };
+  
+  const handleSelectTextElement = (clickX: number, clickY: number) => {
+    const canvas = imageEditorCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    setImageEditorTextElements(prev => [
-      ...prev,
-      {
-        id: new Date().toISOString(), // Simple unique ID
-        text: imageEditorCurrentText,
-        x,
-        y,
-        color: imageEditorTextColor,
-        fontSize: imageEditorTextFontSize,
-        fontFamily: imageEditorTextFontFamily,
-      },
-    ]);
-    //setImageEditorCurrentText(''); // Optionally clear text after adding
-    setIsAddingTextMode(false); // Exit adding text mode
-    toast({ title: "Text Added", description: "Text placed on image. You can add more or adjust settings." });
+    let foundElement: TextElement | null = null;
+
+    // Iterate in reverse to select topmost element if overlapping
+    for (let i = imageEditorTextElements.length - 1; i >= 0; i--) {
+        const el = imageEditorTextElements[i];
+        const dpr = window.devicePixelRatio || 1;
+        ctx.font = `${el.fontSize * dpr}px ${el.fontFamily}`; // Apply scaling for measurement
+        
+        const textMetrics = ctx.measureText(el.text);
+        // Approximate bounding box. For more accuracy, consider textMetrics.actualBoundingBoxAscent/Descent
+        const elWidth = textMetrics.width / dpr; // Scale back to logical for comparison
+        const elHeight = el.fontSize; // Approximate height
+        
+        // Check if click is within bounds (scaled coordinates)
+        if (
+            clickX >= el.x &&
+            clickX <= el.x + elWidth &&
+            clickY >= el.y && // Assuming y is top of text
+            clickY <= el.y + elHeight 
+        ) {
+            foundElement = el;
+            break;
+        }
+    }
+
+    if (foundElement) {
+        setSelectedTextElementId(foundElement.id);
+        setImageEditorCurrentText(foundElement.text);
+        setImageEditorTextColor(foundElement.color);
+        setImageEditorTextFontSize(foundElement.fontSize);
+        setImageEditorTextFontFamily(foundElement.fontFamily);
+        setIsAddingTextMode(false);
+        toast({ title: "Text Selected", description: "You can now edit or delete the selected text."});
+    } else {
+        setSelectedTextElementId(null); // Deselect if clicked on empty space
+    }
+  };
+
+  const handleUpdateSelectedText = () => {
+    if (!selectedTextElementId) return;
+    setImageEditorTextElements(prev => 
+        prev.map(el => 
+            el.id === selectedTextElementId 
+            ? { ...el, text: imageEditorCurrentText, color: imageEditorTextColor, fontSize: imageEditorTextFontSize, fontFamily: imageEditorTextFontFamily } 
+            : el
+        )
+    );
+    toast({ title: "Text Updated", description: "Selected text properties have been updated."});
+  };
+
+  const handleDeleteSelectedText = () => {
+    if (!selectedTextElementId) return;
+    setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
+    setSelectedTextElementId(null);
+    // Reset current text fields to default or clear them
+    setImageEditorCurrentText('Hello Text');
+    setImageEditorTextColor('#007bff');
+    setImageEditorTextFontSize(40);
+    setImageEditorTextFontFamily('Arial');
+    toast({ title: "Text Deleted", description: "Selected text has been removed."});
   };
   
   const handlePrepareToAddText = () => {
-    if (!imageEditorFile) {
+    if (!imageEditorSrc) {
         toast({title: "No Image", description: "Please upload an image first to add text.", variant: "destructive"});
         return;
     }
@@ -651,13 +717,14 @@ export default function MentorAiPage() {
         return;
     }
     setIsAddingTextMode(true);
+    setSelectedTextElementId(null); // Deselect any currently selected text
     toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
   }
 
   const handleImageEditorDownload = () => {
-    const canvas = document.querySelector('[data-ai-hint="image editor canvas"]') as HTMLCanvasElement; // A bit hacky, ideally use ref if ImageEditorCanvas is child here
+    const canvas = imageEditorCanvasRef.current;
     if (canvas) {
-      const dataUrl = canvas.toDataURL('image/png'); // Default to PNG, can be 'image/jpeg'
+      const dataUrl = canvas.toDataURL('image/png'); 
       const link = document.createElement('a');
       link.download = 'edited-image.png';
       link.href = dataUrl;
@@ -669,21 +736,87 @@ export default function MentorAiPage() {
   };
   
   const handleImageEditorReset = () => {
-    setImageEditorFile(null);
+    setImageEditorSrc(null);
     setImageEditorTextElements([]);
-    setImageEditorCurrentText('Hello World');
-    setImageEditorTextColor('#000000');
-    setImageEditorTextFontSize(30);
+    setSelectedTextElementId(null);
+    setImageEditorCurrentText('Hello Text');
+    setImageEditorTextColor('#007bff');
+    setImageEditorTextFontSize(40);
     setImageEditorTextFontFamily('Arial');
     setIsAddingTextMode(false);
+    setAiImageInstruction('');
+    setAiImageManipulationMessage('');
+    setWatermarkRemovalMessage('');
     const fileInput = document.getElementById('image-editor-file-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
     toast({ title: "Editor Reset", description: "Image text editor has been cleared." });
   };
 
+  const handleAiImageManipulation = async () => {
+    if (!imageEditorSrc || !(imageEditorSrc instanceof File) && typeof imageEditorSrc !== 'string') {
+      toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive" });
+      return;
+    }
+    if (!aiImageInstruction.trim()) {
+      toast({ title: "No Instruction", description: "Please provide an instruction for the AI.", variant: "destructive" });
+      return;
+    }
+    setIsManipulatingImageAI(true);
+    setAiImageManipulationMessage('AI is processing your image...');
+    try {
+      const imageDataUri = typeof imageEditorSrc === 'string' ? imageEditorSrc : await fileToDataUri(imageEditorSrc);
+      const result = await manipulateImageText({ imageDataUri, instruction: aiImageInstruction });
+      
+      setAiImageManipulationMessage(result.statusMessage);
+      if (result.processedImageUrl) {
+        setImageEditorSrc(result.processedImageUrl); // Update the source for the canvas
+        setImageEditorTextElements([]); // Clear overlay text as base image changed
+        setSelectedTextElementId(null);
+        toast({ title: "AI Manipulation Complete", description: result.statusMessage });
+      } else {
+        toast({ title: "AI Manipulation Info", description: result.statusMessage, variant: "default" });
+      }
+    } catch (err: any) {
+      const msg = err.message || "Failed to manipulate image with AI.";
+      setAiImageManipulationMessage(msg);
+      toast({ title: "AI Manipulation Error", description: msg, variant: "destructive" });
+    } finally {
+      setIsManipulatingImageAI(false);
+    }
+  };
+
+  const handleAiWatermarkRemoval = async () => {
+    if (!imageEditorSrc || !(imageEditorSrc instanceof File) && typeof imageEditorSrc !== 'string') {
+      toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive" });
+      return;
+    }
+    setIsRemovingWatermark(true);
+    setWatermarkRemovalMessage('AI is attempting to remove watermarks...');
+    try {
+      const imageDataUri = typeof imageEditorSrc === 'string' ? imageEditorSrc : await fileToDataUri(imageEditorSrc);
+      const result = await removeWatermarkFromImage({ imageDataUri });
+      
+      setWatermarkRemovalMessage(result.statusMessage);
+      if (result.processedImageUrl) {
+        setImageEditorSrc(result.processedImageUrl); // Update the source for the canvas
+        setImageEditorTextElements([]); // Clear overlay text as base image changed
+        setSelectedTextElementId(null);
+        toast({ title: "AI Watermark Removal Complete", description: result.statusMessage });
+      } else {
+        toast({ title: "AI Watermark Removal Info", description: result.statusMessage, variant: "default" });
+      }
+    } catch (err: any) {
+      const msg = err.message || "Failed to remove watermark with AI.";
+      setWatermarkRemovalMessage(msg);
+      toast({ title: "AI Watermark Removal Error", description: msg, variant: "destructive" });
+    } finally {
+      setIsRemovingWatermark(false);
+    }
+  };
+
 
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
-  const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS'];
+  const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Helvetica'];
 
 
   return (
@@ -720,7 +853,7 @@ export default function MentorAiPage() {
           </Sidebar>
 
           <SidebarInset className="container mx-auto p-4 md:p-8">
-            <div className="mb-4 md:hidden"> {/* Only show trigger on smaller screens where sidebar might be off-canvas */}
+            <div className="mb-4 md:hidden"> 
               <SidebarTrigger />
             </div>
             
@@ -736,7 +869,6 @@ export default function MentorAiPage() {
                       <div className="lg:col-span-1 space-y-6">
                         <FileUpload selectedFile={selectedFile} onFileChange={handleFileChange} isLoading={isLoading} inputId="file-upload-input"/>
                         <QuestionInput question={question} onQuestionChange={setQuestion} onSubmit={handleSubmitScholarAI} isLoading={isLoading} isSubmitDisabled={!question.trim()}/>
-                        {/* LanguageSelector removed from here */}
                         <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear Q&amp;A</Button>
                       </div>
                       <div className="lg:col-span-2">
@@ -809,24 +941,26 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                   <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
-                    <CardDescription>Upload an image (JPEG, PNG, GIF, WEBP, BMP), add text overlays, customize styles, and download your creation. Click "Prepare to Add Text" then click on the image to place text.</CardDescription>
+                    <CardDescription>Upload an image, add/edit text overlays, or use AI (experimental) to modify in-image text or remove watermarks. Download your creation.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="md:col-span-1 space-y-4">
                         <FileUpload 
-                            selectedFile={imageEditorFile} 
+                            selectedFile={imageEditorSrc instanceof File ? imageEditorSrc : null} 
                             onFileChange={handleImageEditorFileChange} 
-                            isLoading={false} 
+                            isLoading={isManipulatingImageAI || isRemovingWatermark} 
                             inputId="image-editor-file-upload"
                             label="Upload Image"
                             acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
                             acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
                         />
                         
+                        <Separator />
+                        <Label className="text-md font-semibold text-primary">Overlay Text Controls</Label>
                         <div>
                           <Label htmlFor="image-editor-text">Text Content</Label>
-                          <Input id="image-editor-text" value={imageEditorCurrentText} onChange={(e) => setImageEditorCurrentText(e.target.value)} placeholder="Enter text to add"/>
+                          <Input id="image-editor-text" value={imageEditorCurrentText} onChange={(e) => setImageEditorCurrentText(e.target.value)} placeholder="Enter text"/>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
@@ -849,22 +983,62 @@ export default function MentorAiPage() {
                           </Select>
                         </div>
 
-                        <Button onClick={handlePrepareToAddText} disabled={!imageEditorFile || !imageEditorCurrentText.trim()} className="w-full">
-                          <Type className="mr-2 h-4 w-4"/> Prepare to Add Text
-                        </Button>
-                         {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place your text.</p>}
+                        <div className="flex flex-col space-y-2">
+                            <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || !imageEditorCurrentText.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                              <Type className="mr-2 h-4 w-4"/> {selectedTextElementId ? "Prepare to Add New Text" : "Prepare to Add Text"}
+                            </Button>
+                            {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
+
+                            {selectedTextElementId && (
+                                <>
+                                <Button onClick={handleUpdateSelectedText} variant="secondary" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                    <CheckCircle className="mr-2 h-4 w-4"/> Update Selected Text
+                                </Button>
+                                <Button onClick={handleDeleteSelectedText} variant="destructive" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                    <Trash2 className="mr-2 h-4 w-4"/> Delete Selected Text
+                                </Button>
+                                </>
+                            )}
+                        </div>
+                        <Separator />
+                        
+                        <div className="space-y-3">
+                            <Label className="text-md font-semibold text-primary flex items-center"><Sparkles className="mr-2 h-5 w-5"/>AI In-Image Text Manipulation (Experimental)</Label>
+                             {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable AI text manipulation.</p>}
+                            <Input 
+                                id="ai-image-instruction" 
+                                value={aiImageInstruction} 
+                                onChange={(e) => setAiImageInstruction(e.target.value)} 
+                                placeholder={imageEditorSrc ? "e.g., Change 'Old Text' to 'New Text'" : "Upload an image first..."}
+                                disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
+                            />
+                            <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Manipulation
+                            </Button>
+                            {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
+                        </div>
+                        <Separator />
+                        <div className="space-y-3">
+                             <Label className="text-md font-semibold text-primary flex items-center"><Eraser className="mr-2 h-5 w-5"/>AI Watermark Remover (Experimental)</Label>
+                             {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable AI watermark removal.</p>}
+                             <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt AI Watermark Removal
+                             </Button>
+                             {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                        </div>
+
                       </div>
 
                       <div className="md:col-span-2">
                         <ImageEditorCanvas
-                          imageFile={imageEditorFile}
+                          ref={imageEditorCanvasRef}
+                          imageSrc={imageEditorSrc}
                           textElements={imageEditorTextElements}
                           onCanvasClick={handleImageEditorCanvasClick}
-                          canvasWidth={600}
-                          canvasHeight={450}
+                          selectedTextElementId={selectedTextElementId}
                         />
-                         {!imageEditorFile && (
-                            <div className="mt-2 text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/30">
+                         {!imageEditorSrc && (
+                            <div className="mt-2 text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/30 flex flex-col items-center justify-center aspect-[4/3]">
                                 <ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" />
                                 <p>Upload an image to start editing.</p>
                             </div>
@@ -872,10 +1046,10 @@ export default function MentorAiPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
-                        <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorFile && imageEditorTextElements.length === 0}>
+                        <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}>
                             <DownloadCloud className="mr-2 h-4 w-4"/> Download Image
                         </Button>
-                        <Button onClick={handleImageEditorReset} variant="outline">
+                        <Button onClick={handleImageEditorReset} variant="outline" disabled={isManipulatingImageAI || isRemovingWatermark}>
                             <Trash2 className="mr-2 h-4 w-4"/> Reset Editor
                         </Button>
                     </div>
