@@ -23,11 +23,11 @@ export type SuggestCareerPathsInput = z.infer<typeof SuggestCareerPathsInputSche
 
 const CareerPathSuggestionSchema = z.object({
   pathTitle: z.string().describe("The title of the suggested career path (e.g., 'Data Scientist', 'UX/UI Designer', 'Environmental Consultant')."),
-  description: z.string().describe("A brief description of what this career path entails."),
+  description: z.string().describe("A brief description of what this career path entails. If a competitive exam score was provided, briefly weave in general academic guidance based on it within this description or the alignment reason, such as types of programs or general competitiveness levels that might be relevant. Do not mention specific college names or predict admission chances."),
   alignmentReason: z.string().describe("Explanation of why this path aligns with the user's interests and skills."),
   potentialSkillsToDevelop: z.array(z.string()).optional().describe("Key skills that might be beneficial to develop or strengthen for this path."),
   typicalIndustries: z.array(z.string()).optional().describe("Common industries where this role is found."),
-  suggestedStudyFields: z.array(z.string()).optional().describe("Relevant academic degrees, diplomas, or fields of study for this career path (e.g., 'Bachelor of Science in Computer Science', 'Diploma in Digital Marketing', 'Mechanical Engineering')."),
+  suggestedStudyFields: z.array(z.string()).optional().describe("Relevant academic degrees, diplomas, or fields of study for this career path (e.g., 'Bachelor of Science in Computer Science', 'Diploma in Digital Marketing', 'Mechanical Engineering'). If a competitive exam score was provided, these suggestions should be informed by it in general terms."),
   suggestedCoursesOrCertifications: z.array(z.string()).optional().describe("Example courses, certifications, or specific learning areas beneficial for this path (e.g., 'Machine Learning Specialization', 'Certified Project Manager (PMP)', 'Digital Marketing Fundamentals')."),
 });
 
@@ -68,20 +68,23 @@ User's Education Level: {{{educationLevel}}}
 
 {{#if competitiveExamScore}}
 User's Competitive Exam Score: {{{competitiveExamScore}}}
-If a competitive exam score is provided, consider it when suggesting study fields and courses. You should *not* make definitive statements about admission chances to specific universities or programs, as these vary widely. Instead, you can:
-- Suggest general types of institutions or program competitiveness levels that might align with such a score range (e.g., "highly competitive research universities," "state universities with good engineering programs," "vocational diploma programs").
-- Indicate if certain highly competitive fields might require exceptionally high scores, or if the provided score is generally suitable for a range of programs in the suggested fields.
-- Frame suggestions carefully, e.g., "With a score like X, you might explore programs in Y, which often have a range of entry requirements." or "Fields like Z are typically very competitive; your score could be a factor to consider alongside other application components."
-Focus on providing general guidance on how the score might influence their educational path within the suggested career areas.
+When a competitive exam score is provided, you MUST use this information to offer more tailored general academic guidance. This guidance should be woven into the 'description' or 'suggestedStudyFields' for each career path.
+Your guidance MUST adhere to the following:
+- Do NOT suggest specific college or university names.
+- Do NOT make definitive statements about admission chances to specific universities or programs. College admissions are multifactorial and depend on many elements beyond a single score.
+- You CAN suggest general types of institutions or program competitiveness levels that might align with such a score range (e.g., "highly competitive research universities," "state universities with good engineering programs," "vocational diploma programs").
+- You CAN indicate if certain highly competitive fields might require exceptionally high scores, or if the provided score is generally suitable for a range of programs in the suggested fields.
+- Frame suggestions carefully, e.g., "With a score like X, you might explore programs in Y at institutions that generally have a range of entry requirements." or "Fields like Z are typically very competitive; your score could be a factor to consider alongside other application components when looking at suitable institutions."
+- Your main role is to provide general guidance on how the score might influence their educational path within the suggested career areas, without making specific institutional recommendations or admission predictions.
 {{/if}}
 
 For each suggested career path, provide:
 1.  **Path Title**: The common name for the career.
-2.  **Description**: A concise overview of the role and its responsibilities.
-3.  **Alignment Reason**: Clearly explain how this career path aligns with the user's provided interests and skills. Be specific.
+2.  **Description**: A concise overview of the role and its responsibilities. If a competitive exam score was provided, briefly weave in general academic guidance based on it here, such as types of programs or general competitiveness levels that might be relevant.
+3.  **Alignment Reason**: Clearly explain how this career path aligns with the user's provided interests and skills.
 4.  **Potential Skills to Develop (Optional)**: List 2-3 key skills that would be beneficial for the user to acquire or improve for this path.
 5.  **Typical Industries (Optional)**: List 2-3 common industries where this role is prevalent.
-6.  **Suggested Degrees, Diplomas, or Study Fields (Optional)**: List 1-2 relevant academic qualifications, such as specific degrees (e.g., 'Bachelor of Science in Computer Science'), diplomas (e.g., 'Diploma in Network Administration'), or general fields of study if specific qualifications are less common (e.g., 'Marketing', 'Environmental Science').
+6.  **Suggested Degrees, Diplomas, or Study Fields (Optional)**: List 1-2 relevant academic qualifications, such as specific degrees (e.g., 'Bachelor of Science in Computer Science'), diplomas (e.g., 'Diploma in Network Administration'), or general fields of study if specific qualifications are less common (e.g., 'Marketing', 'Environmental Science'). If a competitive exam score was provided, these suggestions should be informed by it in general terms.
 7.  **Suggested Courses/Certifications (Optional)**: List 1-3 specific example courses, certifications, or learning areas (e.g., 'Introduction to Python Programming', 'Google Digital Marketing Certificate', 'Agile Project Management').
 
 Consider the combination of interests and skills. If experience level is provided, try to tailor suggestions accordingly (e.g., more strategic roles for senior levels).

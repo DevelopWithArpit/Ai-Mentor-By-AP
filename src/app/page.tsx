@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -897,7 +898,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Star className="mr-2 h-7 w-7"/>AI Career Path Suggester</CardTitle>
-                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions on careers, study fields, degrees/diplomas, and courses.</CardDescription>
+                        <CardDescription>Discover potential career paths. Input interests, skills, experience, and optionally competitive exam scores for personalized suggestions on careers, study fields, degrees/diplomas, and courses. The AI provides general guidance based on scores and cannot predict specific admissions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Your Interests (comma-separated, e.g., AI, healthcare, teaching)" value={careerInterests} onChange={(e) => setCareerInterests(e.target.value)} disabled={isGeneratingCareerPaths}/>
@@ -1127,3 +1128,4 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
