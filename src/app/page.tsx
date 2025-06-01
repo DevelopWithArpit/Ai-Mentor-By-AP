@@ -1246,13 +1246,19 @@ export default function MentorAiPage() {
                                             {resumeFeedback.linkedinProfileSuggestions.experienceSectionTips && (
                                                 <div>
                                                     <Label className="text-blue-800 font-medium">Experience Section Tips:</Label>
-                                                    <p className="text-xs text-blue-800 whitespace-pre-wrap p-2 bg-blue-100/50 rounded-sm">{resumeFeedback.linkedinProfileSuggestions.experienceSectionTips}</p>
+                                                    <div className="flex items-start gap-2">
+                                                      <Textarea value={resumeFeedback.linkedinProfileSuggestions.experienceSectionTips} readOnly className="text-xs text-blue-900 bg-blue-100/50 flex-1" rows={3} />
+                                                      <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.experienceSectionTips!); toast({ description: "Experience tips copied!" });}}><Copy className="h-4 w-4" /></Button>
+                                                    </div>
                                                 </div>
                                             )}
                                             {resumeFeedback.linkedinProfileSuggestions.skillsSectionTips && (
                                                  <div>
                                                     <Label className="text-blue-800 font-medium">Skills Section Tips:</Label>
-                                                    <p className="text-xs text-blue-800 whitespace-pre-wrap p-2 bg-blue-100/50 rounded-sm">{resumeFeedback.linkedinProfileSuggestions.skillsSectionTips}</p>
+                                                    <div className="flex items-start gap-2">
+                                                      <Textarea value={resumeFeedback.linkedinProfileSuggestions.skillsSectionTips} readOnly className="text-xs text-blue-900 bg-blue-100/50 flex-1" rows={3} />
+                                                      <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.skillsSectionTips!); toast({ description: "Skills tips copied!" });}}><Copy className="h-4 w-4" /></Button>
+                                                    </div>
                                                 </div>
                                             )}
                                             <p className="text-xs text-blue-700/80 mt-2 italic">
