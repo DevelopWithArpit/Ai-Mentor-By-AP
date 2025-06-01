@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -137,6 +138,8 @@ const SidebarProvider = React.forwardRef<
               {
                 "--sidebar-width": SIDEBAR_WIDTH,
                 "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+                // Used for floating/inset variants when collapsed (icon width + padding on both sides)
+                "--sidebar-width-icon-padded": `calc(${SIDEBAR_WIDTH_ICON} + theme(spacing.4))`,
                 ...style,
               } as React.CSSProperties
             }
@@ -181,7 +184,7 @@ const Sidebar = React.forwardRef<
       return (
         <div
           className={cn(
-            "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
+            "flex h-full w-[var(--sidebar-width)] flex-col bg-sidebar text-sidebar-foreground",
             className
           )}
           ref={ref}
@@ -198,7 +201,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -224,31 +227,51 @@ const Sidebar = React.forwardRef<
         {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
-            "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
+            "duration-200 relative h-svh bg-transparent transition-[width] ease-linear",
+            // Collapsed states
             "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
-            variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
+            // Default variant, icon collapsed
+            "group-data-[variant=sidebar]:group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)]",
+            // Floating or Inset variant, icon collapsed (accounts for sidebar's internal padding)
+            "group-data-[variant=floating]:group-data-[collapsible=icon]:w-[var(--sidebar-width-icon-padded)]",
+            "group-data-[variant=inset]:group-data-[collapsible=icon]:w-[var(--sidebar-width-icon-padded)]",
+            // Expanded state
+            "group-data-[state=expanded]:w-[var(--sidebar-width)]",
+            
+            "group-data-[side=right]:rotate-180" // This seems odd for a spacer, maybe not needed if margins on SidebarInset handle side
           )}
         />
+        {/* Actual sidebar visual content (fixed position) */}
         <div
           className={cn(
-            "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
+            "duration-200 fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] ease-linear md:flex",
+            // Expanded state width
+            "w-[var(--sidebar-width)]",
+            // Collapsed state widths
+            // Default variant, icon collapsed
+            "group-data-[variant=sidebar]:group-data-[collapsible=icon]:group-data-[state=collapsed]:w-[var(--sidebar-width-icon)]",
+            // Floating or Inset variant, icon collapsed
+            "(group-data-[variant=floating]:group-data-[collapsible=icon]:group-data-[state=collapsed]:w-[var(--sidebar-width-icon-padded)])",
+            "(group-data-[variant=inset]:group-data-[collapsible=icon]:group-data-[state=collapsed]:w-[var(--sidebar-width-icon-padded)])",
+
             side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
-            variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              ? "left-0 group-data-[collapsible=offcanvas]:group-data-[state=collapsed]:-left-[var(--sidebar-width)]"
+              : "right-0 group-data-[collapsible=offcanvas]:group-data-[state=collapsed]:-right-[var(--sidebar-width)]",
+            
+            // Border for default variant
+            "group-data-[variant=sidebar]:group-data-[side=left]:border-r group-data-[variant=sidebar]:group-data-[side=right]:border-l",
+            // Padding for floating/inset variants
+            "group-data-[variant=floating]:p-2 group-data-[variant=inset]:p-2",
             className
           )}
           {...props}
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+            className={cn("flex h-full w-full flex-col bg-sidebar",
+              "group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow",
+              "group-data-[variant=inset]:rounded-lg" // Inset sidebar content is rounded
+            )}
           >
             {children}
           </div>
@@ -322,8 +345,41 @@ const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cn(
-        "relative flex min-h-svh flex-1 flex-col bg-background",
-        "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+        "relative flex min-h-svh flex-1 flex-col bg-background transition-all duration-200 ease-linear",
+
+        // --- Default variant ('sidebar') ---
+        // Sidebar on left
+        "md:peer-data-[variant=sidebar]:peer-data-[side=left]:peer-data-[collapsible=offcanvas]:peer-data-[state=collapsed]:ml-0",
+        "md:peer-data-[variant=sidebar]:peer-data-[side=left]:peer-data-[collapsible=icon]:peer-data-[state=expanded]:ml-[var(--sidebar-width)]",
+        "md:peer-data-[variant=sidebar]:peer-data-[side=left]:peer-data-[collapsible=icon]:peer-data-[state=collapsed]:ml-[var(--sidebar-width-icon)]",
+        // Sidebar on right
+        "md:peer-data-[variant=sidebar]:peer-data-[side=right]:peer-data-[collapsible=offcanvas]:peer-data-[state=collapsed]:mr-0",
+        "md:peer-data-[variant=sidebar]:peer-data-[side=right]:peer-data-[collapsible=icon]:peer-data-[state=expanded]:mr-[var(--sidebar-width)]",
+        "md:peer-data-[variant=sidebar]:peer-data-[side=right]:peer-data-[collapsible=icon]:peer-data-[state=collapsed]:mr-[var(--sidebar-width-icon)]",
+
+        // --- Floating variant ---
+        // Sidebar on left
+        "md:peer-data-[variant=floating]:peer-data-[side=left]:peer-data-[collapsible=offcanvas]:peer-data-[state=collapsed]:ml-0",
+        "md:peer-data-[variant=floating]:peer-data-[side=left]:peer-data-[collapsible=icon]:peer-data-[state=expanded]:ml-[var(--sidebar-width)]", // Sidebar itself has p-2, so content appears next to it
+        "md:peer-data-[variant=floating]:peer-data-[side=left]:peer-data-[collapsible=icon]:peer-data-[state=collapsed]:ml-[var(--sidebar-width-icon-padded)]",
+        // Sidebar on right
+        "md:peer-data-[variant=floating]:peer-data-[side=right]:peer-data-[collapsible=offcanvas]:peer-data-[state=collapsed]:mr-0",
+        "md:peer-data-[variant=floating]:peer-data-[side=right]:peer-data-[collapsible=icon]:peer-data-[state=expanded]:mr-[var(--sidebar-width)]",
+        "md:peer-data-[variant=floating]:peer-data-[side=right]:peer-data-[collapsible=icon]:peer-data-[state=collapsed]:mr-[var(--sidebar-width-icon-padded)]",
+        
+        // --- Inset variant ---
+        // SidebarInset gets m-2. Sidebar is fixed *within* this m-2 boundary.
+        "peer-data-[variant=inset]:min-h-[calc(100svh_-_theme(spacing.4))]", // Accounts for m-2 top and bottom
+        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+        // When sidebar is inset & on left:
+        "md:peer-data-[variant=inset]:peer-data-[side=left]:peer-data-[collapsible=offcanvas]:peer-data-[state=collapsed]:ml-0", // No extra margin beyond m-2
+        "md:peer-data-[variant=inset]:peer-data-[side=left]:peer-data-[collapsible=icon]:peer-data-[state=expanded]:pl-[var(--sidebar-width)]", // Padding, as content is inside m-2 box
+        "md:peer-data-[variant=inset]:peer-data-[side=left]:peer-data-[collapsible=icon]:peer-data-[state=collapsed]:pl-[var(--sidebar-width-icon-padded)]",
+        // When sidebar is inset & on right:
+        "md:peer-data-[variant=inset]:peer-data-[side=right]:peer-data-[collapsible=offcanvas]:peer-data-[state=collapsed]:mr-0",
+        "md:peer-data-[variant=inset]:peer-data-[side=right]:peer-data-[collapsible=icon]:peer-data-[state=expanded]:pr-[var(--sidebar-width)]",
+        "md:peer-data-[variant=inset]:peer-data-[side=right]:peer-data-[collapsible=icon]:peer-data-[state=collapsed]:pr-[var(--sidebar-width-icon-padded)]",
+
         className
       )}
       {...props}
