@@ -917,7 +917,7 @@ export default function MentorAiPage() {
                                                     <p><strong>Typical Industries:</strong> {path.typicalIndustries.join(', ')}</p>
                                                 )}
                                                 {path.suggestedStudyFields && path.suggestedStudyFields.length > 0 && (
-                                                    <p><strong>Suggested Study Fields:</strong> {path.suggestedStudyFields.join(', ')}</p>
+                                                    <p><strong>Suggested Degrees/Diplomas/Study Fields:</strong> {path.suggestedStudyFields.join(', ')}</p>
                                                 )}
                                                 {path.suggestedCoursesOrCertifications && path.suggestedCoursesOrCertifications.length > 0 && (
                                                     <p><strong>Suggested Courses/Certifications:</strong> {path.suggestedCoursesOrCertifications.join(', ')}</p>
@@ -1113,3 +1113,6 @@ export default function MentorAiPage() {
     
 
 
+
+
+    
