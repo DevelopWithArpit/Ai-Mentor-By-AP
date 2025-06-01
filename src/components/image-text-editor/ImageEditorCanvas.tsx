@@ -42,8 +42,15 @@ const ImageEditorCanvas: FC<ImageEditorCanvasProps> = ({
     ctx.fillStyle = '#f0f0f0'; // Light gray background if no image
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-
-    let imgLoaded = false;
+    const drawTextElements = (context: CanvasRenderingContext2D) => {
+      textElements.forEach((el) => {
+        context.fillStyle = el.color;
+        context.font = `${el.fontSize}px ${el.fontFamily}`;
+        context.textAlign = 'left';
+        context.textBaseline = 'top';
+        context.fillText(el.text, el.x, el.y);
+      });
+    };
 
     if (imageFile) {
       const reader = new FileReader();
@@ -59,7 +66,6 @@ const ImageEditorCanvas: FC<ImageEditorCanvasProps> = ({
           
           ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear again before drawing image
           ctx.drawImage(img, 0, 0, img.width, img.height, centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
-          imgLoaded = true;
           drawTextElements(ctx); // Draw text after image is loaded
         };
         img.src = e.target?.result as string;
@@ -67,21 +73,6 @@ const ImageEditorCanvas: FC<ImageEditorCanvasProps> = ({
       reader.readAsDataURL(imageFile);
     } else {
         // If no image, draw texts immediately
-        drawTextElements(ctx);
-    }
-
-    const drawTextElements = (context: CanvasRenderingContext2D) => {
-      textElements.forEach((el) => {
-        context.fillStyle = el.color;
-        context.font = `${el.fontSize}px ${el.fontFamily}`;
-        context.textAlign = 'left';
-        context.textBaseline = 'top';
-        context.fillText(el.text, el.x, el.y);
-      });
-    };
-    
-    // If image wasn't loaded (e.g. imageFile is null), draw texts
-    if (!imageFile) {
         drawTextElements(ctx);
     }
 
