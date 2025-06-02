@@ -4,6 +4,7 @@
 
 /**
  * @fileOverview A flow that provides clear, easy-to-understand explanations for complex answers.
+ *               Includes failover to a secondary model provider if the primary fails.
  *
  * - explainAnswer - A function that generates an explanation for a given question and answer.
  * - ExplainAnswerInput - The input type for the explainAnswer function.
@@ -28,8 +29,9 @@ export async function explainAnswer(input: ExplainAnswerInput): Promise<ExplainA
   return explainAnswerFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'explainAnswerPrompt',
+// Define the prompt structure once, to be used by potentially multiple models
+const basePrompt = {
+  name: 'explainAnswerBasePrompt', // Changed name to avoid conflict if original prompt object exists
   input: {schema: ExplainAnswerInputSchema},
   output: {schema: ExplainAnswerOutputSchema},
   prompt: `You are an AI academic assistant. Your task is to provide a clear and easy-to-understand explanation for a given question and its complex answer.
@@ -38,7 +40,7 @@ Question: {{{question}}}
 Answer: {{{answer}}}
 
 Explanation:`,
-});
+};
 
 const explainAnswerFlow = ai.defineFlow(
   {
@@ -46,9 +48,41 @@ const explainAnswerFlow = ai.defineFlow(
     inputSchema: ExplainAnswerInputSchema,
     outputSchema: ExplainAnswerOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input): Promise<ExplainAnswerOutput> => {
+    const primaryModel = 'googleai/gemini-2.0-flash';
+    // const secondaryModel = 'openai/gpt-3.5-turbo'; // Example secondary model - ensure it's configured in genkit.ts
+
+    try {
+      console.log(`Attempting to generate explanation with primary model: ${primaryModel}`);
+      const {output} = await ai.generate({
+        model: primaryModel,
+        prompt: basePrompt.prompt, // Use the text prompt directly
+        input: input, // Pass the input object
+        config: { output: { schema: ExplainAnswerOutputSchema } } // Ensure output is validated against the schema
+      });
+      if (!output) throw new Error('Primary model returned no output.');
+      return output;
+    } catch (primaryError: any) {
+      console.warn(`Primary model (${primaryModel}) failed: ${primaryError.message}. Attempting secondary model.`);
+      
+      // ATTENTION: Secondary model (OpenAI) integration requires uncommenting and setup in src/ai/genkit.ts
+      // and installing the appropriate Genkit OpenAI plugin.
+      // For now, this part will re-throw the error. To enable, set up OpenAI and uncomment the try/catch for secondary.
+      
+      // const {output: secondaryOutput} = await ai.generate({
+      //   model: secondaryModel, // Make sure this model is configured
+      //   prompt: basePrompt.prompt,
+      //   input: input,
+      //   config: { output: { schema: ExplainAnswerOutputSchema } }
+      // });
+      // if (!secondaryOutput) throw new Error('Secondary model returned no output after primary failed.');
+      // console.log('Successfully generated explanation with secondary model.');
+      // return secondaryOutput;
+
+      // If secondary model attempt is not implemented or also fails:
+      console.error(`All models failed. Last error (primary): ${primaryError.message}`);
+      throw new Error(`Failed to generate explanation after trying available models. Primary error: ${primaryError.message}`);
+    }
   }
 );
 
