@@ -1132,7 +1132,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. Optionally, add your target job role/industry and specific projects or details you want the AI to include or highlight in the improved version. Get LinkedIn profile tips too!</CardDescription>
+                        <CardDescription>Paste your resume text. Optionally, add target job role/industry and details. Get help creating key sections of your LinkedIn profile based on your improved resume!</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
@@ -1299,7 +1299,7 @@ export default function MentorAiPage() {
                                             </div>
                                             
                                             <p className="text-xs text-blue-700/80 mt-2 italic">
-                                              Note: These suggestions are generated based on your improved resume text. The AI cannot directly access or modify your live LinkedIn profile via a URL.
+                                              Note: These suggestions are generated based on your improved resume text above. The AI cannot directly access or modify your live LinkedIn profile via a URL.
                                             </p>
                                         </div>
                                     </div>
