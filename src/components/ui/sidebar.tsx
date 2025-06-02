@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet" // Added SheetHeader, SheetTitle
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -201,7 +201,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden flex flex-col" // Added flex flex-col
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -209,7 +209,10 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <SheetHeader className="p-4 border-b border-sidebar-border"> {/* Added SheetHeader */}
+              <SheetTitle className="text-lg">Menu</SheetTitle> {/* Added SheetTitle */}
+            </SheetHeader>
+            <div className="flex h-full w-full flex-col overflow-y-auto">{children}</div> {/* Wrapped children for scrolling */}
           </SheetContent>
         </Sheet>
       )
@@ -817,3 +820,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
