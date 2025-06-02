@@ -4,18 +4,30 @@
 import type { SmartSearchOutput } from '@/ai/flows/smart-search';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lightbulb, FileText, BookOpen, AlertCircle, Loader2, Info, Download } from 'lucide-react';
+import { Lightbulb, FileText, BookOpen, AlertCircle, Loader2, Info, Download, Languages } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
+
+// Map language codes to full names for display if needed elsewhere,
+// but for the explanation note, we'll use the code directly from selectedLanguage prop.
+const languageDisplayNames: Record<string, string> = {
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  hi: "Hindi",
+  mr: "Marathi",
+};
+
 
 interface ResultsDisplayProps {
   searchResult: SmartSearchOutput | null;
   explanation: string | null;
   isLoading: boolean;
   error: string | null;
-  language: string;
+  language: string; // This is the language code for the EXPLANATION (e.g., 'en', 'mr')
   hasDocument?: boolean; 
   question: string;
 }
@@ -25,7 +37,7 @@ export function ResultsDisplay({
   explanation,
   isLoading,
   error,
-  language,
+  language, // This is the target language for the explanation
   hasDocument = false,
   question,
 }: ResultsDisplayProps) {
@@ -79,8 +91,9 @@ export function ResultsDisplay({
     currentY += mainTitleHeight + 10;
 
     addSection("Question:", question);
-    addSection("Answer:", searchResult?.answer);
-    addSection("AI Explanation:", explanation);
+    addSection("Answer:", searchResult?.answer); // Answer might be in question's language
+    addSection(`AI Explanation (in ${languageDisplayNames[language] || language}):`, explanation);
+
 
     doc.save('scholarai_insights.pdf');
   };
@@ -136,12 +149,13 @@ export function ResultsDisplay({
   }
   
   const hasContentToDownload = !!(question || searchResult?.answer || explanation);
+  const explanationLanguageName = languageDisplayNames[language] || language; // Get full name or use code
 
   return (
     <Card className="shadow-lg bg-card">
       <CardHeader>
         <CardTitle className="font-headline text-2xl text-primary">ScholarAI Insights</CardTitle>
-        <CardDescription>Here's what I found based on your query:</CardDescription>
+        <CardDescription>Here's what I found based on your query. The AI attempts to answer in the language of your question. Explanations are provided in your selected global language setting.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {searchResult?.answer && (
@@ -151,7 +165,7 @@ export function ResultsDisplay({
               Answer
             </h3>
             <p className="text-foreground leading-relaxed whitespace-pre-wrap">{searchResult.answer}</p>
-            {searchResult.pageNumber !== undefined && (
+            {searchResult.pageNumber !== undefined && searchResult.pageNumber !== null && (
                <div className="mt-3 flex items-center">
                 <BookOpen className="mr-2 h-5 w-5 text-primary" />
                 <Badge variant="secondary" className="text-sm">
@@ -159,6 +173,9 @@ export function ResultsDisplay({
                 </Badge>
               </div>
             )}
+             <p className="text-xs text-muted-foreground mt-2 flex items-center">
+              <Languages className="mr-1 h-3.5 w-3.5" /> Answer language aims to match your question.
+            </p>
           </div>
         )}
 
@@ -171,8 +188,8 @@ export function ResultsDisplay({
               AI Explanation
             </h3>
             <p className="text-foreground leading-relaxed whitespace-pre-wrap">{explanation}</p>
-            <p className="text-xs text-muted-foreground mt-2">
-              (Explanation provided in English)
+            <p className="text-xs text-muted-foreground mt-2 flex items-center">
+              <Languages className="mr-1 h-3.5 w-3.5" /> Explanation provided in {explanationLanguageName}.
             </p>
           </div>
         )}
@@ -180,7 +197,7 @@ export function ResultsDisplay({
         {!searchResult?.answer && !explanation && !isLoading && (
           <p className="text-muted-foreground text-center py-4">
             {hasDocument 
-              ? "No specific information found in the document for your query, or an explanation could not be generated. Try rephrasing your question or checking the document."
+              ? "No specific information found in the document for your query, AI attempted a general response. Try rephrasing or check the document."
               : "I couldn't find a specific answer to your question right now. Try rephrasing it."
             }
           </p>
@@ -201,3 +218,4 @@ export function ResultsDisplay({
     </Card>
   );
 }
+

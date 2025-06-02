@@ -94,6 +94,16 @@ const tools = [
 const COMMON_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/*'];
 const COMMON_IMAGE_EXTENSIONS_STRING = ".jpg, .jpeg, .png, .gif, .webp, .bmp";
 
+// Map language codes (like 'en', 'mr') to full language names for AI prompts
+const languageCodeToFullName: Record<string, string> = {
+  'en': 'English',
+  'es': 'Spanish',
+  'fr': 'French',
+  'de': 'German',
+  'hi': 'Hindi',
+  'mr': 'Marathi',
+};
+
 
 export default function MentorAiPage() {
   const [activeTool, setActiveTool] = useState<string>(tools[0].id);
@@ -197,12 +207,19 @@ export default function MentorAiPage() {
       const searchInput: SmartSearchInput = { documentDataUri: documentDataUriForFlow, question };
       const result = await smartSearch(searchInput);
       setSearchResult(result);
+
       if (result?.answer) {
-        const explainerResult = await explainAnswer({ question, answer: result.answer });
+        const outputLangFullName = languageCodeToFullName[selectedLanguage] || 'English';
+        const explainerInput: ExplainAnswerInput = { 
+          question, 
+          answer: result.answer, 
+          outputLanguage: outputLangFullName 
+        };
+        const explainerResult = await explainAnswer(explainerInput);
         setExplanation(explainerResult.explanation);
         toast({ title: "AI Mentor Success!", description: "Insights generated successfully." });
       } else {
-        toast({ title: "Search complete", description: selectedFile ? "Could not find a direct answer in the document." : "I couldn't find an answer to your question." });
+        toast({ title: "Search complete", description: selectedFile ? "Could not find a direct answer in the document. AI attempted general response." : "I couldn't find an answer to your question." });
       }
     } catch (err: any) {
       const errorMessage = err.message || 'An unexpected error occurred.';
@@ -878,7 +895,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                   <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Brain className="mr-2 h-7 w-7"/>Document Q&amp;A</CardTitle>
-                    <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document. AI explanation language can be set in global Settings (gear icon in header).</CardDescription>
+                    <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document. The AI will attempt to answer in the language of your question. Explanations will be in your selected global language.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

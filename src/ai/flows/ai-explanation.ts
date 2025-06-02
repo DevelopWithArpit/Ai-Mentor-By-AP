@@ -3,8 +3,8 @@
 'use server';
 
 /**
- * @fileOverview A flow that provides clear, easy-to-understand explanations for complex answers.
- *               Includes failover to a secondary model provider if the primary fails.
+ * @fileOverview A flow that provides clear, easy-to-understand explanations for complex answers,
+ *               in a specified output language. Includes failover to a secondary model provider if the primary fails.
  *
  * - explainAnswer - A function that generates an explanation for a given question and answer.
  * - ExplainAnswerInput - The input type for the explainAnswer function.
@@ -15,13 +15,14 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExplainAnswerInputSchema = z.object({
-  question: z.string().describe('The question asked by the student.'),
-  answer: z.string().describe('The complex answer to be explained.'),
+  question: z.string().describe('The question asked by the student. This question might be in any language.'),
+  answer: z.string().describe('The complex answer to be explained. This answer might be in the same language as the question.'),
+  outputLanguage: z.string().describe('The desired language for the explanation (e.g., "English", "Spanish", "Marathi").'),
 });
 export type ExplainAnswerInput = z.infer<typeof ExplainAnswerInputSchema>;
 
 const ExplainAnswerOutputSchema = z.object({
-  explanation: z.string().describe('A clear, easy-to-understand explanation of the answer.'),
+  explanation: z.string().describe('A clear, easy-to-understand explanation of the answer, in the specified outputLanguage.'),
 });
 export type ExplainAnswerOutput = z.infer<typeof ExplainAnswerOutputSchema>;
 
@@ -29,17 +30,18 @@ export async function explainAnswer(input: ExplainAnswerInput): Promise<ExplainA
   return explainAnswerFlow(input);
 }
 
-// This object holds the prompt text and schema definitions, used by ai.generate below.
 const explanationPromptConfig = {
   name: 'explainAnswerBasePrompt', 
-  inputSchema: ExplainAnswerInputSchema, // For clarity, though not directly used by ai.generate's input field if 'input' is provided separately
-  outputSchema: ExplainAnswerOutputSchema, // The schema to validate the output against
-  promptText: `You are an AI academic assistant. Your task is to provide a clear and easy-to-understand explanation for a given question and its complex answer.
+  inputSchema: ExplainAnswerInputSchema,
+  outputSchema: ExplainAnswerOutputSchema,
+  promptText: `You are an AI academic assistant. Your task is to provide a clear and easy-to-understand explanation for a given question and its answer.
+The question and answer provided to you might be in a language other than English.
+You MUST generate your explanation in the following language: {{{outputLanguage}}}.
 
 Question: {{{question}}}
 Answer: {{{answer}}}
 
-Explanation:`,
+Explanation (in {{{outputLanguage}}}):`,
 };
 
 const explainAnswerFlow = ai.defineFlow(
@@ -50,39 +52,40 @@ const explainAnswerFlow = ai.defineFlow(
   },
   async (input): Promise<ExplainAnswerOutput> => {
     const primaryModel = 'googleai/gemini-2.0-flash';
-    // const secondaryModel = 'openai/gpt-3.5-turbo'; // Example secondary model - ensure it's configured in genkit.ts
+    // const secondaryModel = 'openai/gpt-3.5-turbo'; 
 
     try {
-      console.log(`Attempting to generate explanation with primary model: ${primaryModel}`);
+      console.log(`Attempting to generate explanation with primary model: ${primaryModel} for language: ${input.outputLanguage}`);
       const {output} = await ai.generate({
         model: primaryModel,
-        prompt: explanationPromptConfig.promptText, // Use the text prompt directly
-        input: input, // Pass the input object for Handlebars templating in promptText
-        output: { schema: explanationPromptConfig.outputSchema }, // CORRECTED: Output schema is a top-level property
-        // config: { /* Add any actual generation configs like temperature here if needed */ } 
+        prompt: explanationPromptConfig.promptText,
+        input: input, 
+        output: { schema: explanationPromptConfig.outputSchema },
       });
       if (!output) throw new Error('Primary model returned no output.');
       return output;
     } catch (primaryError: any) {
-      console.warn(`Primary model (${primaryModel}) failed: ${primaryError.message}. Attempting secondary model.`);
+      console.warn(`Primary model (${primaryModel}) failed: ${primaryError.message}. Attempting secondary model logic (currently placeholder).`);
       
-      // ATTENTION: Secondary model (OpenAI) integration requires uncommenting and setup in src/ai/genkit.ts
-      // and installing the appropriate Genkit OpenAI plugin.
-      // For now, this part will re-throw the error. To enable, set up OpenAI and uncomment the try/catch for secondary.
-      
-      // const {output: secondaryOutput} = await ai.generate({
-      //   model: secondaryModel, // Make sure this model is configured
-      //   prompt: explanationPromptConfig.promptText,
-      //   input: input,
-      //   output: { schema: explanationPromptConfig.outputSchema }, // CORRECTED here too
-      //   // config: { /* ... */ }
-      // });
-      // if (!secondaryOutput) throw new Error('Secondary model returned no output after primary failed.');
-      // console.log('Successfully generated explanation with secondary model.');
-      // return secondaryOutput;
+      // Placeholder for secondary model logic as discussed
+      // To enable secondary model, uncomment and configure OpenAI in src/ai/genkit.ts and install the plugin.
+      // try {
+      //   console.log(`Attempting to generate explanation with secondary model: ${secondaryModel} for language: ${input.outputLanguage}`);
+      //   const {output: secondaryOutput} = await ai.generate({
+      //     model: secondaryModel,
+      //     prompt: explanationPromptConfig.promptText,
+      //     input: input,
+      //     output: { schema: explanationPromptConfig.outputSchema },
+      //   });
+      //   if (!secondaryOutput) throw new Error('Secondary model returned no output after primary failed.');
+      //   console.log('Successfully generated explanation with secondary model.');
+      //   return secondaryOutput;
+      // } catch (secondaryError: any) {
+      //   console.error(`Secondary model (${secondaryModel}) also failed: ${secondaryError.message}.`);
+      //   throw new Error(`Failed to generate explanation after trying all models. Last error (secondary): ${secondaryError.message}. Primary error: ${primaryError.message}`);
+      // }
 
-      // If secondary model attempt is not implemented or also fails:
-      console.error(`All models failed. Last error (primary): ${primaryError.message}`);
+      console.error(`All models failed or secondary not configured. Last error (primary): ${primaryError.message}`);
       throw new Error(`Failed to generate explanation after trying available models. Primary error: ${primaryError.message}`);
     }
   }
