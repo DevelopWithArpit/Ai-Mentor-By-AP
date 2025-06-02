@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -22,6 +23,7 @@ const languages = [
   { value: 'fr', label: 'Français (French)' },
   { value: 'de', label: 'Deutsch (German)' },
   { value: 'hi', label: 'हिन्दी (Hindi)' },
+  { value: 'mr', label: 'मराठी (Marathi)' },
   // Add more languages as needed
 ];
 
