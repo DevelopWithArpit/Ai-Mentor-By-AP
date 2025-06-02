@@ -29,12 +29,12 @@ export async function explainAnswer(input: ExplainAnswerInput): Promise<ExplainA
   return explainAnswerFlow(input);
 }
 
-// Define the prompt structure once, to be used by potentially multiple models
-const basePrompt = {
-  name: 'explainAnswerBasePrompt', // Changed name to avoid conflict if original prompt object exists
-  input: {schema: ExplainAnswerInputSchema},
-  output: {schema: ExplainAnswerOutputSchema},
-  prompt: `You are an AI academic assistant. Your task is to provide a clear and easy-to-understand explanation for a given question and its complex answer.
+// This object holds the prompt text and schema definitions, used by ai.generate below.
+const explanationPromptConfig = {
+  name: 'explainAnswerBasePrompt', 
+  inputSchema: ExplainAnswerInputSchema, // For clarity, though not directly used by ai.generate's input field if 'input' is provided separately
+  outputSchema: ExplainAnswerOutputSchema, // The schema to validate the output against
+  promptText: `You are an AI academic assistant. Your task is to provide a clear and easy-to-understand explanation for a given question and its complex answer.
 
 Question: {{{question}}}
 Answer: {{{answer}}}
@@ -56,9 +56,10 @@ const explainAnswerFlow = ai.defineFlow(
       console.log(`Attempting to generate explanation with primary model: ${primaryModel}`);
       const {output} = await ai.generate({
         model: primaryModel,
-        prompt: basePrompt.prompt, // Use the text prompt directly
-        input: input, // Pass the input object
-        config: { output: { schema: ExplainAnswerOutputSchema } } // Ensure output is validated against the schema
+        prompt: explanationPromptConfig.promptText, // Use the text prompt directly
+        input: input, // Pass the input object for Handlebars templating in promptText
+        output: { schema: explanationPromptConfig.outputSchema }, // CORRECTED: Output schema is a top-level property
+        // config: { /* Add any actual generation configs like temperature here if needed */ } 
       });
       if (!output) throw new Error('Primary model returned no output.');
       return output;
@@ -71,9 +72,10 @@ const explainAnswerFlow = ai.defineFlow(
       
       // const {output: secondaryOutput} = await ai.generate({
       //   model: secondaryModel, // Make sure this model is configured
-      //   prompt: basePrompt.prompt,
+      //   prompt: explanationPromptConfig.promptText,
       //   input: input,
-      //   config: { output: { schema: ExplainAnswerOutputSchema } }
+      //   output: { schema: explanationPromptConfig.outputSchema }, // CORRECTED here too
+      //   // config: { /* ... */ }
       // });
       // if (!secondaryOutput) throw new Error('Secondary model returned no output after primary failed.');
       // console.log('Successfully generated explanation with secondary model.');
