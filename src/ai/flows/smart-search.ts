@@ -52,7 +52,9 @@ If you find the answer in the document, provide the answer and the page number.
 If you cannot find the answer in the document, state that the answer could not be found in the document and do not provide a page number.
 {{else}}
 A student has asked the following question: "{{{question}}}"
-Please provide a helpful and accurate answer. If your system prompt gave you instructions to use a tool for this type of question, follow those instructions. Otherwise, answer based on your general knowledge.
+Your goal is to provide a helpful and accurate answer based on your general knowledge.
+If your system prompt provided instructions to use a specific tool for this type of question (like a weather query), please follow those tool-use instructions. Otherwise, formulate a comprehensive answer using your broad knowledge base.
+If you cannot answer the question, clearly state that you don't have the information.
 {{/if}}
 `,
 });
@@ -68,3 +70,4 @@ const smartSearchFlow = ai.defineFlow(
     return output!;
   }
 );
+
