@@ -81,7 +81,7 @@ const tools = [
   { id: 'document-qa', label: 'Document Q&A', icon: Brain, cardTitle: 'Document Q&A' },
   { id: 'summarizer', label: 'Summarizer', icon: FileType, cardTitle: 'AI Document Summarizer' },
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
-  { id: 'resume-review', label: 'Resume Improver', icon: Edit3, cardTitle: 'AI Resume Improver (ATS Optimized)' },
+  { id: 'resume-review', label: 'Resume Improver', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
@@ -1131,8 +1131,8 @@ export default function MentorAiPage() {
               {activeTool === 'resume-review' && (
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
-                        <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume Improver (ATS Optimized)</CardTitle>
-                        <CardDescription>Paste your resume text. Optionally, add target job role/industry and details. Get help creating key sections of your LinkedIn profile based on your improved resume!</CardDescription>
+                        <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume &amp; LinkedIn Profile Assistant</CardTitle>
+                        <CardDescription>Paste your resume text. Optionally, add target job role/industry and details. Get AI-driven feedback, an improved resume, and comprehensive suggestions to build your LinkedIn profile!</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
@@ -1224,33 +1224,33 @@ export default function MentorAiPage() {
                                             <Linkedin className="mr-2 h-5 w-5 text-blue-700" />
                                             Detailed LinkedIn Profile Suggestions:
                                         </h4>
-                                        <div className="space-y-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                                        <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800/30">
                                             {resumeFeedback.linkedinProfileSuggestions.suggestedHeadline && (
                                                 <div>
-                                                    <Label className="text-blue-800 font-medium">Suggested Headline:</Label>
+                                                    <Label className="text-blue-800 dark:text-blue-300 font-medium">Suggested Headline:</Label>
                                                     <div className="flex items-start gap-2">
-                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedHeadline} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1" rows={2} aria-label="Suggested LinkedIn Headline" />
+                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedHeadline} readOnly className="text-sm text-blue-900 dark:text-blue-200 bg-blue-100/50 dark:bg-blue-800/30 flex-1" rows={2} aria-label="Suggested LinkedIn Headline" />
                                                         <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedHeadline!); toast({ description: "Headline copied!" });}} aria-label="Copy headline"><Copy className="h-4 w-4" /></Button>
                                                     </div>
                                                 </div>
                                             )}
                                             {resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection && (
                                                 <div>
-                                                    <Label className="text-blue-800 font-medium">Suggested About Section:</Label>
+                                                    <Label className="text-blue-800 dark:text-blue-300 font-medium">Suggested About Section:</Label>
                                                      <div className="flex items-start gap-2">
-                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection} readOnly className="text-sm text-blue-900 bg-blue-100/50 flex-1 min-h-[100px]" aria-label="Suggested LinkedIn About Section" />
+                                                        <Textarea value={resumeFeedback.linkedinProfileSuggestions.suggestedAboutSection} readOnly className="text-sm text-blue-900 dark:text-blue-200 bg-blue-100/50 dark:bg-blue-800/30 flex-1 min-h-[100px]" aria-label="Suggested LinkedIn About Section" />
                                                         <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(resumeFeedback.linkedinProfileSuggestions!.suggestedAboutSection!); toast({ description: "About section copied!" });}} aria-label="Copy about section"><Copy className="h-4 w-4" /></Button>
                                                     </div>
                                                 </div>
                                             )}
                                             
                                             <div>
-                                                <Label className="text-blue-800 font-medium">Experience Section Tips:</Label>
+                                                <Label className="text-blue-800 dark:text-blue-300 font-medium">Experience Section Tips:</Label>
                                                 <div className="flex items-start gap-2">
                                                     <Textarea 
                                                     value={resumeFeedback.linkedinProfileSuggestions.experienceSectionTips || "No specific tips provided by AI."} 
                                                     readOnly 
-                                                    className="text-xs text-blue-900 bg-blue-100/50 flex-1" 
+                                                    className="text-xs text-blue-900 dark:text-blue-200 bg-blue-100/50 dark:bg-blue-800/30 flex-1" 
                                                     rows={3} 
                                                     aria-label="LinkedIn Experience Section Tips"
                                                     />
@@ -1272,12 +1272,12 @@ export default function MentorAiPage() {
                                             </div>
 
                                             <div>
-                                                <Label className="text-blue-800 font-medium">Skills Section Tips:</Label>
+                                                <Label className="text-blue-800 dark:text-blue-300 font-medium">Skills Section Tips:</Label>
                                                 <div className="flex items-start gap-2">
                                                     <Textarea 
                                                     value={resumeFeedback.linkedinProfileSuggestions.skillsSectionTips || "No specific tips provided by AI."} 
                                                     readOnly 
-                                                    className="text-xs text-blue-900 bg-blue-100/50 flex-1" 
+                                                    className="text-xs text-blue-900 dark:text-blue-200 bg-blue-100/50 dark:bg-blue-800/30 flex-1" 
                                                     rows={3} 
                                                     aria-label="LinkedIn Skills Section Tips"
                                                     />
@@ -1298,7 +1298,7 @@ export default function MentorAiPage() {
                                                 </div>
                                             </div>
                                             
-                                            <p className="text-xs text-blue-700/80 mt-2 italic">
+                                            <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-2 italic">
                                               Note: These suggestions are generated based on your improved resume text above. The AI cannot directly access or modify your live LinkedIn profile via a URL.
                                             </p>
                                         </div>

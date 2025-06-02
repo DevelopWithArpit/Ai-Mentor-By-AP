@@ -26,7 +26,7 @@ const FeedbackItemSchema = z.object({
 
 const LinkedInProfileSuggestionsSchema = z.object({
   suggestedHeadline: z.string().optional().describe("A suggested, impactful LinkedIn headline (around 120-220 characters) based on the rewritten resume and target job role. It should be concise and keyword-rich."),
-  suggestedAboutSection: z.string().optional().describe("A draft for the LinkedIn 'About' section (summary), written in a professional yet engaging tone (ideally 2-4 paragraphs), based on the rewritten resume. It should highlight key skills, experiences, and career aspirations."),
+  suggestedAboutSection: z.string().optional().describe("A draft for the LinkedIn 'About' section (summary), written in a professional yet engaging tone (ideally 2-4 paragraphs), based on the rewritten resume. It should highlight key skills, experiences, and career aspirations. This should be suitable for immediate use."),
   experienceSectionTips: z.string().optional().describe("Actionable tips on how to adapt the resume's experience bullet points for LinkedIn (e.g., writing in first-person, focusing on impact, using keywords, and potentially adding links to projects or media). Provide 2-3 concise bullet points or a short paragraph."),
   skillsSectionTips: z.string().optional().describe("Recommendations for the LinkedIn skills section, including which key skills from the resume to highlight, the importance of getting endorsements, and how to order them. Provide 2-3 concise bullet points or a short paragraph.")
 }).optional();
@@ -103,6 +103,7 @@ When rewriting the resume, please thoughtfully integrate this additional informa
     *   **\`experienceSectionTips\`**: Provide 2-3 concise bullet points or a short paragraph of actionable tips on how to adapt the resume's experience bullet points for LinkedIn. For example: "Rephrase bullet points in the first person (e.g., 'I led...' instead of 'Led...'). Quantify achievements with numbers whenever possible. Consider adding links to relevant projects, publications, or company websites in the media section of each role."
     *   **\`skillsSectionTips\`**: Offer 2-3 concise bullet points or a short paragraph of recommendations for the LinkedIn skills section. For example: "List at least 5 key skills from your resume, prioritizing those most relevant to '{{targetJobRole}}'. Seek endorsements for your top skills from colleagues and connections. Ensure your listed skills align with keywords used in job descriptions for '{{targetJobRole}}'."
 *   Ensure the content for \`suggestedHeadline\` and \`suggestedAboutSection\` is well-written and almost ready to be copied and pasted.
+*   The tips for \`experienceSectionTips\` and \`skillsSectionTips\` should be actionable and directly help the user build out these sections on their profile.
 
 The \`modifiedResumeText\` should be a complete, well-formatted, ready-to-use version of the resume.
 The \`linkedinProfileSuggestions\` should provide clear, practical, and detailed advice for specific LinkedIn sections.
