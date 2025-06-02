@@ -53,7 +53,7 @@ Question: {{{question}}}
 
 Carefully read the document to locate and provide the specific answer to the question.
 If you find a direct answer in the document, provide that answer and the page number (as a number).
-If you cannot find a direct answer in the document, clearly state that the answer could not be found within the provided material, and **the pageNumber field in your JSON output MUST be omitted.** Do not attempt to answer from general knowledge if a document is provided but the answer is not in it.
+If you cannot find a direct answer in the document, then attempt to answer the question based on your general knowledge. In this case, the pageNumber field in your JSON output MUST be omitted.
 {{else}}
 A student has asked the following question: "{{{question}}}"
 Your goal is to provide a helpful and accurate answer based on your general knowledge.
@@ -74,10 +74,9 @@ const smartSearchFlow = ai.defineFlow(
     const {output} = await prompt(input);
     // Ensure pageNumber is truly omitted if it's null or not a number, or not provided by the model
     // The model should respect the prompt, but this is a safeguard.
-    // With nullable() in schema, 'null' is valid. UI handles 'null' and 'undefined' by not showing page number.
     if (output && (output.pageNumber === null || typeof output.pageNumber !== 'number')) {
       // If we want to strictly enforce omission instead of allowing null to pass through to the UI logic:
-      // delete output.pageNumber; 
+      delete output.pageNumber; 
       // For now, allowing null as per schema change. UI already handles null/undefined correctly for display.
     }
     return output!;
