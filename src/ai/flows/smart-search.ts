@@ -19,7 +19,7 @@ const SmartSearchInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      "A document (e.g. syllabus) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'. This is optional."
+      "A document (e.g. syllabus, question bank) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'. This is optional."
     ),
   question: z.string().describe('The question to search for within the document or to be answered generally.'),
 });
@@ -43,12 +43,17 @@ If the user's question is specifically about the current weather conditions in a
   input: {schema: SmartSearchInputSchema},
   output: {schema: SmartSearchOutputSchema},
   prompt: `{{#if documentDataUri}}
-You have been provided with a document. Your task is to find the answer to the student's question within this document and identify the page number where the answer is located.
+You have been provided with a document (which might be a syllabus, a question bank, or other academic material).
+Your primary task is to find the most direct and accurate answer to the student's question *within this document*.
+If the document appears to be a question bank and the student's question matches or is very similar to a question in the bank, provide the answer given in the bank.
+Identify the page number where the answer is located if possible.
+
 Document: {{media url=documentDataUri}}
 Question: {{{question}}}
-Carefully read the document to answer the question.
-If you find the answer in the document, provide the answer and the page number (as a number).
-If you cannot find the answer in the document, state that the answer could not be found in the document and **the pageNumber field in your JSON output MUST be omitted.**
+
+Carefully read the document to locate and provide the specific answer to the question.
+If you find a direct answer in the document, provide that answer and the page number (as a number).
+If you cannot find a direct answer in the document, clearly state that the answer could not be found within the provided material, and **the pageNumber field in your JSON output MUST be omitted.** Do not attempt to answer from general knowledge if a document is provided but the answer is not in it.
 {{else}}
 A student has asked the following question: "{{{question}}}"
 Your goal is to provide a helpful and accurate answer based on your general knowledge.
