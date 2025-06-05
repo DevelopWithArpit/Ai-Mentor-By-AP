@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -93,6 +93,9 @@ const tools = [
 
 const COMMON_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/*'];
 const COMMON_IMAGE_EXTENSIONS_STRING = ".jpg, .jpeg, .png, .gif, .webp, .bmp";
+const COMMON_DOC_MIME_TYPES = ["application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+const COMMON_DOC_EXTENSIONS_STRING = ".pdf, .txt, .doc, .docx";
+
 
 // Map language codes (like 'en', 'mr') to full language names for AI prompts
 const languageCodeToFullName: Record<string, string> = {
@@ -145,6 +148,7 @@ export default function MentorAiPage() {
   const [generatedInterviewQuestions, setGeneratedInterviewQuestions] = useState<GenerateInterviewQuestionsOutput | null>(null);
   const [isGeneratingInterviewQuestions, setIsGeneratingInterviewQuestions] = useState<boolean>(false);
 
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState<string>('');
   const [resumeTargetJobRole, setResumeTargetJobRole] = useState<string>('');
   const [resumeAdditionalInfo, setResumeAdditionalInfo] = useState<string>('');
@@ -420,12 +424,17 @@ export default function MentorAiPage() {
   };
 
   const handleGetResumeFeedback = async () => {
-    if (!resumeText.trim() && !resumeAdditionalInfo.trim()) { 
-      toast({ title: "Error", description: "Please paste your resume OR provide details for AI to create one.", variant: "destructive" }); return; 
+    const hasExistingResumeInput = !!(resumeFile || resumeText.trim());
+    const canCreateNewResume = !!(resumeAdditionalInfo.trim() && !hasExistingResumeInput);
+
+    if (!hasExistingResumeInput && !canCreateNewResume) { 
+      toast({ title: "Error", description: "Please upload/paste a resume OR provide details for AI to create one.", variant: "destructive" }); return; 
     }
     setIsGeneratingResumeFeedback(true); setResumeFeedback(null);
     try {
+      const dataUriForFlow = resumeFile ? await fileToDataUri(resumeFile) : undefined;
       const result = await getResumeFeedback({ 
+        resumeDataUri: dataUriForFlow,
         resumeText: resumeText || undefined, 
         targetJobRole: resumeTargetJobRole || undefined,
         additionalInformation: resumeAdditionalInfo || undefined 
@@ -437,7 +446,7 @@ export default function MentorAiPage() {
   };
 
   const handleDownloadResumePdf = () => {
-    if (!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.startsWith("Insufficient details")) {
+    if (!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) {
       toast({ title: "Error", description: "No valid resume text to download.", variant: "destructive" });
       return;
     }
@@ -568,11 +577,14 @@ export default function MentorAiPage() {
   };
 
   const handleResetResumeImprover = () => {
+    setResumeFile(null);
     setResumeText('');
     setResumeTargetJobRole('');
     setResumeAdditionalInfo('');
     setResumeFeedback(null);
     setIsGeneratingResumeFeedback(false);
+    const resumeFileInput = document.getElementById('resume-file-upload') as HTMLInputElement;
+    if (resumeFileInput) resumeFileInput.value = '';
     toast({ title: "Cleared", description: "Resume Assistant form and results have been cleared." });
   };
 
@@ -852,6 +864,13 @@ export default function MentorAiPage() {
 
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
   const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Helvetica'];
+  
+  // Resume Assistant Button Logic
+  const hasExistingResumeInput = !!(resumeFile || resumeText.trim());
+  const canCreateNewResume = !!(resumeAdditionalInfo.trim() && !hasExistingResumeInput);
+  let resumeButtonText = "Provide Input";
+  if (hasExistingResumeInput) resumeButtonText = "Improve Resume";
+  else if (canCreateNewResume) resumeButtonText = "Create Resume";
 
 
   return (
@@ -902,7 +921,14 @@ export default function MentorAiPage() {
                   <CardContent>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                       <div className="lg:col-span-1 space-y-6">
-                        <FileUpload selectedFile={selectedFile} onFileChange={handleFileChange} isLoading={isLoading} inputId="file-upload-input"/>
+                        <FileUpload 
+                          selectedFile={selectedFile} 
+                          onFileChange={handleFileChange} 
+                          isLoading={isLoading} 
+                          inputId="file-upload-input"
+                          acceptedFileTypes={COMMON_DOC_MIME_TYPES}
+                          acceptedFileExtensionsString={COMMON_DOC_EXTENSIONS_STRING}
+                        />
                         <QuestionInput question={question} onQuestionChange={setQuestion} onSubmit={handleSubmitScholarAI} isLoading={isLoading} isSubmitDisabled={!question.trim()}/>
                         <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear Q&amp;A</Button>
                       </div>
@@ -921,7 +947,14 @@ export default function MentorAiPage() {
                         <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) to get a concise summary. Useful for research papers, articles, and long texts.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <FileUpload selectedFile={summarizerFile} onFileChange={setSummarizerFile} isLoading={isGeneratingSummary} inputId="summarizer-file-upload"/>
+                        <FileUpload 
+                          selectedFile={summarizerFile} 
+                          onFileChange={setSummarizerFile} 
+                          isLoading={isGeneratingSummary} 
+                          inputId="summarizer-file-upload"
+                          acceptedFileTypes={COMMON_DOC_MIME_TYPES}
+                          acceptedFileExtensionsString={COMMON_DOC_EXTENSIONS_STRING}
+                        />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="summary-length">Summary Length</Label>
@@ -1151,15 +1184,25 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume &amp; LinkedIn Profile Assistant</CardTitle>
-                        <CardDescription>Improve your existing resume OR get help creating a new one! Provide details for AI to generate a professional resume and comprehensive LinkedIn profile suggestions.</CardDescription>
+                        <CardDescription>Upload your resume (PDF, DOCX, TXT), or paste text, or provide details for AI to create a new one. Get an improved resume and comprehensive LinkedIn profile suggestions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <FileUpload
+                            selectedFile={resumeFile}
+                            onFileChange={setResumeFile}
+                            isLoading={isGeneratingResumeFeedback}
+                            inputId="resume-file-upload"
+                            label="Upload Resume (PDF, DOC, DOCX, TXT - Optional)"
+                            acceptedFileTypes={COMMON_DOC_MIME_TYPES}
+                            acceptedFileExtensionsString={COMMON_DOC_EXTENSIONS_STRING}
+                        />
+                        <p className="text-xs text-muted-foreground text-center">- OR -</p>
                         <Textarea 
-                            placeholder="PASTE your full resume text here (optional if creating new)..." 
+                            placeholder="PASTE your full resume text here (if not uploading a file)..." 
                             value={resumeText} 
                             onChange={(e) => setResumeText(e.target.value)} 
                             disabled={isGeneratingResumeFeedback} 
-                            className="min-h-[200px]"
+                            className="min-h-[150px]"
                         />
                         <Input 
                             placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst')" 
@@ -1168,7 +1211,7 @@ export default function MentorAiPage() {
                             disabled={isGeneratingResumeFeedback} 
                         />
                         <Textarea 
-                            placeholder="FOR NEW RESUME: Enter all your details (name, contact, experience, education, skills, projects, etc.). FOR EXISTING: Add specific details AI should include."
+                            placeholder="FOR NEW RESUME (if no file/text): Enter all details (name, contact, experience, education, skills, projects). FOR EXISTING: Add specific details for AI to include."
                             value={resumeAdditionalInfo}
                             onChange={(e) => setResumeAdditionalInfo(e.target.value)}
                             disabled={isGeneratingResumeFeedback}
@@ -1177,11 +1220,11 @@ export default function MentorAiPage() {
                         <div className="flex flex-wrap gap-2">
                             <Button 
                                 onClick={handleGetResumeFeedback} 
-                                disabled={isGeneratingResumeFeedback || (!resumeText.trim() && !resumeAdditionalInfo.trim())} 
+                                disabled={isGeneratingResumeFeedback || (!hasExistingResumeInput && !canCreateNewResume)} 
                                 className="w-auto"
                             >
                                 {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                                {resumeText.trim() ? "Improve Resume" : "Create Resume"}
+                                {resumeButtonText}
                             </Button>
                             <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
                                 <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
@@ -1192,8 +1235,8 @@ export default function MentorAiPage() {
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
                                 <div>
                                     <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
-                                        <h4 className="font-semibold text-foreground">{resumeFeedback.modifiedResumeText.startsWith("Insufficient details") ? "Message:" : "AI-Generated/Modified Resume:"}</h4>
-                                        {!resumeFeedback.modifiedResumeText.startsWith("Insufficient details") && (
+                                        <h4 className="font-semibold text-foreground">{resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read") ? "Message:" : "AI-Generated/Modified Resume:"}</h4>
+                                        {!(resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) && (
                                         <div className="flex gap-2">
                                             <Button
                                                 variant="ghost"
@@ -1235,7 +1278,7 @@ export default function MentorAiPage() {
                                   </div>
                                 )}
 
-                                {resumeFeedback.feedbackItems && resumeFeedback.feedbackItems.length > 0 && !resumeFeedback.modifiedResumeText.startsWith("Insufficient details") && (
+                                {resumeFeedback.feedbackItems && resumeFeedback.feedbackItems.length > 0 && !(resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) && (
                                 <div>
                                     <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis:</h4>
                                     <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
@@ -1257,13 +1300,13 @@ export default function MentorAiPage() {
                                     </Accordion>
                                 </div>
                                 )}
-                                {resumeFeedback.linkedinProfileSuggestions && !resumeFeedback.modifiedResumeText.startsWith("Insufficient details") && (
+                                {resumeFeedback.linkedinProfileSuggestions && !(resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) && (
                                     <div className="mt-4">
                                         <h4 className="font-semibold text-foreground mb-2 flex items-center">
-                                            <Linkedin className="mr-2 h-5 w-5 text-blue-700" />
+                                            <Linkedin className="mr-2 h-5 w-5 text-blue-700 dark:text-blue-500" />
                                             Detailed LinkedIn Profile Suggestions:
                                         </h4>
-                                        <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800/30">
+                                        <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-700/30">
                                             {resumeFeedback.linkedinProfileSuggestions.suggestedHeadline && (
                                                 <div>
                                                     <Label className="text-blue-800 dark:text-blue-300 font-medium">Suggested Headline:</Label>
@@ -1338,7 +1381,7 @@ export default function MentorAiPage() {
                                             </div>
                                             
                                             <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-2 italic">
-                                              Note: These suggestions are generated based on your resume text. The AI cannot directly access or modify your live LinkedIn profile.
+                                              Note: These suggestions are generated based on your resume. The AI cannot directly access or modify your live LinkedIn profile.
                                             </p>
                                         </div>
                                     </div>
