@@ -455,34 +455,35 @@ export default function MentorAiPage() {
     const text = resumeFeedback.modifiedResumeText;
     
     // --- Style Definitions ---
-    const FONT_FAMILY_SANS = "Helvetica"; // Using a standard sans-serif font available in jsPDF
-    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue (from globals.css --primary)
-    const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; // Dark Gray
-    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray for subtitles
-    const DIVIDER_COLOR_RGB: [number, number, number] = [220, 220, 220]; // Light Gray for dividers
+    const FONT_FAMILY_SANS = "Helvetica"; 
+    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue #4169E1
+    const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; 
+    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; 
+    const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200]; // Lighter gray for dividers
 
-    const NAME_SIZE = 28;
-    const TITLE_SIZE = 14;
-    const CONTACT_ICON_SIZE = 9;
+    const NAME_SIZE = 26;
+    const TITLE_SIZE = 13;
     const CONTACT_TEXT_SIZE = 9;
     const SECTION_HEADER_SIZE = 14;
-    const SUB_HEADER_SIZE = 11; // For Job Title, Degree, Project Name
+    const SUB_HEADER_TITLE_SIZE = 11; 
+    const SUB_HEADER_SUBTITLE_SIZE = 10;
     const BODY_TEXT_SIZE = 10;
-    const SMALL_TEXT_SIZE = 9; // For dates/locations next to sub-headers
+    const SMALL_TEXT_SIZE = 9; 
 
     const MARGIN = 40; // pt
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
     const LINE_SPACING_FACTOR = 1.4;
-    const SECTION_TOP_MARGIN = 20;
-    const ITEM_SPACING = 10; // Space between experience/education items
-    const BULLET_POINT_TOP_MARGIN = 5;
+    const LINE_SPACING_FACTOR_TIGHT = 1.2;
+    const SECTION_TOP_MARGIN = 18;
+    const ITEM_SPACING = 12; 
+    const BULLET_POINT_TOP_MARGIN = 4;
     const BULLET_INDENT = 15;
-    const CONTACT_ITEM_SPACING = 15; // Horizontal spacing for contact items
-
+    const CONTACT_ITEM_SPACING = 12;
 
     let yPos = MARGIN;
+    let currentSection = ""; // To track context for formatting
 
-    const addNewPageIfNeeded = (neededHeight: number) => {
+    const addNewPageIfNeeded = (neededHeight: number): boolean => {
       if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
         doc.addPage();
         yPos = MARGIN;
@@ -496,24 +497,39 @@ export default function MentorAiPage() {
         doc.setLineWidth(thickness);
         doc.line(MARGIN, y, doc.internal.pageSize.getWidth() - MARGIN, y);
     };
-
-    // --- Resume Parsing and Rendering ---
+    
     const lines = text.split('\n');
     let currentLineIndex = 0;
-    let fullName = "Candidate Name";
-    let professionalTitle = "Professional Title";
+
+    // Skip initial empty lines
+    while (currentLineIndex < lines.length && lines[currentLineIndex].trim() === "") {
+        currentLineIndex++;
+    }
+
+    let fullName = "Candidate Name"; // Default placeholder
+    let professionalTitle = "Professional Title"; // Default placeholder
     let contactInfoString = "";
 
-    // Extract Header Info first
-    if (lines[currentLineIndex]?.startsWith("### ")) {
+    // Extract Header Info (Name, Title, Contact)
+    if (currentLineIndex < lines.length && lines[currentLineIndex].startsWith("### ")) {
       fullName = lines[currentLineIndex].substring(4).trim();
       currentLineIndex++;
-      if (lines[currentLineIndex] && !(lines[currentLineIndex].startsWith("## ") || lines[currentLineIndex].startsWith("### ") || lines[currentLineIndex].includes("Phone:"))) {
+      // Check if the next line is the title (and not another header or contact info)
+      if (currentLineIndex < lines.length && 
+          !lines[currentLineIndex].startsWith("## ") && 
+          !lines[currentLineIndex].startsWith("### ") && 
+          !lines[currentLineIndex].includes("Phone:") && 
+          !lines[currentLineIndex].includes("Email:") && 
+          !lines[currentLineIndex].includes("LinkedIn:") && 
+          !lines[currentLineIndex].includes("Location:") &&
+          lines[currentLineIndex].trim() !== "") {
         professionalTitle = lines[currentLineIndex].trim();
         currentLineIndex++;
       }
     }
-    if (lines[currentLineIndex]?.includes("Phone:") || lines[currentLineIndex]?.includes("Email:") || lines[currentLineIndex]?.includes("LinkedIn:") || lines[currentLineIndex]?.includes("Location:")) {
+    // Check if the current line is contact info
+    if (currentLineIndex < lines.length && 
+        (lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
       contactInfoString = lines[currentLineIndex].trim();
       currentLineIndex++;
     }
@@ -530,105 +546,163 @@ export default function MentorAiPage() {
     doc.setFontSize(TITLE_SIZE);
     doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
     doc.text(professionalTitle, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += TITLE_SIZE * LINE_SPACING_FACTOR;
+    yPos += TITLE_SIZE * LINE_SPACING_FACTOR * 0.9;
     
-    // Render Contact Info with Unicode Icons
     if (contactInfoString) {
-        yPos += 5;
+        yPos += 3;
         doc.setFont(FONT_FAMILY_SANS, 'normal');
         doc.setFontSize(CONTACT_TEXT_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
         
         const contactParts = contactInfoString.split('|').map(s => s.trim());
-        let currentX = MARGIN;
-        const contactLineWidth = contactParts.reduce((sum, part) => {
-            let textToMeasure = part;
-            if (part.toLowerCase().includes("phone:")) textToMeasure = `\u260E ${part.replace(/Phone:\s*/i, "")}`;
-            else if (part.toLowerCase().includes("email:")) textToMeasure = `\u2709 ${part.replace(/Email:\s*/i, "")}`;
-            else if (part.toLowerCase().includes("linkedin:")) textToMeasure = `\uF0E1 ${part.replace(/LinkedIn:\s*/i, "")}`; // LinkedIn icon (FontAwesome in Unicode PUA)
-            else if (part.toLowerCase().includes("location:")) textToMeasure = `\uD83D\uDCCD ${part.replace(/Location:\s*/i, "")}`; // Pin icon
-            return sum + doc.getTextWidth(textToMeasure) + CONTACT_ITEM_SPACING;
-        }, -CONTACT_ITEM_SPACING); // Start with negative spacing to offset the last item
-
-        currentX = (doc.internal.pageSize.getWidth() - contactLineWidth) / 2;
-        if (currentX < MARGIN) currentX = MARGIN; // Ensure it doesn't go off-page
-
+        let contactLineText = "";
         contactParts.forEach((part, index) => {
             let icon = "";
             let text = part;
-            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); } // Phone icon
-            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); } // Email icon
-            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); doc.setFont("FontAwesome"); } // LinkedIn icon
-            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); } // Pin icon
-            
-            const fullText = `${icon}${text}`;
-            doc.text(fullText, currentX, yPos);
-            currentX += doc.getTextWidth(fullText) + CONTACT_ITEM_SPACING;
-            if (icon === "\uF0E1 ") doc.setFont(FONT_FAMILY_SANS); // Reset font if FontAwesome was used
+            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); }
+            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); }
+            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); } // May need FontAwesome or similar
+            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); }
+            contactLineText += `${icon}${text}${index < contactParts.length - 1 ? "  |  " : ""}`;
         });
+        doc.text(contactLineText, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center'});
         yPos += CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5;
     }
     
-    drawDivider(yPos, 1, [ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]]); // Thicker accent divider
-    yPos += SECTION_TOP_MARGIN * 0.7;
-
+    drawDivider(yPos, 1, ACCENT_COLOR_RGB);
+    yPos += SECTION_TOP_MARGIN * 0.5;
 
     // Process remaining lines for sections
     for (let i = currentLineIndex; i < lines.length; i++) {
       let line = lines[i].trim();
       if (!line) continue; 
 
-      if (line.startsWith("## ")) { // Section Header
-        const sectionTitle = line.substring(3).trim().toUpperCase();
-        yPos += (yPos === MARGIN || yPos === MARGIN + NAME_SIZE * LINE_SPACING_FACTOR * 0.8 + TITLE_SIZE * LINE_SPACING_FACTOR + CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5 + SECTION_TOP_MARGIN * 0.7 + 5 ? 0 : SECTION_TOP_MARGIN * 0.8);
+      if (line.startsWith("## ")) { 
+        currentSection = line.substring(3).trim().toUpperCase();
+        yPos += (yPos === MARGIN + NAME_SIZE * LINE_SPACING_FACTOR * 0.8 + TITLE_SIZE * LINE_SPACING_FACTOR * 0.9 + (contactInfoString ? (CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5) : 0) + SECTION_TOP_MARGIN * 0.5 ? SECTION_TOP_MARGIN * 0.3 : SECTION_TOP_MARGIN);
         addNewPageIfNeeded(SECTION_HEADER_SIZE * LINE_SPACING_FACTOR + 8);
         
         doc.setFont(FONT_FAMILY_SANS, 'bold');
         doc.setFontSize(SECTION_HEADER_SIZE);
         doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
-        doc.text(sectionTitle, MARGIN, yPos);
+        doc.text(currentSection, MARGIN, yPos);
         yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR * 0.6;
         drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB);
         yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR * 0.7;
 
-      } else if (line.startsWith("**") && line.substring(2).includes("**")) { // Sub-Header (Job Title, Degree, Project Name)
-        const firstStarEnd = line.indexOf("**", 2);
-        const boldPart = line.substring(2, firstStarEnd).trim();
-        const restOfLine = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim();
+      } else if (line.startsWith("**") && line.substring(2).includes("**")) {
+        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && !lines[i-1].trim().startsWith("### ") && !lines[i-1].trim().startsWith("* ") && lines[i-1].trim() !== "" ? ITEM_SPACING : 0);
         
-        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && !lines[i-1].trim().startsWith("### ") && !lines[i-1].trim().startsWith("* ") ? ITEM_SPACING : 0);
-        addNewPageIfNeeded(SUB_HEADER_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY_SANS, 'bold');
-        doc.setFontSize(SUB_HEADER_SIZE);
-        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        doc.text(boldPart, MARGIN, yPos);
+        const firstStarEnd = line.indexOf("**", 2);
+        const mainTitleText = line.substring(2, firstStarEnd).trim(); // Job Title, Degree Name, Project Name
+        const restOfLineOriginal = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim();
+        
+        const detailsParts = restOfLineOriginal.split('|').map(s => s.trim());
+        let itemSubtitleText = ""; // Company, University, Project Date/Tech
+        let dateLocationText = "";
 
-        if (restOfLine) { // Dates, Location
+        if (currentSection === "EXPERIENCE" || currentSection === "EDUCATION") {
+            itemSubtitleText = detailsParts[0] || ""; // Company or University
+            const datePart = detailsParts[1] || "";
+            const locationPart = detailsParts[2] || "";
+            dateLocationText = `${datePart}${locationPart ? ` | ${locationPart}` : ''}`;
+        } else if (currentSection === "PROJECTS") {
+            itemSubtitleText = detailsParts[0] || ""; // Date or Duration for Project
+        }
+
+        // Render Main Title (Job Title, Degree, Project Name)
+        addNewPageIfNeeded(SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
+        doc.setFont(FONT_FAMILY_SANS, 'bold');
+        doc.setFontSize(SUB_HEADER_TITLE_SIZE);
+        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+        const splitMainTitle = doc.splitTextToSize(mainTitleText, MAX_TEXT_WIDTH);
+        for (let j = 0; j < splitMainTitle.length; j++) {
+            if (j > 0) yPos += SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
+            addNewPageIfNeeded(SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
+            doc.text(splitMainTitle[j], MARGIN, yPos);
+        }
+        yPos += SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3;
+
+        // Render Item Subtitle (Company, University, Project Date/Tech) and DateLocation
+        let baseLineForDateLoc = yPos; // Y position before rendering subtitle and date/loc
+        
+        if (itemSubtitleText) {
+            addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
+            doc.setFont(FONT_FAMILY_SANS, 'italic');
+            doc.setFontSize(SUB_HEADER_SUBTITLE_SIZE);
+            doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
+            
+            const availableWidthForItemSubtitle = dateLocationText ? MAX_TEXT_WIDTH * 0.65 : MAX_TEXT_WIDTH; // Reserve space if date/loc on same line
+            const splitItemSubtitle = doc.splitTextToSize(itemSubtitleText, availableWidthForItemSubtitle);
+            
+            let subtitleHeight = 0;
+            for (let j = 0; j < splitItemSubtitle.length; j++) {
+                if (j > 0) yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
+                addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
+                doc.text(splitItemSubtitle[j], MARGIN, yPos);
+                subtitleHeight += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
+            }
+            if(splitItemSubtitle.length === 0) { // if itemSubtitleText was empty
+                 subtitleHeight = SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT; // assume one line height for spacing
+            }
+             yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3;
+        }
+
+
+        if (dateLocationText && (currentSection === "EXPERIENCE" || currentSection === "EDUCATION")) {
             doc.setFont(FONT_FAMILY_SANS, 'normal');
             doc.setFontSize(SMALL_TEXT_SIZE);
             doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-            const restWidth = doc.getTextWidth(restOfLine);
-            doc.text(restOfLine, doc.internal.pageSize.getWidth() - MARGIN - restWidth, yPos);
-        }
-        yPos += SUB_HEADER_SIZE * LINE_SPACING_FACTOR * 0.9;
+            const dateLocationWidth = doc.getTextWidth(dateLocationText);
+            // Try to place dateLocationText on the same line as the *start* of itemSubtitleText or mainTitleText if no subtitle
+            let yPosForDateLoc = baseLineForDateLoc; 
+             if (itemSubtitleText && doc.getTextDimensions(itemSubtitleText).h > SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT) { // if subtitle is multi-line, align with its first line
+                // yPosForDateLoc remains baseLineForDateLoc
+             } else if (!itemSubtitleText) { // if no subtitle, align with main title's first line
+                 yPosForDateLoc = baseLineForDateLoc - (SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3) - (SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3);
+             }
 
-      } else if (line.startsWith("* ")) { // Bullet Point
+
+            if (MARGIN + MAX_TEXT_WIDTH * 0.7 + dateLocationWidth < doc.internal.pageSize.getWidth() - MARGIN) {
+                 doc.text(dateLocationText, doc.internal.pageSize.getWidth() - MARGIN - dateLocationWidth, yPosForDateLoc);
+            } else { // If too long, put it on new line below subtitle or title
+                 yPos += SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.2; // Extra space if on new line
+                 addNewPageIfNeeded(SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+                 doc.text(dateLocationText, MARGIN, yPos );
+                 yPos += SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 1.2;
+            }
+        }
+         // If itemSubtitle was not rendered but dateLocation was on a new line, yPos would have advanced.
+         // If both were rendered and dateLocation fit on the same line, yPos is currently after subtitle.
+         // Ensure there's some space before bullets.
+        if (!itemSubtitleText && !dateLocationText) { // only mainTitle
+            yPos += SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3; // Add some space if only title
+        } else if (itemSubtitleText && !dateLocationText) { // mainTitle and subtitle
+            // yPos is already after subtitle
+        } else if (!itemSubtitleText && dateLocationText) { // mainTitle and dateLoc (likely on new line)
+            // yPos is already after dateLoc
+        }
+        // Final small gap before potential bullets or next item
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.1;
+
+
+      } else if (line.startsWith("* ")) { 
         const bulletText = line.substring(2).trim();
         yPos += BULLET_POINT_TOP_MARGIN;
-        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
+        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
         doc.setFont(FONT_FAMILY_SANS, 'normal');
         doc.setFontSize(BODY_TEXT_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
         
-        const bulletChar = "\u2022"; // Unicode bullet
-        doc.text(bulletChar, MARGIN, yPos);
+        const bulletChar = "\u2022"; 
         const splitBulletText = doc.splitTextToSize(bulletText, MAX_TEXT_WIDTH - BULLET_INDENT);
         for (let j = 0; j < splitBulletText.length; j++) {
-            if (j > 0) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR;
-            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
-            doc.text(splitBulletText[j], MARGIN + BULLET_INDENT, yPos);
+            if (j > 0) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT;
+            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+            doc.text(j === 0 ? bulletChar : "", MARGIN, yPos, {意align: 'left'}); // Render bullet only for first line
+            doc.text(splitBulletText[j], MARGIN + (j === 0 ? BULLET_INDENT * 0.5 : BULLET_INDENT), yPos);
         }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR * 0.5;
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.4;
 
       } else { // Regular text (e.g., summary, skills content)
         addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
@@ -641,12 +715,12 @@ export default function MentorAiPage() {
             doc.text(textLine, MARGIN, yPos);
             yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR;
         }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR * 0.2; // Slightly less space after general text block
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR * 0.1; 
       }
     }
     
-    doc.save('ai_mentor_resume_modern.pdf');
-    toast({ title: "Modern Resume PDF Downloaded", description: "Your visually enhanced resume has been saved." });
+    doc.save('ai_mentor_resume_professional.pdf');
+    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved in a professional format." });
   };
 
 
@@ -1773,4 +1847,5 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
 
