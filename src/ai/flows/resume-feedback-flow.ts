@@ -98,15 +98,53 @@ User's Details / Additional Information to Incorporate/Use for Creation:
 *   **Talking Points**: 2-4 concise, impactful statements derived from the *final* resume.
 
 **Part 2: Final Resume (for \`modifiedResumeText\` field)**
-*   Provide the **full, final resume text (either rewritten or newly created)**. This text MUST be structured for easy parsing and professional PDF generation. Use the following conventions:
-    *   **Name**: Start with the candidate's full name on its own line, ideally prefixed with "### ". Example: "### JOHN DOE". If creating, or if document unreadable, extract name from \`additionalInformation\`. If analyzing, extract from source.
-    *   **Contact Information**: Immediately follow the name. Each piece of contact info (Phone, Email, LinkedIn URL, Location) on its own line. Example: "Phone: (555) 123-4567\\nEmail: john.doe@email.com\\nLinkedIn: linkedin.com/in/johndoe\\nLocation: City, ST". Extract as above.
-    *   **Section Headings**: Use markdown H2 style headings (e.g., "## Summary", "## Professional Experience", "## Education", "## Skills", "## Projects"). Each section heading MUST be on its own line.
-    *   **Experience Entries**: Job Title (bolded), Company & Location, Dates, Bullet points (each starting with "• ").
-    *   **Education Entries**: Similar structure for Degree, University, Dates.
-    *   **Skills Section**: Can be comma-separated or categorized.
-    *   **Projects Section**: If projects are included, use "## Projects". Title, dates/tech, and bullet points.
-*   Focus on: ATS Friendliness, Clarity, Impact, Relevance{{#if targetJobRole}} to "{{targetJobRole}}"{{/if}}, Grammar, Structure. If an uploaded document was unreadable and no \`additionalInformation\` was sufficient for creation, output a message like "The uploaded document could not be read, and insufficient details were provided in 'Additional Information' to create a resume." in this field.
+Take the user's input (from uploaded document, pasted text, or additional details for creation) and **improve and reformat it into an outstanding, modern resume.**
+Your goal is to produce a \`modifiedResumeText\` that is:
+*   **Content-Improved:**
+    *   Enhance for clarity, impact, and professional tone.
+    *   Correct grammar and refine phrasing.
+    *   Quantify achievements with numbers and metrics wherever possible (even if you have to make reasonable estimations based on typical roles, clearly mark these as illustrative if so).
+    *   Ensure a logical flow of information.
+*   **Well-Structured (for PDF readiness and professional presentation):**
+    *   Format consistently (dates, bullet points, spacing).
+    *   Structure the text to be highly organized and clearly sectioned, as if it were to be formatted in a clean, modern, two-column layout (though your output will be a single text stream).
+    *   The final text should be ATS-friendly.
+*   **Include the following structured sections, using Markdown H2 (e.g., "## Summary") for main section titles and bold for job titles/degrees.**
+    1.  **Header:**
+        *   \`### FULL NAME\` (on its own line)
+        *   Job Title/Target Role (e.g., Senior Software Engineer)
+        *   Phone: [Phone Number]
+        *   Email: [Email Address]
+        *   LinkedIn: [LinkedIn Profile URL]
+        *   Location: [City, ST]
+    2.  **## Professional Summary**
+        *   A short, compelling introduction (3-5 lines maximum) highlighting key skills and career goals.
+    3.  **## Experience**
+        *   For each role:
+            *   **Job Title**, Company Name, City, ST
+            *   Dates of Employment (MM/YYYY – MM/YYYY or Present)
+            *   • Bullet points describing responsibilities and *quantifiable achievements* and impact. Use action verbs.
+    4.  **## Education**
+        *   For each degree:
+            *   **Degree Name** (e.g., Bachelor of Science in Computer Science)
+            *   Institution Name, City, ST
+            *   Graduation Date (MM/YYYY) or Expected
+    5.  **## Projects** (If applicable)
+        *   For each project:
+            *   **Project Title**
+            *   Brief description, key results, and technologies used (e.g., Tech Stack: Python, React, AWS).
+            *   • Bullet points highlighting your role and impact.
+    6.  **## Key Achievements** (Optional, but try to include if distinct major achievements can be highlighted separately from experience bullets)
+        *   • Bullet points of notable outcomes or initiatives led.
+    7.  **## Skills**
+        *   Group skills logically (e.g., Programming Languages: Java, Python; AI Tools: TensorFlow, PyTorch; Cloud Platforms: AWS, Azure).
+        *   Example:
+            *   **Programming:** Python, Java, C++, JavaScript
+            *   **Databases:** MySQL, PostgreSQL, MongoDB
+            *   **Tools:** Git, Docker, Kubernetes
+
+If creating a new resume from \`additionalInformation\` (Scenario C), use these same content and structure guidelines.
+If an uploaded document was unreadable and no \`additionalInformation\` was sufficient for creation, output a message like "The uploaded document could not be read, and insufficient details were provided in 'Additional Information' to create a resume." in this field. Minimalist icons are optional and can be suggested textually like [Phone Icon].
 
 **Part 3: Detailed LinkedIn Profile Suggestions (for \`linkedinProfileSuggestions\` field and its sub-fields)**
 *   Based on the \`modifiedResumeText\` (rewritten or created) and \`targetJobRole\`:
@@ -154,3 +192,4 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
+
