@@ -81,7 +81,7 @@ const tools = [
   { id: 'document-qa', label: 'Document Q&A', icon: Brain, cardTitle: 'Document Q&A' },
   { id: 'summarizer', label: 'Summarizer', icon: FileType, cardTitle: 'AI Document Summarizer' },
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
-  { id: 'resume-review', label: 'Resume Improver', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
+  { id: 'resume-review', label: 'Resume Assistant', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
@@ -420,23 +420,25 @@ export default function MentorAiPage() {
   };
 
   const handleGetResumeFeedback = async () => {
-    if (!resumeText.trim()) { toast({ title: "Error", description: "Please paste your resume text.", variant: "destructive" }); return; }
+    if (!resumeText.trim() && !resumeAdditionalInfo.trim()) { 
+      toast({ title: "Error", description: "Please paste your resume OR provide details for AI to create one.", variant: "destructive" }); return; 
+    }
     setIsGeneratingResumeFeedback(true); setResumeFeedback(null);
     try {
       const result = await getResumeFeedback({ 
-        resumeText, 
+        resumeText: resumeText || undefined, 
         targetJobRole: resumeTargetJobRole || undefined,
         additionalInformation: resumeAdditionalInfo || undefined 
       });
       setResumeFeedback(result);
-      toast({ title: "Resume Feedback Ready!", description: "Your improved resume and suggestions have been generated." });
+      toast({ title: "Resume Assistant Complete!", description: "Your resume feedback/creation and LinkedIn suggestions are ready." });
     } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
     finally { setIsGeneratingResumeFeedback(false); }
   };
 
   const handleDownloadResumePdf = () => {
-    if (!resumeFeedback?.modifiedResumeText) {
-      toast({ title: "Error", description: "No modified resume text to download.", variant: "destructive" });
+    if (!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.startsWith("Insufficient details")) {
+      toast({ title: "Error", description: "No valid resume text to download.", variant: "destructive" });
       return;
     }
     const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -561,8 +563,8 @@ export default function MentorAiPage() {
       }
     }
     
-    doc.save('ai_mentor_improved_resume.pdf');
-    toast({ title: "Resume PDF Downloaded", description: "Your improved resume has been saved as a PDF." });
+    doc.save('ai_mentor_resume.pdf');
+    toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved as a PDF." });
   };
 
   const handleResetResumeImprover = () => {
@@ -571,7 +573,7 @@ export default function MentorAiPage() {
     setResumeAdditionalInfo('');
     setResumeFeedback(null);
     setIsGeneratingResumeFeedback(false);
-    toast({ title: "Cleared", description: "Resume Improver form and results have been cleared." });
+    toast({ title: "Cleared", description: "Resume Assistant form and results have been cleared." });
   };
 
   const handleGenerateCoverLetter = async () => {
@@ -1149,21 +1151,37 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume &amp; LinkedIn Profile Assistant</CardTitle>
-                        <CardDescription>Paste your resume text. Optionally, add target job role/industry and details. Get AI-driven feedback, an improved resume, and comprehensive suggestions to build your LinkedIn profile!</CardDescription>
+                        <CardDescription>Improve your existing resume OR get help creating a new one! Provide details for AI to generate a professional resume and comprehensive LinkedIn profile suggestions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Textarea placeholder="Paste your full resume text here..." value={resumeText} onChange={(e) => setResumeText(e.target.value)} disabled={isGeneratingResumeFeedback} className="min-h-[200px]"/>
-                        <Input placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst', 'Healthcare')" value={resumeTargetJobRole} onChange={(e) => setResumeTargetJobRole(e.target.value)} disabled={isGeneratingResumeFeedback} />
                         <Textarea 
-                            placeholder="Optional: Describe projects, achievements, or other specific details you want the AI to add or highlight in your resume (e.g., 'Led a team of 5 in developing a mobile app that achieved 10k downloads. Technologies: React Native, Firebase.')"
+                            placeholder="PASTE your full resume text here (optional if creating new)..." 
+                            value={resumeText} 
+                            onChange={(e) => setResumeText(e.target.value)} 
+                            disabled={isGeneratingResumeFeedback} 
+                            className="min-h-[200px]"
+                        />
+                        <Input 
+                            placeholder="Target Job Role or Industry (Optional, e.g., 'Data Analyst')" 
+                            value={resumeTargetJobRole} 
+                            onChange={(e) => setResumeTargetJobRole(e.target.value)} 
+                            disabled={isGeneratingResumeFeedback} 
+                        />
+                        <Textarea 
+                            placeholder="FOR NEW RESUME: Enter all your details (name, contact, experience, education, skills, projects, etc.). FOR EXISTING: Add specific details AI should include."
                             value={resumeAdditionalInfo}
                             onChange={(e) => setResumeAdditionalInfo(e.target.value)}
                             disabled={isGeneratingResumeFeedback}
                             className="min-h-[100px]"
                         />
                         <div className="flex flex-wrap gap-2">
-                            <Button onClick={handleGetResumeFeedback} disabled={isGeneratingResumeFeedback || !resumeText.trim()} className="w-auto">
-                                {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Get Resume Feedback
+                            <Button 
+                                onClick={handleGetResumeFeedback} 
+                                disabled={isGeneratingResumeFeedback || (!resumeText.trim() && !resumeAdditionalInfo.trim())} 
+                                className="w-auto"
+                            >
+                                {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
+                                {resumeText.trim() ? "Improve Resume" : "Create Resume"}
                             </Button>
                             <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
                                 <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
@@ -1174,14 +1192,15 @@ export default function MentorAiPage() {
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
                                 <div>
                                     <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
-                                        <h4 className="font-semibold text-foreground">AI-Modified Resume:</h4>
+                                        <h4 className="font-semibold text-foreground">{resumeFeedback.modifiedResumeText.startsWith("Insufficient details") ? "Message:" : "AI-Generated/Modified Resume:"}</h4>
+                                        {!resumeFeedback.modifiedResumeText.startsWith("Insufficient details") && (
                                         <div className="flex gap-2">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(resumeFeedback.modifiedResumeText);
-                                                    toast({ title: "Copied!", description: "Modified resume text copied to clipboard." });
+                                                    toast({ title: "Copied!", description: "Resume text copied to clipboard." });
                                                 }}
                                             >
                                                 <Copy className="mr-2 h-4 w-4" /> Copy Text
@@ -1190,11 +1209,12 @@ export default function MentorAiPage() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={handleDownloadResumePdf}
-                                                disabled={!resumeFeedback?.modifiedResumeText || isGeneratingResumeFeedback}
+                                                disabled={isGeneratingResumeFeedback}
                                             >
                                                 <Download className="mr-2 h-4 w-4" /> Download PDF
                                             </Button>
                                         </div>
+                                        )}
                                     </div>
                                     <Textarea
                                         value={resumeFeedback.modifiedResumeText}
@@ -1215,10 +1235,11 @@ export default function MentorAiPage() {
                                   </div>
                                 )}
 
+                                {resumeFeedback.feedbackItems && resumeFeedback.feedbackItems.length > 0 && !resumeFeedback.modifiedResumeText.startsWith("Insufficient details") && (
                                 <div>
-                                    <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis (Original Resume):</h4>
+                                    <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis:</h4>
                                     <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
-                                    {resumeFeedback.atsKeywordsSummary && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary (for Rewritten Resume):</strong> {resumeFeedback.atsKeywordsSummary}</p>}
+                                    {resumeFeedback.atsKeywordsSummary && resumeFeedback.atsKeywordsSummary !== "Not applicable." && <p className="text-sm mb-3 p-3 bg-primary/10 text-primary rounded-md"><strong>ATS Keywords Summary:</strong> {resumeFeedback.atsKeywordsSummary}</p>}
                                     <Accordion type="single" collapsible className="w-full">
                                         {resumeFeedback.feedbackItems.map((item, index) => (
                                         <AccordionItem value={`feedback-${index}`} key={index}>
@@ -1235,7 +1256,8 @@ export default function MentorAiPage() {
                                         ))}
                                     </Accordion>
                                 </div>
-                                {resumeFeedback.linkedinProfileSuggestions && (
+                                )}
+                                {resumeFeedback.linkedinProfileSuggestions && !resumeFeedback.modifiedResumeText.startsWith("Insufficient details") && (
                                     <div className="mt-4">
                                         <h4 className="font-semibold text-foreground mb-2 flex items-center">
                                             <Linkedin className="mr-2 h-5 w-5 text-blue-700" />
@@ -1316,7 +1338,7 @@ export default function MentorAiPage() {
                                             </div>
                                             
                                             <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-2 italic">
-                                              Note: These suggestions are generated based on your improved resume text above. The AI cannot directly access or modify your live LinkedIn profile via a URL.
+                                              Note: These suggestions are generated based on your resume text. The AI cannot directly access or modify your live LinkedIn profile.
                                             </p>
                                         </div>
                                     </div>
