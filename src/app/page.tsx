@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -454,23 +454,31 @@ export default function MentorAiPage() {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const text = resumeFeedback.modifiedResumeText;
     
-    const FONT_FAMILY = "Helvetica"; 
-    const NAME_SIZE = 22; // Increased Name Size
-    const ROLE_SIZE = 12; // For role under name
-    const CONTACT_SIZE = 9;
-    const SECTION_TITLE_SIZE = 14;
-    const JOB_DEGREE_TITLE_SIZE = 11; 
-    const BODY_SIZE = 10;
-    
-    const LINE_SPACING_FACTOR = 1.4; 
-    const SECTION_TOP_MARGIN = 18; // Space above a new section title
-    const ITEM_SPACING = 8; // Space between items in experience/education
-    const BULLET_POINT_TOP_MARGIN = 4;
-    
-    const MARGIN = 50; 
+    // --- Style Definitions ---
+    const FONT_FAMILY_SANS = "Helvetica"; // Using a standard sans-serif font available in jsPDF
+    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue (from globals.css --primary)
+    const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; // Dark Gray
+    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray for subtitles
+    const DIVIDER_COLOR_RGB: [number, number, number] = [220, 220, 220]; // Light Gray for dividers
+
+    const NAME_SIZE = 28;
+    const TITLE_SIZE = 14;
+    const CONTACT_ICON_SIZE = 9;
+    const CONTACT_TEXT_SIZE = 9;
+    const SECTION_HEADER_SIZE = 14;
+    const SUB_HEADER_SIZE = 11; // For Job Title, Degree, Project Name
+    const BODY_TEXT_SIZE = 10;
+    const SMALL_TEXT_SIZE = 9; // For dates/locations next to sub-headers
+
+    const MARGIN = 40; // pt
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
-    const BULLET_INDENT = 20;
-    const BULLET_CHAR = '•';
+    const LINE_SPACING_FACTOR = 1.4;
+    const SECTION_TOP_MARGIN = 20;
+    const ITEM_SPACING = 10; // Space between experience/education items
+    const BULLET_POINT_TOP_MARGIN = 5;
+    const BULLET_INDENT = 15;
+    const CONTACT_ITEM_SPACING = 15; // Horizontal spacing for contact items
+
 
     let yPos = MARGIN;
 
@@ -482,132 +490,175 @@ export default function MentorAiPage() {
       }
       return false;
     };
-    
-    const drawLine = (y: number) => {
-        doc.setDrawColor(200, 200, 200); // Light gray line
-        doc.setLineWidth(0.5);
+
+    const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB) => {
+        doc.setDrawColor(color[0], color[1], color[2]);
+        doc.setLineWidth(thickness);
         doc.line(MARGIN, y, doc.internal.pageSize.getWidth() - MARGIN, y);
     };
 
+    // --- Resume Parsing and Rendering ---
     const lines = text.split('\n');
     let currentLineIndex = 0;
+    let fullName = "Candidate Name";
+    let professionalTitle = "Professional Title";
+    let contactInfoString = "";
 
-    // --- HEADER: Name, Role, Contact ---
+    // Extract Header Info first
     if (lines[currentLineIndex]?.startsWith("### ")) {
-        const name = lines[currentLineIndex].substring(4).trim();
-        addNewPageIfNeeded(NAME_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY, 'bold'); doc.setFontSize(NAME_SIZE); doc.setTextColor(0,0,0);
-        const nameWidth = doc.getTextWidth(name);
-        doc.text(name, (doc.internal.pageSize.getWidth() - nameWidth) / 2, yPos);
-        yPos += NAME_SIZE * LINE_SPACING_FACTOR;
+      fullName = lines[currentLineIndex].substring(4).trim();
+      currentLineIndex++;
+      if (lines[currentLineIndex] && !(lines[currentLineIndex].startsWith("## ") || lines[currentLineIndex].startsWith("### ") || lines[currentLineIndex].includes("Phone:"))) {
+        professionalTitle = lines[currentLineIndex].trim();
         currentLineIndex++;
+      }
+    }
+    if (lines[currentLineIndex]?.includes("Phone:") || lines[currentLineIndex]?.includes("Email:") || lines[currentLineIndex]?.includes("LinkedIn:") || lines[currentLineIndex]?.includes("Location:")) {
+      contactInfoString = lines[currentLineIndex].trim();
+      currentLineIndex++;
+    }
+    
+    // Render Header
+    addNewPageIfNeeded(NAME_SIZE * LINE_SPACING_FACTOR + TITLE_SIZE * LINE_SPACING_FACTOR + CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 15);
+    doc.setFont(FONT_FAMILY_SANS, 'bold');
+    doc.setFontSize(NAME_SIZE);
+    doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+    doc.text(fullName, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += NAME_SIZE * LINE_SPACING_FACTOR * 0.8;
 
-        // Check for Role on the next line (if not a section title or contact)
-        if (lines[currentLineIndex] && !lines[currentLineIndex].startsWith("## ") && !lines[currentLineIndex].startsWith("### ") && !lines[currentLineIndex].includes("Phone:") && lines[currentLineIndex].trim().length > 0 && lines[currentLineIndex].trim().length < 100) {
-            const role = lines[currentLineIndex].trim();
-            addNewPageIfNeeded(ROLE_SIZE * LINE_SPACING_FACTOR);
-            doc.setFont(FONT_FAMILY, 'normal'); doc.setFontSize(ROLE_SIZE);
-            const roleWidth = doc.getTextWidth(role);
-            doc.text(role, (doc.internal.pageSize.getWidth() - roleWidth) / 2, yPos);
-            yPos += ROLE_SIZE * LINE_SPACING_FACTOR * 0.8; // Slightly less space after role
-            currentLineIndex++;
-        }
+    doc.setFont(FONT_FAMILY_SANS, 'normal');
+    doc.setFontSize(TITLE_SIZE);
+    doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
+    doc.text(professionalTitle, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += TITLE_SIZE * LINE_SPACING_FACTOR;
+    
+    // Render Contact Info with Unicode Icons
+    if (contactInfoString) {
+        yPos += 5;
+        doc.setFont(FONT_FAMILY_SANS, 'normal');
+        doc.setFontSize(CONTACT_TEXT_SIZE);
+        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+        
+        const contactParts = contactInfoString.split('|').map(s => s.trim());
+        let currentX = MARGIN;
+        const contactLineWidth = contactParts.reduce((sum, part) => {
+            let textToMeasure = part;
+            if (part.toLowerCase().includes("phone:")) textToMeasure = `\u260E ${part.replace(/Phone:\s*/i, "")}`;
+            else if (part.toLowerCase().includes("email:")) textToMeasure = `\u2709 ${part.replace(/Email:\s*/i, "")}`;
+            else if (part.toLowerCase().includes("linkedin:")) textToMeasure = `\uF0E1 ${part.replace(/LinkedIn:\s*/i, "")}`; // LinkedIn icon (FontAwesome in Unicode PUA)
+            else if (part.toLowerCase().includes("location:")) textToMeasure = `\uD83D\uDCCD ${part.replace(/Location:\s*/i, "")}`; // Pin icon
+            return sum + doc.getTextWidth(textToMeasure) + CONTACT_ITEM_SPACING;
+        }, -CONTACT_ITEM_SPACING); // Start with negative spacing to offset the last item
+
+        currentX = (doc.internal.pageSize.getWidth() - contactLineWidth) / 2;
+        if (currentX < MARGIN) currentX = MARGIN; // Ensure it doesn't go off-page
+
+        contactParts.forEach((part, index) => {
+            let icon = "";
+            let text = part;
+            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); } // Phone icon
+            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); } // Email icon
+            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); doc.setFont("FontAwesome"); } // LinkedIn icon
+            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); } // Pin icon
+            
+            const fullText = `${icon}${text}`;
+            doc.text(fullText, currentX, yPos);
+            currentX += doc.getTextWidth(fullText) + CONTACT_ITEM_SPACING;
+            if (icon === "\uF0E1 ") doc.setFont(FONT_FAMILY_SANS); // Reset font if FontAwesome was used
+        });
+        yPos += CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5;
     }
     
-    // Contact Info
-    if (lines[currentLineIndex]?.includes("Phone:") || lines[currentLineIndex]?.includes("Email:")) {
-        const contactLine = lines[currentLineIndex].trim();
-        addNewPageIfNeeded(CONTACT_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY, 'normal'); doc.setFontSize(CONTACT_SIZE); doc.setTextColor(80,80,80);
-        const contactWidth = doc.getTextWidth(contactLine);
-        doc.text(contactLine, (doc.internal.pageSize.getWidth() - contactWidth) / 2, yPos);
-        yPos += CONTACT_SIZE * LINE_SPACING_FACTOR;
-        currentLineIndex++;
-    }
-    
-    yPos += 5; // Small gap before the line
-    drawLine(yPos);
+    drawDivider(yPos, 1, [ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]]); // Thicker accent divider
     yPos += SECTION_TOP_MARGIN * 0.7;
 
 
-    // --- Process remaining lines for sections ---
+    // Process remaining lines for sections
     for (let i = currentLineIndex; i < lines.length; i++) {
       let line = lines[i].trim();
       if (!line) continue; 
 
-      if (line.startsWith("## ")) { // Section Title
-        line = line.substring(3).trim().toUpperCase(); // Uppercase section titles
-        yPos += (yPos === MARGIN || yPos === MARGIN + NAME_SIZE * LINE_SPACING_FACTOR + ROLE_SIZE * LINE_SPACING_FACTOR * 0.8 + CONTACT_SIZE * LINE_SPACING_FACTOR + 5 + SECTION_TOP_MARGIN * 0.7 ? 0 : SECTION_TOP_MARGIN); // Add top margin unless it's the very first section after header
-        addNewPageIfNeeded(SECTION_TITLE_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY, 'bold'); doc.setFontSize(SECTION_TITLE_SIZE); doc.setTextColor(50, 50, 50);
-        doc.text(line, MARGIN, yPos);
-        yPos += SECTION_TITLE_SIZE * LINE_SPACING_FACTOR * 0.5; // Space after title before line
-        drawLine(yPos);
-        yPos += SECTION_TITLE_SIZE * LINE_SPACING_FACTOR * 0.7; // Space after line
+      if (line.startsWith("## ")) { // Section Header
+        const sectionTitle = line.substring(3).trim().toUpperCase();
+        yPos += (yPos === MARGIN || yPos === MARGIN + NAME_SIZE * LINE_SPACING_FACTOR * 0.8 + TITLE_SIZE * LINE_SPACING_FACTOR + CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5 + SECTION_TOP_MARGIN * 0.7 + 5 ? 0 : SECTION_TOP_MARGIN * 0.8);
+        addNewPageIfNeeded(SECTION_HEADER_SIZE * LINE_SPACING_FACTOR + 8);
+        
+        doc.setFont(FONT_FAMILY_SANS, 'bold');
+        doc.setFontSize(SECTION_HEADER_SIZE);
+        doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
+        doc.text(sectionTitle, MARGIN, yPos);
+        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR * 0.6;
+        drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB);
+        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR * 0.7;
 
-      } else if (line.startsWith("**") && line.substring(2).includes("**")) { // Job/Degree/Project Title
+      } else if (line.startsWith("**") && line.substring(2).includes("**")) { // Sub-Header (Job Title, Degree, Project Name)
         const firstStarEnd = line.indexOf("**", 2);
         const boldPart = line.substring(2, firstStarEnd).trim();
-        const restOfLine = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim(); // Remove leading | if AI adds it
+        const restOfLine = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim();
         
-        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") ? ITEM_SPACING : 0); // Space between items in a section
-        addNewPageIfNeeded(JOB_DEGREE_TITLE_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY, 'bold'); doc.setFontSize(JOB_DEGREE_TITLE_SIZE); doc.setTextColor(0,0,0);
+        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && !lines[i-1].trim().startsWith("### ") && !lines[i-1].trim().startsWith("* ") ? ITEM_SPACING : 0);
+        addNewPageIfNeeded(SUB_HEADER_SIZE * LINE_SPACING_FACTOR);
+        doc.setFont(FONT_FAMILY_SANS, 'bold');
+        doc.setFontSize(SUB_HEADER_SIZE);
+        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
         doc.text(boldPart, MARGIN, yPos);
 
-        if (restOfLine) {
-            doc.setFont(FONT_FAMILY, 'normal'); doc.setFontSize(BODY_SIZE); doc.setTextColor(80,80,80);
-            const boldPartWidth = doc.getTextWidth(boldPart);
-            // Attempt to right-align the rest of the line (like dates/location)
+        if (restOfLine) { // Dates, Location
+            doc.setFont(FONT_FAMILY_SANS, 'normal');
+            doc.setFontSize(SMALL_TEXT_SIZE);
+            doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
             const restWidth = doc.getTextWidth(restOfLine);
-            const restX = doc.internal.pageSize.getWidth() - MARGIN - restWidth;
-            if (restX > MARGIN + boldPartWidth + 10) { // Only if there's space
-                 doc.text(restOfLine, restX, yPos);
-            } else { // Fallback to print next to title
-                 doc.text(restOfLine, MARGIN + boldPartWidth + 10, yPos);
-            }
+            doc.text(restOfLine, doc.internal.pageSize.getWidth() - MARGIN - restWidth, yPos);
         }
-        yPos += JOB_DEGREE_TITLE_SIZE * LINE_SPACING_FACTOR;
+        yPos += SUB_HEADER_SIZE * LINE_SPACING_FACTOR * 0.9;
 
       } else if (line.startsWith("* ")) { // Bullet Point
-        line = line.substring(2).trim();
+        const bulletText = line.substring(2).trim();
         yPos += BULLET_POINT_TOP_MARGIN;
-        addNewPageIfNeeded(BODY_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY, 'normal'); doc.setFontSize(BODY_SIZE); doc.setTextColor(30,30,30);
-        doc.text(BULLET_CHAR, MARGIN, yPos); // Bullet
-        const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH - BULLET_INDENT);
-        for (let j = 0; j < splitText.length; j++) {
-            if (j > 0) yPos += BODY_SIZE * LINE_SPACING_FACTOR;
-            addNewPageIfNeeded(BODY_SIZE * LINE_SPACING_FACTOR);
-            doc.text(splitText[j], MARGIN + BULLET_INDENT, yPos);
+        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
+        doc.setFont(FONT_FAMILY_SANS, 'normal');
+        doc.setFontSize(BODY_TEXT_SIZE);
+        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+        
+        const bulletChar = "\u2022"; // Unicode bullet
+        doc.text(bulletChar, MARGIN, yPos);
+        const splitBulletText = doc.splitTextToSize(bulletText, MAX_TEXT_WIDTH - BULLET_INDENT);
+        for (let j = 0; j < splitBulletText.length; j++) {
+            if (j > 0) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR;
+            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
+            doc.text(splitBulletText[j], MARGIN + BULLET_INDENT, yPos);
         }
-        yPos += BODY_SIZE * LINE_SPACING_FACTOR * 0.5; // Reduced space after bullet line
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR * 0.5;
 
-      } else { // Regular text (e.g., summary, skill category content)
-        addNewPageIfNeeded(BODY_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY, 'normal'); doc.setFontSize(BODY_SIZE); doc.setTextColor(30,30,30);
+      } else { // Regular text (e.g., summary, skills content)
+        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
+        doc.setFont(FONT_FAMILY_SANS, 'normal');
+        doc.setFontSize(BODY_TEXT_SIZE);
+        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
         const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
         for (const textLine of splitText) {
-            addNewPageIfNeeded(BODY_SIZE * LINE_SPACING_FACTOR);
+            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
             doc.text(textLine, MARGIN, yPos);
-            yPos += BODY_SIZE * LINE_SPACING_FACTOR;
+            yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR;
         }
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR * 0.2; // Slightly less space after general text block
       }
     }
     
-    doc.save('ai_mentor_resume_enhanced.pdf');
-    toast({ title: "Resume PDF Downloaded", description: "Your enhanced resume has been saved as a PDF." });
+    doc.save('ai_mentor_resume_modern.pdf');
+    toast({ title: "Modern Resume PDF Downloaded", description: "Your visually enhanced resume has been saved." });
   };
+
 
   const handleResetResumeImprover = () => {
     setResumeFile(null);
+    const resumeFileInput = document.getElementById('resume-file-upload') as HTMLInputElement;
+    if (resumeFileInput) resumeFileInput.value = '';
     setResumeText('');
     setResumeTargetJobRole('');
     setResumeAdditionalInfo('');
     setResumeFeedback(null);
     setIsGeneratingResumeFeedback(false);
-    const resumeFileInput = document.getElementById('resume-file-upload') as HTMLInputElement;
-    if (resumeFileInput) resumeFileInput.value = '';
     toast({ title: "Cleared", description: "Resume Assistant form and results have been cleared." });
   };
 
@@ -1207,7 +1258,7 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit3 className="mr-2 h-7 w-7"/>AI Resume &amp; LinkedIn Profile Assistant</CardTitle>
-                        <CardDescription>Upload your resume (PDF, DOCX, TXT), or paste text, or provide details for AI to create a new one. Get an improved resume and comprehensive LinkedIn profile suggestions.</CardDescription>
+                        <CardDescription>Improve your existing resume OR get help creating a new one! Provide details for AI to generate a professional resume and comprehensive LinkedIn profile suggestions.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <FileUpload
@@ -1234,7 +1285,7 @@ export default function MentorAiPage() {
                             disabled={isGeneratingResumeFeedback} 
                         />
                         <Textarea 
-                            placeholder="FOR NEW RESUME (if no file/text): Enter all details (name, contact, experience, education, skills, projects). FOR EXISTING: Add specific details for AI to include."
+                            placeholder="FOR NEW RESUME: Enter all your details (name, contact, experience, education, skills, projects, etc.). FOR EXISTING: Add specific details AI should include."
                             value={resumeAdditionalInfo}
                             onChange={(e) => setResumeAdditionalInfo(e.target.value)}
                             disabled={isGeneratingResumeFeedback}
