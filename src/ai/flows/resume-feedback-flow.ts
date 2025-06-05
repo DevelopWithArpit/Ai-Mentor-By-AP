@@ -16,7 +16,7 @@ import {z}from 'genkit';
 const ResumeFeedbackInputSchema = z.object({
   resumeDataUri: z.string().optional().describe("The user's resume as a data URI (e.g., from a PDF, DOCX, TXT upload). Expected format: 'data:<mimetype>;base64,<encoded_data>'. If provided, this is prioritized over resumeText."),
   resumeText: z.string().optional().describe('The full text content of the resume. Used if resumeDataUri is not provided. If both this and resumeDataUri are empty, the AI will attempt to CREATE a new resume based on the additionalInformation field.'),
-  targetJobRole: z.string().optional().describe('The target job role or industry the resume is for. This helps tailor feedback, the rewritten/created resume, and LinkedIn suggestions, especially for keyword optimization.'),
+  targetJobRole: z.string().optional().describe('The target job role or industry the resume is for. This helps tailor feedback, the rewritten/created resume, and LinkedIn suggestions, especially for keyword optimization and ATS compatibility.'),
   additionalInformation: z.string().optional().describe('Optional: For an existing resume, specific projects, achievements, or skills the user wants to ensure is included or highlighted. For CREATING a new resume, this field should contain all user details like work experience, education, skills, projects, contact info, etc., in natural language or bullet points.'),
 });
 export type ResumeFeedbackInput = z.infer<typeof ResumeFeedbackInputSchema>;
@@ -39,7 +39,7 @@ const ResumeFeedbackOutputSchema = z.object({
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume, or general comments if a new resume was created.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
-  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output.'),
+  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output. It should be highly ATS-friendly.'),
   linkedinProfileSuggestions: LinkedInProfileSuggestionsSchema,
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
@@ -52,7 +52,7 @@ const prompt = ai.definePrompt({
   name: 'resumeFeedbackPrompt',
   input: {schema: ResumeFeedbackInputSchema},
   output: {schema: ResumeFeedbackOutputSchema},
-  prompt: `You are an expert career coach, resume reviewer, and resume writer, specializing in optimizing resumes for Applicant Tracking Systems (ATS), improving overall resume effectiveness, and enhancing LinkedIn profiles.
+  prompt: `You are an expert career coach, resume reviewer, and resume writer, specializing in optimizing resumes for Applicant Tracking Systems (ATS), improving overall resume effectiveness, and enhancing LinkedIn profiles. Your goal is to produce output that is as ATS-friendly as possible.
 
 You will perform actions based on the provided input:
 
@@ -75,7 +75,7 @@ Perform the tasks: Create a New Resume, Generate Supporting Content (ATS, Talkin
 
 {{#if targetJobRole}}
 Target Job Role/Industry: "{{targetJobRole}}".
-Tailor your feedback, the rewritten/created resume, and LinkedIn suggestions accordingly. Focus on incorporating relevant keywords and highlighting skills and experiences pertinent to this role/industry.
+Tailor your feedback, the rewritten/created resume, and LinkedIn suggestions accordingly. Focus on incorporating relevant keywords and highlighting skills and experiences pertinent to this role/industry. Ensure keyword optimization for ATS.
 {{/if}}
 
 {{#if additionalInformation}}
@@ -92,72 +92,79 @@ User's Details / Additional Information to Incorporate/Use for Creation:
     *   If improving an existing resume (Scenario A or B): Brief summary of the original resume's strengths/weaknesses, ATS compatibility. {{#if targetJobRole}}Comment on suitability for "{{targetJobRole}}".{{/if}} If uploaded document was unreadable, state that.
     *   If creating a new resume (Scenario C or fallback): Statement like "New resume draft created based on the details you provided."
 *   **Feedback Items**:
-    *   If improving: List of specific, actionable feedback items on the original resume (area, suggestion, importance).
-    *   If creating: A single general feedback item like: { area: "General", suggestion: "Review the generated resume for accuracy and customize it further to perfectly match your profile and the jobs you're applying for.", importance: "high" }.
-*   **ATS Keywords Summary**: List relevant keywords (tailored to \`targetJobRole\` if provided) for the *final* resume (rewritten or created).
+    *   If improving: List of specific, actionable feedback items on the original resume (area, suggestion, importance). Include feedback on ATS-friendliness.
+    *   If creating: A single general feedback item like: { area: "General", suggestion: "Review the generated resume for accuracy and customize it further to perfectly match your profile and the jobs you're applying for. It has been structured for ATS-friendliness.", importance: "high" }.
+*   **ATS Keywords Summary**: List relevant keywords (tailored to \`targetJobRole\` if provided) for the *final* resume (rewritten or created). Explain how these improve ATS chances.
 *   **Talking Points**: 2-4 concise, impactful statements derived from the *final* resume.
 
 **Part 2: Final Resume (for \`modifiedResumeText\` field)**
-Generate a professional resume. Take the user's input (from uploaded document, pasted text, or additional details for creation) and improve/structure it. Ensure clear and concise language with strong impact statements. Personalize the resume based on the provided details.
-Maintain consistency with layout, font (implied by structure), and section structure for the TEXT output. The goal is to produce a \`modifiedResumeText\` that is ready for PDF conversion.
+Generate a professional resume. Take the user's input (from uploaded document, pasted text, or additional details for creation) and improve/structure it.
+**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY.** This means:
+- Use standard, universally recognized section headings (e.g., Summary, Experience, Education, Skills, Projects, Key Achievements).
+- Avoid tables, columns, or complex graphical elements in the text itself. The formatting will be applied later (e.g., by PDF generator).
+- Ensure dates are consistently formatted (e.g., MM/YYYY – MM/YYYY or Month YYYY – Month YYYY).
+- Use standard bullet points for lists.
+- Incorporate keywords relevant to the job role naturally within the text.
+- Ensure a clear, logical flow of information.
+- Use simple, clean language.
+
+Maintain consistency with layout, font (implied by structure), and section structure for the TEXT output. The goal is to produce a \`modifiedResumeText\` that is ready for PDF conversion and has the highest chance of being parsed correctly by various ATS.
 
 *Improve (if existing content is provided):*
 – Grammar, tone, and phrasing for professionalism.
-– Quantify achievements where possible.
-– Reorganize content for logical flow.
+– Quantify achievements where possible using strong action verbs.
+– Reorganize content for logical flow and ATS readability.
 – Format consistently (dates, bullet points, spacing).
 
-*Include the following structured sections using Markdown H2 (e.g., "## Summary") for main section titles:*
+*Include the following structured sections using Markdown H2 (e.g., "## Summary") for main section titles. Use Markdown Bold for sub-headings like job titles or degree names:*
 
 ### [User's Full Name - Extract or use placeholder if not found]
 [User's Desired Role/Title - Extract or use placeholder if not found]
 Phone: [User's Phone Number] | Email: [User's Email] | LinkedIn: [User's LinkedIn Profile URL] | Location: [User's Location]
 
 ## Summary
-[Provide a brief professional summary highlighting key skills, expertise, and career goals. Keep it impactful and concise, 3-5 lines max.]
+[Provide a brief professional summary (3-5 lines max) highlighting key skills, expertise, and career goals. Keep it impactful, concise, and keyword-rich for ATS.]
 
 ## Experience
-(For each role)
+(For each role, reverse chronological order)
 **[Job Title]** | [Company Name] | [Start Date] – [End Date] | [Location]
-*   [Bullet points outlining responsibilities and achievements, quantifying impact where possible.]
+*   [Bullet points outlining responsibilities and achievements, quantifying impact where possible with numbers and metrics. Start each bullet with a strong action verb.]
 *   [Another bullet point...]
 
 ## Education
-(For each degree)
-**[Degree Name]** | [University Name] | [Start Date] – [End Date] | [Location]
-*   [Optional: Relevant coursework or academic achievements as bullet points.]
-
-## Key Achievements
-(Optional section, include if distinct major achievements can be highlighted separately from experience bullets)
-*   [Highlight major accomplishments, projects, or recognitions that reinforce expertise.]
-*   [Another key achievement...]
+(For each degree, reverse chronological order)
+**[Degree Name]** ([Major/Concentration if applicable]) | [University Name] | [Graduation Date or Expected Graduation Date] | [Location]
+*   [Optional: Relevant coursework, GPA if high, honors, or academic achievements as bullet points.]
 
 ## Skills
-(Group skills logically, e.g., Programming Languages, AI Tools, Cloud Platforms)
+(Group skills logically, e.g., Programming Languages, Software & Tools, Methodologies, Certifications. Use clear, common skill names for ATS.)
 *   **Category 1:** Skill A, Skill B, Skill C
 *   **Category 2:** Skill D, Skill E
 
 ## Projects
-(If applicable, for each project)
-**[Project Name]** | [Start Date] – [End Date] (Optional)
-*   [Description of the project, its impact, and technologies used. e.g., Tech Stack: Python, React, AWS]
+(Optional, but recommended if relevant; for each project)
+**[Project Name]** | [Date or Duration, e.g., Fall 2023 or 3 months] (Optional)
+*   [Description of the project, your role, key contributions, its impact/results, and technologies used. e.g., Tech Stack: Python, React, AWS]
 *   [Bullet points highlighting your role and impact, if any.]
 
-Ensure the final text output is professional and ATS-friendly. The text should be well-structured for easy conversion to a PDF. Do not include actual visual layout elements like columns in the text output.
+## Key Achievements
+(Optional section, include if distinct major achievements can be highlighted separately from experience bullets. Make them quantifiable and impactful.)
+*   [Highlight major accomplishments, projects, or recognitions that reinforce expertise. E.g., "Increased sales by 15% in Q3 2023 by implementing..."]
+*   [Another key achievement...]
 
-If creating a new resume from \`additionalInformation\` (Scenario C), use these same content and structure guidelines.
+If creating a new resume from \`additionalInformation\` (Scenario C), use these same content and structure guidelines, prioritizing ATS-friendliness.
 If an uploaded document was unreadable and no \`additionalInformation\` was sufficient for creation, output a message like "The uploaded document could not be read, and insufficient details were provided in 'Additional Information' to create a resume." in this field.
 
 **Part 3: Detailed LinkedIn Profile Suggestions (for \`linkedinProfileSuggestions\` field and its sub-fields)**
 *   Based on the \`modifiedResumeText\` (rewritten or created) and \`targetJobRole\`:
     *   **\`suggestedHeadline\`**: Impactful, keyword-rich LinkedIn headline (120-220 characters), nearly ready for copy-paste.
     *   **\`suggestedAboutSection\`**: Comprehensive, compelling "About" section (2-4 paragraphs), suitable for immediate use/copy-paste.
-    *   **\`experienceSectionTips\`**: 2-3 concise bullet points/short paragraph of actionable tips for adapting resume experience to LinkedIn.
-    *   **\`skillsSectionTips\`**: 2-3 concise bullet points/short paragraph of recommendations for LinkedIn skills section.
+    *   **\`experienceSectionTips\`**: 2-3 concise bullet points/short paragraph of actionable tips for adapting resume experience to LinkedIn (e.g., using first-person, expanding on impact, incorporating media/links, keyword use).
+    *   **\`skillsSectionTips\`**: 2-3 concise bullet points/short paragraph of recommendations for LinkedIn skills section (e.g., which key skills from the resume to list, getting endorsements, ordering skills, aligning with job targets).
 *   Ensure content for \`suggestedHeadline\` and \`suggestedAboutSection\` is well-written and almost ready for copy-paste. Tips should be actionable.
 
-The \`modifiedResumeText\` must be a complete, well-formatted resume, or an error message if applicable.
-The \`linkedinProfileSuggestions\` must provide clear, practical, detailed advice.
+The \`modifiedResumeText\` must be a complete, well-formatted resume text optimized for ATS, or an error message if applicable.
+The \`linkedinProfileSuggestions\` must provide clear, practical, detailed advice for key LinkedIn sections.
 If no resume source (\`resumeDataUri\` or \`resumeText\`) is provided, and \`additionalInformation\` is also insufficient to create a meaningful resume (e.g., just a few words), then for \`modifiedResumeText\` you should output a message like "Insufficient details provided to create a resume. Please provide more comprehensive information in the 'Additional Information' field, including your work experience, education, skills, and projects." and other fields should be minimal or indicate that creation was not possible.
 `,
 });
@@ -195,3 +202,5 @@ const resumeFeedbackFlow = ai.defineFlow(
   }
 );
 
+
+    
