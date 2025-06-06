@@ -127,13 +127,18 @@ Phone: [User's Phone Number] | Email: [User's Email] | LinkedIn: [User's LinkedI
 ## SUMMARY
 [Provide a brief professional summary (3-5 lines max) highlighting key skills, expertise, and career goals. Keep it impactful, concise, and keyword-rich for ATS.]
 
+{{!-- Experience Section - Conditionally Included by AI --}}
+Based on your analysis of the user's provided information (from resumeDataUri, resumeText, or additionalInformation):
+- If the user HAS work experience, include an 'EXPERIENCE' section next, formatted as specified below.
+- If the user has NO work experience, OMIT the 'EXPERIENCE' section entirely (do not write '## EXPERIENCE' or any related content) and proceed directly to '## EDUCATION'.
+
+If including 'EXPERIENCE', structure it as:
 ## EXPERIENCE
 (List in reverse chronological order)
 **[Job Title]** | [Company Name] | [Start Date] – [End Date] | [Location]
 *   [Bullet points outlining responsibilities and achievements, quantifying impact where possible with numbers and metrics. Start each bullet with a strong action verb. Use clear, concise language.]
 *   [Another bullet point...]
-
-**IMPORTANT INSTRUCTION FOR 'EXPERIENCE' SECTION:** If your analysis of the user's provided information (from resumeDataUri, resumeText, OR additionalInformation when creating a new resume) indicates that the user has NO work experience, then you MUST OMIT the entire "## EXPERIENCE" section (including the heading and any content) from the \`modifiedResumeText\` output. Only include this section if there is actual experience content to populate.
+{{!-- End Experience Section --}}
 
 ## EDUCATION
 (List in reverse chronological order)
