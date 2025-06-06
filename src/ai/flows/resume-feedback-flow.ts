@@ -30,16 +30,16 @@ const FeedbackItemSchema = z.object({
 const LinkedInProfileSuggestionsSchema = z.object({
   suggestedHeadline: z.string().optional().describe("A suggested, impactful LinkedIn headline (around 120-220 characters) based on the rewritten/created resume and target job role. It should be concise, keyword-rich, and nearly ready for copy-paste."),
   suggestedAboutSection: z.string().optional().describe("A draft for the LinkedIn 'About' section (summary), written in a professional yet engaging tone (ideally 2-4 paragraphs), based on the rewritten/created resume. It should highlight key skills, experiences, and career aspirations. This should be comprehensive and suitable for immediate use/copy-paste."),
-  experienceSectionTips: z.string().optional().describe("Actionable tips (2-3 concise bullet points or a short paragraph) on how to adapt the resume's experience bullet points for LinkedIn (e.g., writing in first-person, focusing on impact, using keywords, quantifying achievements, and potentially adding links to projects or media)."),
+  experienceSectionTips: z.string().optional().describe("Actionable tips (2-3 concise bullet points or a short paragraph) on how to adapt the resume's experience bullet points for LinkedIn (e.g., writing in first-person, focusing on impact, using keywords, quantifying achievements, and potentially adding links to projects or media). If the resume has no experience section, these tips should be general or acknowledge this."),
   skillsSectionTips: z.string().optional().describe("Recommendations (2-3 concise bullet points or a short paragraph) for the LinkedIn skills section, including which key skills from the resume to highlight, the importance of getting endorsements, how to order them, and aligning with the target job role.")
 }).optional();
 
 const ResumeFeedbackOutputSchema = z.object({
   overallAssessment: z.string().describe('A brief overall assessment of the original resume (if provided) or a statement indicating a new resume was created from provided details.'),
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume, or general comments if a new resume was created.'),
-  atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume.'),
+  atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume. Explain how these improve ATS chances.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
-  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output. It should be highly ATS-friendly.'),
+  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, incorporating the feedback and optimizations. This version should be ready to use or further refine, structured with clear headings and formatting for professional PDF output. It should be highly ATS-friendly, following a traditional professional format.'),
   linkedinProfileSuggestions: LinkedInProfileSuggestionsSchema,
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
@@ -100,8 +100,8 @@ User's Details / Additional Information to Incorporate/Use for Creation:
 
 **Part 2: Final Resume (for \`modifiedResumeText\` field)**
 Generate a professional resume. Take the user's input (from uploaded document, pasted text, or additional details for creation) and improve/structure it.
-**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY and reflects a traditional professional format.** This means:
-- Use standard, universally recognized section headings (e.g., Summary, Experience, Education, Skills, Projects, Key Achievements).
+**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY and reflects a traditional professional format often preferred by large multinational companies.** This means:
+- Use standard, universally recognized section headings.
 - Avoid tables, columns, or complex graphical elements *in the text itself*. The formatting will be applied later (e.g., by PDF generator). Your output should be a single stream of structured text.
 - Ensure dates are consistently formatted (e.g., MM/YYYY – MM/YYYY or Month YYYY – Month YYYY).
 - Use standard bullet points for lists.
@@ -118,7 +118,7 @@ Maintain consistency with layout, font (implied by structure for the text output
 – Reorganize content for logical flow and ATS readability.
 – Format consistently (dates, bullet points, spacing).
 
-*Include the following structured sections using Markdown H2 (e.g., "## Summary") for main section titles. Use Markdown Bold for sub-headings like job titles or degree names:*
+*Include the following structured sections using Markdown H2 (e.g., "## Summary") for main section titles. Use Markdown Bold for sub-headings like job titles or degree names.*
 
 ### [User's Full Name - Extract or use placeholder if not found]
 [User's Desired Role/Title - Extract or use placeholder if not found, place below name]
@@ -132,6 +132,8 @@ Phone: [User's Phone Number] | Email: [User's Email] | LinkedIn: [User's LinkedI
 **[Job Title]** | [Company Name] | [Start Date] – [End Date] | [Location]
 *   [Bullet points outlining responsibilities and achievements, quantifying impact where possible with numbers and metrics. Start each bullet with a strong action verb. Use clear, concise language.]
 *   [Another bullet point...]
+
+**IMPORTANT INSTRUCTION FOR 'EXPERIENCE' SECTION:** If your analysis of the user's provided information (from resumeDataUri, resumeText, OR additionalInformation when creating a new resume) indicates that the user has NO work experience, then you MUST OMIT the entire "## EXPERIENCE" section (including the heading and any content) from the \`modifiedResumeText\` output. Only include this section if there is actual experience content to populate.
 
 ## EDUCATION
 (List in reverse chronological order)
@@ -161,7 +163,7 @@ If an uploaded document was unreadable and no \`additionalInformation\` was suff
 *   Based on the \`modifiedResumeText\` (rewritten or created) and \`targetJobRole\`:
     *   **\`suggestedHeadline\`**: Impactful, keyword-rich LinkedIn headline (120-220 characters), nearly ready for copy-paste.
     *   **\`suggestedAboutSection\`**: Comprehensive, compelling "About" section (2-4 paragraphs), suitable for immediate use/copy-paste.
-    *   **\`experienceSectionTips\`**: 2-3 concise bullet points/short paragraph of actionable tips for adapting resume experience to LinkedIn (e.g., using first-person, expanding on impact, incorporating media/links, keyword use).
+    *   **\`experienceSectionTips\`**: 2-3 concise bullet points/short paragraph of actionable tips for adapting resume experience to LinkedIn (e.g., using first-person, expanding on impact, incorporating media/links, keyword use). If the resume has no experience section, these tips should be general or acknowledge this (e.g., "Focus on projects and skills in your LinkedIn profile until you gain work experience.").
     *   **\`skillsSectionTips\`**: 2-3 concise bullet points/short paragraph of recommendations for LinkedIn skills section (e.g., which key skills from the resume to list, getting endorsements, ordering skills, aligning with job targets).
 *   Ensure content for \`suggestedHeadline\` and \`suggestedAboutSection\` is well-written and almost ready for copy-paste. Tips should be actionable.
 
@@ -204,5 +206,3 @@ const resumeFeedbackFlow = ai.defineFlow(
   }
 );
 
-
-    
