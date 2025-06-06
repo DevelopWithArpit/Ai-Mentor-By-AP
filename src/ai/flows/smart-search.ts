@@ -20,7 +20,7 @@ const SmartSearchInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      "A document (e.g. syllabus, question bank) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'. This is optional."
+      "A document (e.g. syllabus, question bank, resume) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'. This is optional."
     ),
   question: z.string().describe('The question to search for within the document or to be answered generally.'),
 });
@@ -38,20 +38,25 @@ export async function smartSearch(input: SmartSearchInput): Promise<SmartSearchO
 
 const prompt = ai.definePrompt({
   name: 'smartSearchPrompt',
-  tools: [getWeatherTool], 
+  tools: [getWeatherTool],
   system: `You are an AI academic assistant named ScholarAI.
 Detect the language of the student's question. You MUST respond in the same language as the student's question. For example, if the question is in Spanish, your answer must also be in Spanish.
 If the user's question is specifically about the current weather conditions in a particular city (e.g., "what's the weather in London?", "how is the weather in Tokyo now?"), you MUST use the 'getWeatherTool' to find this information. Present the weather information clearly. For all other questions, behave as instructed in the main prompt. When using a tool, the pageNumber field in your JSON output MUST be omitted.`,
   input: {schema: SmartSearchInputSchema},
   output: {schema: SmartSearchOutputSchema},
   prompt: `{{#if documentDataUri}}
-You have been provided with a document (which might be a syllabus, a question bank, or other academic material).
-Your primary task is to find the most direct and accurate answer to the student's question *within this document*.
-If the document appears to be a question bank and the student's question matches or is very similar to a question in the bank, provide the answer given in the bank.
-Identify the page number where the answer is located if possible.
+You have been provided with a document.
+Analyze the document content.
 
 Document: {{media url=documentDataUri}}
 Question: {{{question}}}
+
+If the provided document seems to be a resume or curriculum vitae, briefly acknowledge this. You can state something like: "This document appears to be a resume. For detailed resume feedback, improvement, or LinkedIn profile assistance, please consider using the 'AI Resume & LinkedIn Profile Assistant' tool available in the sidebar. For now, I will try to answer your question based on this document."
+After this acknowledgement (if applicable), proceed to answer the question.
+
+Your primary task is to find the most direct and accurate answer to the student's question *within this document*.
+If the document appears to be a question bank and the student's question matches or is very similar to a question in the bank, provide the answer given in the bank.
+Identify the page number where the answer is located if possible.
 
 Carefully read the document to locate and provide the specific answer to the question.
 If you find a direct answer in the document, provide that answer and the page number (as a number).
@@ -77,7 +82,7 @@ const smartSearchFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     if (output && (output.pageNumber === null || typeof output.pageNumber !== 'number')) {
-      delete output.pageNumber; 
+      delete output.pageNumber;
     }
     return output!;
   }
