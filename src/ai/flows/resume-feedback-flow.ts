@@ -129,8 +129,9 @@ Phone: [User's Phone Number] | Email: [User's Email] | LinkedIn: [User's LinkedI
 
 {{!-- Experience Section - Conditionally Included by AI --}}
 Based on your analysis of the user's provided information (from resumeDataUri, resumeText, or additionalInformation):
-- If the user HAS work experience, include an 'EXPERIENCE' section next, formatted as specified below.
-- If the user has NO work experience, OMIT the 'EXPERIENCE' section entirely (do not write '## EXPERIENCE' or any related content) and proceed directly to '## EDUCATION'.
+- If the user HAS relevant professional work experience (paid jobs, internships, significant volunteer roles directly related to a profession), include an 'EXPERIENCE' section next, formatted as specified below.
+- The 'EXPERIENCE' section should NOT include general extracurricular activities, academic club leadership unless it was a formal, project-driven role with clear responsibilities akin to a job, or hobbies. These might belong in a 'Projects' section or an optional 'Leadership & Activities' section if the user explicitly requests or if it's highly relevant and doesn't fit elsewhere. For most professional resumes, focus this section on work history.
+- If the user has NO such professional work experience, OMIT the 'EXPERIENCE' section entirely (do not write '## EXPERIENCE' or any related content) and proceed directly to '## EDUCATION'.
 
 If including 'EXPERIENCE', structure it as:
 ## EXPERIENCE
@@ -157,7 +158,7 @@ If including 'EXPERIENCE', structure it as:
 *   [Bullet points highlighting your role and impact, if any.]
 
 ## KEY ACHIEVEMENTS
-(Optional section, include if distinct major achievements can be highlighted separately from experience bullets. Make them quantifiable and impactful.)
+(Optional section, include if distinct major achievements can be highlighted separately from experience bullets. Make them quantifiable and impactful. These should be specific accomplishments, not general activities.)
 *   [Highlight major accomplishments, projects, or recognitions that reinforce expertise. E.g., "Increased sales by 15% in Q3 2023 by implementing..."]
 *   [Another key achievement...]
 
