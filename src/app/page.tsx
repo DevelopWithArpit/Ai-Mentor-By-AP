@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay } from 'lucide-react'; // Added UserSquare2, ImagePlay
 import {
   SidebarProvider,
   Sidebar,
@@ -47,6 +47,7 @@ import { summarizeDocument, type SummarizeDocumentInput, type SummarizeDocumentO
 import { analyzeGeneratedCode, type AnalyzeCodeInput, type AnalyzeCodeOutput } from '@/ai/flows/code-analyzer-flow';
 import { manipulateImageText, type ManipulateImageTextInput, type ManipulateImageTextOutput } from '@/ai/flows/image-text-manipulation-flow';
 import { removeWatermarkFromImage, type WatermarkRemoverInput, type WatermarkRemoverOutput } from '@/ai/flows/watermark-remover-flow';
+import { generateLinkedInVisuals, type GenerateLinkedInVisualsInput, type GenerateLinkedInVisualsOutput } from '@/ai/flows/linkedin-visuals-generator-flow';
 
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -82,6 +83,7 @@ const tools = [
   { id: 'summarizer', label: 'Summarizer', icon: FileType, cardTitle: 'AI Document Summarizer' },
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
   { id: 'resume-review', label: 'Resume Assistant', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
+  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare2, cardTitle: 'AI LinkedIn Visuals Generator' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
@@ -190,6 +192,13 @@ export default function MentorAiPage() {
   const [aiImageManipulationMessage, setAiImageManipulationMessage] = useState<string>('');
   const [isRemovingWatermark, setIsRemovingWatermark] = useState<boolean>(false);
   const [watermarkRemovalMessage, setWatermarkRemovalMessage] = useState<string>('');
+
+  // LinkedIn Visuals Generator States
+  const [linkedInFullName, setLinkedInFullName] = useState<string>('');
+  const [linkedInProfessionalTitle, setLinkedInProfessionalTitle] = useState<string>('');
+  const [linkedInVisualStyle, setLinkedInVisualStyle] = useState<GenerateLinkedInVisualsInput['stylePreference']>('professional-minimalist');
+  const [generatedLinkedInVisuals, setGeneratedLinkedInVisuals] = useState<GenerateLinkedInVisualsOutput | null>(null);
+  const [isGeneratingLinkedInVisuals, setIsGeneratingLinkedInVisuals] = useState<boolean>(false);
 
 
   const handleFileChange = (file: File | null) => {
@@ -455,33 +464,37 @@ export default function MentorAiPage() {
     const text = resumeFeedback.modifiedResumeText;
     
     // --- Style Definitions ---
-    const FONT_FAMILY_SANS = "Helvetica"; 
-    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue #4169E1
-    const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; 
-    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; 
+    const FONT_FAMILY_SANS = "Helvetica"; // A standard, professional sans-serif font
+    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue (#4169E1) from your theme
+    const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; // Dark Gray
+    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray for subtitles/dates
     const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200]; // Lighter gray for dividers
 
-    const NAME_SIZE = 26;
-    const TITLE_SIZE = 13;
+    const NAME_SIZE = 24; // Extra-large for name
+    const PROFESSIONAL_TITLE_SIZE = 14; // Prominent for title
     const CONTACT_TEXT_SIZE = 9;
-    const SECTION_HEADER_SIZE = 14;
-    const SUB_HEADER_TITLE_SIZE = 11; 
-    const SUB_HEADER_SUBTITLE_SIZE = 10;
+    const SECTION_HEADER_SIZE = 12; // Clearly defined section headers
+    const SUB_HEADER_TITLE_SIZE = 11; // For Job Title, Degree Name, Project Name
+    const SUB_HEADER_SUBTITLE_SIZE = 10; // For Company, University, Project Date/Tech
     const BODY_TEXT_SIZE = 10;
-    const SMALL_TEXT_SIZE = 9; 
+    const SMALL_TEXT_SIZE = 9; // For dates/locations if on new line
 
-    const MARGIN = 40; // pt
+    const MARGIN = 40; // pt, generous whitespace
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
-    const LINE_SPACING_FACTOR = 1.4;
-    const LINE_SPACING_FACTOR_TIGHT = 1.2;
-    const SECTION_TOP_MARGIN = 18;
-    const ITEM_SPACING = 12; 
-    const BULLET_POINT_TOP_MARGIN = 4;
-    const BULLET_INDENT = 15;
-    const CONTACT_ITEM_SPACING = 12;
+    
+    // Line spacing factors for readability
+    const LINE_SPACING_FACTOR_HEADER = 1.3;
+    const LINE_SPACING_FACTOR_BODY = 1.5; 
+    const LINE_SPACING_FACTOR_TIGHT = 1.3; // For items within a section entry
+
+    const SECTION_TOP_MARGIN = 18; // Space above each section title
+    const ITEM_SPACING = 12; // Space between items in Experience/Education/Projects
+    const BULLET_POINT_TOP_MARGIN = 5; // Space above each bullet point
+    const BULLET_INDENT = 18; // Indentation for bullet points
+    const CONTACT_ITEM_SPACING = 8; // Spacing between contact items
 
     let yPos = MARGIN;
-    let currentSection = ""; // To track context for formatting
+    let currentSection = ""; 
 
     const addNewPageIfNeeded = (neededHeight: number): boolean => {
       if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
@@ -492,10 +505,12 @@ export default function MentorAiPage() {
       return false;
     };
 
-    const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB) => {
+    const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB, lengthPercent = 100) => {
+        const lineWidth = MAX_TEXT_WIDTH * (lengthPercent / 100);
+        const lineXStart = MARGIN + (MAX_TEXT_WIDTH - lineWidth) / 2; // Center the line if not full width
         doc.setDrawColor(color[0], color[1], color[2]);
         doc.setLineWidth(thickness);
-        doc.line(MARGIN, y, doc.internal.pageSize.getWidth() - MARGIN, y);
+        doc.line(lineXStart, y, lineXStart + lineWidth, y);
     };
     
     const lines = text.split('\n');
@@ -506,50 +521,52 @@ export default function MentorAiPage() {
         currentLineIndex++;
     }
 
+    // --- Extract and Render Header Section ---
     let fullName = "Candidate Name"; // Default placeholder
     let professionalTitle = "Professional Title"; // Default placeholder
     let contactInfoString = "";
 
-    // Extract Header Info (Name, Title, Contact)
+    // Extract Name
     if (currentLineIndex < lines.length && lines[currentLineIndex].startsWith("### ")) {
       fullName = lines[currentLineIndex].substring(4).trim();
       currentLineIndex++;
-      // Check if the next line is the title (and not another header or contact info)
-      if (currentLineIndex < lines.length && 
-          !lines[currentLineIndex].startsWith("## ") && 
-          !lines[currentLineIndex].startsWith("### ") && 
-          !lines[currentLineIndex].includes("Phone:") && 
-          !lines[currentLineIndex].includes("Email:") && 
-          !lines[currentLineIndex].includes("LinkedIn:") && 
-          !lines[currentLineIndex].includes("Location:") &&
-          lines[currentLineIndex].trim() !== "") {
-        professionalTitle = lines[currentLineIndex].trim();
-        currentLineIndex++;
-      }
     }
-    // Check if the current line is contact info
+    // Extract Professional Title (expected on the next line)
+    if (currentLineIndex < lines.length && 
+        !lines[currentLineIndex].startsWith("## ") && 
+        !lines[currentLineIndex].startsWith("### ") &&
+        !(lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:")) &&
+        lines[currentLineIndex].trim() !== "") {
+      professionalTitle = lines[currentLineIndex].trim();
+      currentLineIndex++;
+    }
+    // Extract Contact Info (expected on the next line or after title)
     if (currentLineIndex < lines.length && 
         (lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
       contactInfoString = lines[currentLineIndex].trim();
       currentLineIndex++;
     }
     
-    // Render Header
-    addNewPageIfNeeded(NAME_SIZE * LINE_SPACING_FACTOR + TITLE_SIZE * LINE_SPACING_FACTOR + CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 15);
+    // Render Name
+    addNewPageIfNeeded(NAME_SIZE * LINE_SPACING_FACTOR_HEADER);
     doc.setFont(FONT_FAMILY_SANS, 'bold');
     doc.setFontSize(NAME_SIZE);
     doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
     doc.text(fullName, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += NAME_SIZE * LINE_SPACING_FACTOR * 0.8;
+    yPos += NAME_SIZE * LINE_SPACING_FACTOR_HEADER * 0.9; // Slightly tighter for header block
 
-    doc.setFont(FONT_FAMILY_SANS, 'normal');
-    doc.setFontSize(TITLE_SIZE);
-    doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
+    // Render Professional Title
+    addNewPageIfNeeded(PROFESSIONAL_TITLE_SIZE * LINE_SPACING_FACTOR_HEADER);
+    doc.setFont(FONT_FAMILY_SANS, 'normal'); // Prominent, but not necessarily bold if name is bold
+    doc.setFontSize(PROFESSIONAL_TITLE_SIZE);
+    doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]); // Use accent color
     doc.text(professionalTitle, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += TITLE_SIZE * LINE_SPACING_FACTOR * 0.9;
+    yPos += PROFESSIONAL_TITLE_SIZE * LINE_SPACING_FACTOR_HEADER * 0.9;
     
+    // Render Contact Information
     if (contactInfoString) {
-        yPos += 3;
+        yPos += CONTACT_ITEM_SPACING * 0.5; // Small gap before contact info
+        addNewPageIfNeeded(CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR_HEADER);
         doc.setFont(FONT_FAMILY_SANS, 'normal');
         doc.setFontSize(CONTACT_TEXT_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
@@ -559,18 +576,20 @@ export default function MentorAiPage() {
         contactParts.forEach((part, index) => {
             let icon = "";
             let text = part;
-            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); }
-            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); }
-            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); } // May need FontAwesome or similar
-            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); }
-            contactLineText += `${icon}${text}${index < contactParts.length - 1 ? "  |  " : ""}`;
+            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); } // ☎
+            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); } // ✉
+            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); } // LinkedIn PUA icon (may need font support)
+            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); } // 📍
+            contactLineText += `${icon}${text}${index < contactParts.length - 1 ? "  \u2022  " : ""}`; // Use a bullet as a separator
         });
         doc.text(contactLineText, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center'});
-        yPos += CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5;
+        yPos += CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR_HEADER;
     }
     
-    drawDivider(yPos, 1, ACCENT_COLOR_RGB);
-    yPos += SECTION_TOP_MARGIN * 0.5;
+    yPos += SECTION_TOP_MARGIN * 0.6; // Space after header block
+    drawDivider(yPos, 1, ACCENT_COLOR_RGB); // Main divider after header
+    yPos += SECTION_TOP_MARGIN * 0.7;
+
 
     // Process remaining lines for sections
     for (let i = currentLineIndex; i < lines.length; i++) {
@@ -579,26 +598,29 @@ export default function MentorAiPage() {
 
       if (line.startsWith("## ")) { 
         currentSection = line.substring(3).trim().toUpperCase();
-        yPos += (yPos === MARGIN + NAME_SIZE * LINE_SPACING_FACTOR * 0.8 + TITLE_SIZE * LINE_SPACING_FACTOR * 0.9 + (contactInfoString ? (CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR + 5) : 0) + SECTION_TOP_MARGIN * 0.5 ? SECTION_TOP_MARGIN * 0.3 : SECTION_TOP_MARGIN);
-        addNewPageIfNeeded(SECTION_HEADER_SIZE * LINE_SPACING_FACTOR + 8);
+        // Add space before a new section, unless it's the very first section after the header
+        if (i > currentLineIndex || yPos > MARGIN + NAME_SIZE + PROFESSIONAL_TITLE_SIZE + CONTACT_TEXT_SIZE + SECTION_TOP_MARGIN) {
+            yPos += SECTION_TOP_MARGIN * 0.8;
+        }
+        addNewPageIfNeeded(SECTION_HEADER_SIZE * LINE_SPACING_FACTOR_BODY + 8); // +8 for divider and space after
         
         doc.setFont(FONT_FAMILY_SANS, 'bold');
         doc.setFontSize(SECTION_HEADER_SIZE);
-        doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
+        doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]); // Accent for section headers
         doc.text(currentSection, MARGIN, yPos);
-        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR * 0.6;
-        drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB);
-        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR * 0.7;
+        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR_BODY * 0.7; // Space for the text itself
+        drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB); // Thin elegant line
+        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR_BODY * 0.8; // Space after divider
 
-      } else if (line.startsWith("**") && line.substring(2).includes("**")) {
-        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && !lines[i-1].trim().startsWith("### ") && !lines[i-1].trim().startsWith("* ") && lines[i-1].trim() !== "" ? ITEM_SPACING : 0);
+      } else if (line.startsWith("**") && line.substring(2).includes("**")) { // **Job Title/Degree/Project** | Company/Uni | Dates
+        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && lines[i-1].trim() !== "" ? ITEM_SPACING : 0);
         
         const firstStarEnd = line.indexOf("**", 2);
         const mainTitleText = line.substring(2, firstStarEnd).trim(); // Job Title, Degree Name, Project Name
         const restOfLineOriginal = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim();
         
         const detailsParts = restOfLineOriginal.split('|').map(s => s.trim());
-        let itemSubtitleText = ""; // Company, University, Project Date/Tech
+        let itemSubtitleText = ""; // Company, University Name, Project Date/Tech
         let dateLocationText = "";
 
         if (currentSection === "EXPERIENCE" || currentSection === "EDUCATION") {
@@ -621,75 +643,61 @@ export default function MentorAiPage() {
             addNewPageIfNeeded(SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
             doc.text(splitMainTitle[j], MARGIN, yPos);
         }
-        yPos += SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3;
-
-        // Render Item Subtitle (Company, University, Project Date/Tech) and DateLocation
-        let baseLineForDateLoc = yPos; // Y position before rendering subtitle and date/loc
         
+        // Render Item Subtitle (Company, University) & DateLocation on the same line if possible
+        let yPosAfterMainTitle = yPos + SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.4; // Base for subtitle/date
+        yPos = yPosAfterMainTitle; // Advance yPos for next elements
+
         if (itemSubtitleText) {
             addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
-            doc.setFont(FONT_FAMILY_SANS, 'italic');
+            doc.setFont(FONT_FAMILY_SANS, 'normal'); // Not bold for subtitle
             doc.setFontSize(SUB_HEADER_SUBTITLE_SIZE);
             doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
             
-            const availableWidthForItemSubtitle = dateLocationText ? MAX_TEXT_WIDTH * 0.65 : MAX_TEXT_WIDTH; // Reserve space if date/loc on same line
-            const splitItemSubtitle = doc.splitTextToSize(itemSubtitleText, availableWidthForItemSubtitle);
+            const itemSubtitleWidth = doc.getTextWidth(itemSubtitleText);
+            const dateLocationWidth = dateLocationText ? doc.getTextWidth(dateLocationText) : 0;
             
-            let subtitleHeight = 0;
-            for (let j = 0; j < splitItemSubtitle.length; j++) {
-                if (j > 0) yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
-                addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
-                doc.text(splitItemSubtitle[j], MARGIN, yPos);
-                subtitleHeight += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
+            if (itemSubtitleWidth + dateLocationWidth + 10 < MAX_TEXT_WIDTH) { // If subtitle and date fit on one line
+                doc.text(itemSubtitleText, MARGIN, yPos);
+                if (dateLocationText) {
+                    doc.text(dateLocationText, MAX_TEXT_WIDTH + MARGIN - dateLocationWidth, yPos);
+                }
+                yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
+            } else { // Subtitle and date on separate lines or subtitle too long
+                const splitItemSubtitle = doc.splitTextToSize(itemSubtitleText, MAX_TEXT_WIDTH);
+                for (let k=0; k < splitItemSubtitle.length; k++) {
+                    if (k > 0) yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
+                    addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
+                    doc.text(splitItemSubtitle[k], MARGIN, yPos);
+                }
+                yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.5; // Space after subtitle
+                
+                if (dateLocationText) {
+                    addNewPageIfNeeded(SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+                    doc.setFont(FONT_FAMILY_SANS, 'normal');
+                    doc.setFontSize(SMALL_TEXT_SIZE);
+                    doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
+                    doc.text(dateLocationText, MARGIN, yPos);
+                    yPos += SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT;
+                }
             }
-            if(splitItemSubtitle.length === 0) { // if itemSubtitleText was empty
-                 subtitleHeight = SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT; // assume one line height for spacing
-            }
-             yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3;
+        } else if (dateLocationText) { // No subtitle, but date/location exists
+             addNewPageIfNeeded(SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+             doc.setFont(FONT_FAMILY_SANS, 'normal');
+             doc.setFontSize(SMALL_TEXT_SIZE);
+             doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
+             doc.text(dateLocationText, MAX_TEXT_WIDTH + MARGIN - doc.getTextWidth(dateLocationText), yPos - (SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.4) ); // Try to align with main title line
+             // yPos advancement is tricky here, it might have already advanced if mainTitle was multiline
+             // Add a small fixed advance if date was printed
+             if (doc.getTextWidth(dateLocationText) > 0) yPos += SMALL_TEXT_SIZE * 0.5;
         }
-
-
-        if (dateLocationText && (currentSection === "EXPERIENCE" || currentSection === "EDUCATION")) {
-            doc.setFont(FONT_FAMILY_SANS, 'normal');
-            doc.setFontSize(SMALL_TEXT_SIZE);
-            doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-            const dateLocationWidth = doc.getTextWidth(dateLocationText);
-            // Try to place dateLocationText on the same line as the *start* of itemSubtitleText or mainTitleText if no subtitle
-            let yPosForDateLoc = baseLineForDateLoc; 
-             if (itemSubtitleText && doc.getTextDimensions(itemSubtitleText).h > SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT) { // if subtitle is multi-line, align with its first line
-                // yPosForDateLoc remains baseLineForDateLoc
-             } else if (!itemSubtitleText) { // if no subtitle, align with main title's first line
-                 yPosForDateLoc = baseLineForDateLoc - (SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3) - (SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3);
-             }
-
-
-            if (MARGIN + MAX_TEXT_WIDTH * 0.7 + dateLocationWidth < doc.internal.pageSize.getWidth() - MARGIN) {
-                 doc.text(dateLocationText, doc.internal.pageSize.getWidth() - MARGIN - dateLocationWidth, yPosForDateLoc);
-            } else { // If too long, put it on new line below subtitle or title
-                 yPos += SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.2; // Extra space if on new line
-                 addNewPageIfNeeded(SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
-                 doc.text(dateLocationText, MARGIN, yPos );
-                 yPos += SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 1.2;
-            }
-        }
-         // If itemSubtitle was not rendered but dateLocation was on a new line, yPos would have advanced.
-         // If both were rendered and dateLocation fit on the same line, yPos is currently after subtitle.
-         // Ensure there's some space before bullets.
-        if (!itemSubtitleText && !dateLocationText) { // only mainTitle
-            yPos += SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.3; // Add some space if only title
-        } else if (itemSubtitleText && !dateLocationText) { // mainTitle and subtitle
-            // yPos is already after subtitle
-        } else if (!itemSubtitleText && dateLocationText) { // mainTitle and dateLoc (likely on new line)
-            // yPos is already after dateLoc
-        }
-        // Final small gap before potential bullets or next item
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.1;
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY * 0.2; // Small gap before potential bullets
 
 
       } else if (line.startsWith("* ")) { 
         const bulletText = line.substring(2).trim();
         yPos += BULLET_POINT_TOP_MARGIN;
-        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
         doc.setFont(FONT_FAMILY_SANS, 'normal');
         doc.setFontSize(BODY_TEXT_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
@@ -697,30 +705,56 @@ export default function MentorAiPage() {
         const bulletChar = "\u2022"; 
         const splitBulletText = doc.splitTextToSize(bulletText, MAX_TEXT_WIDTH - BULLET_INDENT);
         for (let j = 0; j < splitBulletText.length; j++) {
-            if (j > 0) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT;
-            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
-            doc.text(j === 0 ? bulletChar : "", MARGIN, yPos, {意align: 'left'}); // Render bullet only for first line
-            doc.text(splitBulletText[j], MARGIN + (j === 0 ? BULLET_INDENT * 0.5 : BULLET_INDENT), yPos);
+            if (j > 0) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY;
+            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
+            doc.text(j === 0 ? bulletChar : "", MARGIN, yPos, {align: 'left'}); 
+            doc.text(splitBulletText[j], MARGIN + (j === 0 ? BULLET_INDENT * 0.6 : BULLET_INDENT), yPos);
         }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.4;
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY * 0.3; // More space after a bullet item
 
       } else { // Regular text (e.g., summary, skills content)
-        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
-        doc.setFont(FONT_FAMILY_SANS, 'normal');
-        doc.setFontSize(BODY_TEXT_SIZE);
-        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-        for (const textLine of splitText) {
-            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR);
-            doc.text(textLine, MARGIN, yPos);
-            yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR;
+        // If it's the skills section, try to make it slightly more compact or grid-like if possible with single column
+        if (currentSection === "SKILLS" && line.includes(":")) { // Simple heuristic: "Category: Skill A, Skill B"
+            const parts = line.split(':');
+            const skillCategory = parts[0].trim();
+            const skillsInCat = parts[1] ? parts[1].trim() : "";
+
+            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+            doc.setFont(FONT_FAMILY_SANS, 'bold'); // Bold category
+            doc.setFontSize(BODY_TEXT_SIZE);
+            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+            doc.text(skillCategory + ":", MARGIN, yPos);
+            
+            if (skillsInCat) {
+                doc.setFont(FONT_FAMILY_SANS, 'normal');
+                const skillTextWidth = doc.getTextWidth(skillCategory + ": ");
+                const remainingWidth = MAX_TEXT_WIDTH - skillTextWidth;
+                const splitSkills = doc.splitTextToSize(skillsInCat, remainingWidth > 0 ? remainingWidth : MAX_TEXT_WIDTH);
+                for (const skillLine of splitSkills) {
+                     addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
+                     doc.text(skillLine, MARGIN + skillTextWidth, yPos);
+                     if (splitSkills.indexOf(skillLine) < splitSkills.length - 1) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT;
+                }
+            }
+            yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 1.2; // Spacing after skill category line
+        } else {
+            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
+            doc.setFont(FONT_FAMILY_SANS, 'normal');
+            doc.setFontSize(BODY_TEXT_SIZE);
+            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+            const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
+            for (const textLine of splitText) {
+                addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
+                doc.text(textLine, MARGIN, yPos);
+                yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY;
+            }
         }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR * 0.1; 
+        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY * 0.1; 
       }
     }
     
-    doc.save('ai_mentor_resume_professional.pdf');
-    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved in a professional format." });
+    doc.save('ai_mentor_resume_professional_v2.pdf');
+    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved in an enhanced professional format." });
   };
 
 
@@ -1006,6 +1040,28 @@ export default function MentorAiPage() {
       toast({ title: "AI Watermark Removal Error", description: msg, variant: "destructive" });
     } finally {
       setIsRemovingWatermark(false);
+    }
+  };
+
+  const handleGenerateLinkedInVisuals = async () => {
+    if (!linkedInFullName.trim() || !linkedInProfessionalTitle.trim()) {
+      toast({ title: "Input Required", description: "Please enter your Full Name and Professional Title.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingLinkedInVisuals(true);
+    setGeneratedLinkedInVisuals(null);
+    try {
+      const result = await generateLinkedInVisuals({
+        fullName: linkedInFullName,
+        professionalTitle: linkedInProfessionalTitle,
+        stylePreference: linkedInVisualStyle,
+      });
+      setGeneratedLinkedInVisuals(result);
+      toast({ title: "LinkedIn Visuals Generated!", description: "AI has created suggestions for your profile picture and cover image." });
+    } catch (err: any) {
+      toast({ title: "LinkedIn Visuals Error", description: (err as Error).message || "Failed to generate LinkedIn visuals.", variant: "destructive" });
+    } finally {
+      setIsGeneratingLinkedInVisuals(false);
     }
   };
 
@@ -1540,6 +1596,96 @@ export default function MentorAiPage() {
                 </Card>
               )}
 
+             {activeTool === 'linkedin-visuals' && (
+                <Card className="shadow-xl bg-card">
+                  <CardHeader>
+                    <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare2 className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
+                    <CardDescription>
+                      Generate AI suggestions for your LinkedIn profile picture and cover image. Profile pictures will be abstract/stylized (not realistic faces).
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <Input 
+                        placeholder="Your Full Name (e.g., Jane Doe)" 
+                        value={linkedInFullName} 
+                        onChange={(e) => setLinkedInFullName(e.target.value)} 
+                        disabled={isGeneratingLinkedInVisuals} 
+                    />
+                    <Input 
+                        placeholder="Your Professional Title (e.g., AI Engineer)" 
+                        value={linkedInProfessionalTitle} 
+                        onChange={(e) => setLinkedInProfessionalTitle(e.target.value)} 
+                        disabled={isGeneratingLinkedInVisuals} 
+                    />
+                    <div>
+                        <Label htmlFor="linkedin-visual-style">Visual Style Preference</Label>
+                        <Select value={linkedInVisualStyle} onValueChange={(v) => setLinkedInVisualStyle(v as any)} disabled={isGeneratingLinkedInVisuals}>
+                            <SelectTrigger id="linkedin-visual-style"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="professional-minimalist">Professional & Minimalist</SelectItem>
+                                <SelectItem value="creative-abstract">Creative & Abstract</SelectItem>
+                                <SelectItem value="modern-tech">Modern & Techy</SelectItem>
+                                <SelectItem value="elegant-corporate">Elegant & Corporate</SelectItem>
+                                <SelectItem value="vibrant-energetic">Vibrant & Energetic</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <p className="text-xs text-muted-foreground p-2 bg-muted/30 rounded-md border border-dashed">
+                        <Info className="inline h-4 w-4 mr-1 text-primary"/>
+                        AI will generate abstract or stylized profile pictures (e.g., initials, patterns) and themed cover images. No realistic human faces will be generated for profile pictures.
+                    </p>
+                    <Button onClick={handleGenerateLinkedInVisuals} disabled={isGeneratingLinkedInVisuals || !linkedInFullName.trim() || !linkedInProfessionalTitle.trim()} className="w-full sm:w-auto">
+                        {isGeneratingLinkedInVisuals && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Visuals
+                    </Button>
+
+                    {generatedLinkedInVisuals && (
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                        {generatedLinkedInVisuals.suggestedProfilePictureUrl && (
+                        <div className="space-y-2">
+                            <h4 className="font-semibold text-foreground flex items-center"><UserSquare2 className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
+                             <Image src={generatedLinkedInVisuals.suggestedProfilePictureUrl} alt="AI Generated Profile Picture Suggestion" width={200} height={200} className="rounded-full border-2 border-primary shadow-md object-cover aspect-square mx-auto md:mx-0" />
+                             <Accordion type="single" collapsible className="w-full text-xs">
+                                <AccordionItem value="profile-prompt">
+                                    <AccordionTrigger className="hover:no-underline text-muted-foreground">View Prompt Used</AccordionTrigger>
+                                    <AccordionContent className="whitespace-pre-wrap bg-background/50 p-2 rounded-md">
+                                    {generatedLinkedInVisuals.profilePicturePromptUsed || "Prompt not available."}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                        </div>
+                        )}
+                        {generatedLinkedInVisuals.suggestedCoverImageUrl && (
+                        <div className="space-y-2">
+                            <h4 className="font-semibold text-foreground flex items-center"><ImagePlay className="mr-2 h-5 w-5 text-accent"/>Suggested Cover Image:</h4>
+                            <Image src={generatedLinkedInVisuals.suggestedCoverImageUrl} alt="AI Generated Cover Image Suggestion" width={600} height={150} className="rounded-md border shadow-md object-cover aspect-[4/1] w-full" />
+                            <Accordion type="single" collapsible className="w-full text-xs">
+                                <AccordionItem value="cover-prompt">
+                                    <AccordionTrigger className="hover:no-underline text-muted-foreground">View Prompt Used</AccordionTrigger>
+                                    <AccordionContent className="whitespace-pre-wrap bg-background/50 p-2 rounded-md">
+                                    {generatedLinkedInVisuals.coverImagePromptUsed || "Prompt not available."}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                        </div>
+                        )}
+                        {!generatedLinkedInVisuals.suggestedProfilePictureUrl && !generatedLinkedInVisuals.suggestedCoverImageUrl && !isGeneratingLinkedInVisuals && (
+                            <p className="md:col-span-2 text-center text-muted-foreground">AI could not generate visuals for this input. Please try different terms or styles.</p>
+                        )}
+                    </div>
+                    )}
+                     {!generatedLinkedInVisuals && !isGeneratingLinkedInVisuals && (
+                        <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
+                            <UserSquare2 className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
+                            <ImagePlay className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                            <p className="mt-2 text-sm">Your AI-generated LinkedIn visual suggestions will appear here.</p>
+                            <img data-ai-hint="abstract professional" src="https://placehold.co/300x150.png" alt="Placeholder LinkedIn Visuals" className="mx-auto mt-3 rounded-md opacity-40"/>
+                        </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+
               {activeTool === 'cover-letter' && (
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
@@ -1847,5 +1993,6 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
 
 
