@@ -463,35 +463,40 @@ export default function MentorAiPage() {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const text = resumeFeedback.modifiedResumeText;
     
-    // --- Style Definitions ---
-    const FONT_FAMILY_SANS = "Helvetica"; // A standard, professional sans-serif font
-    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue (#4169E1) from your theme
+    // --- Style & Spacing Definitions ---
+    const FONT_FAMILY_SANS = "Helvetica"; 
+    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue from theme (hsl(227 76% 60%))
     const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; // Dark Gray
-    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray for subtitles/dates
-    const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200]; // Lighter gray for dividers
+    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray
+    const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200];
 
-    const NAME_SIZE = 24; // Extra-large for name
-    const PROFESSIONAL_TITLE_SIZE = 14; // Prominent for title
+    const NAME_SIZE = 22;
+    const PROFESSIONAL_TITLE_SIZE = 13;
     const CONTACT_TEXT_SIZE = 9;
-    const SECTION_HEADER_SIZE = 12; // Clearly defined section headers
-    const SUB_HEADER_TITLE_SIZE = 11; // For Job Title, Degree Name, Project Name
-    const SUB_HEADER_SUBTITLE_SIZE = 10; // For Company, University, Project Date/Tech
+    const SECTION_HEADER_SIZE = 12;
+    const SUB_HEADER_TITLE_SIZE = 11; // Job Title, Degree, Project Name
+    const SUB_HEADER_SUBTITLE_SIZE = 10; // Company, University, Project Dates/Tech
     const BODY_TEXT_SIZE = 10;
-    const SMALL_TEXT_SIZE = 9; // For dates/locations if on new line
+    const DATE_LOCATION_SIZE = 9;
 
-    const MARGIN = 40; // pt, generous whitespace
+    const MARGIN = 40; // pt
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
     
-    // Line spacing factors for readability
-    const LINE_SPACING_FACTOR_HEADER = 1.3;
-    const LINE_SPACING_FACTOR_BODY = 1.5; 
-    const LINE_SPACING_FACTOR_TIGHT = 1.3; // For items within a section entry
-
-    const SECTION_TOP_MARGIN = 18; // Space above each section title
-    const ITEM_SPACING = 12; // Space between items in Experience/Education/Projects
-    const BULLET_POINT_TOP_MARGIN = 5; // Space above each bullet point
-    const BULLET_INDENT = 18; // Indentation for bullet points
-    const CONTACT_ITEM_SPACING = 8; // Spacing between contact items
+    // Spacing constants (in points)
+    const SPACE_AFTER_NAME = 2;
+    const SPACE_AFTER_PROFESSIONAL_TITLE = 4;
+    const SPACE_AFTER_CONTACT_INFO = 8;
+    const SPACE_AFTER_MAIN_DIVIDER = 12;
+    const SPACE_ABOVE_SECTION_HEADER = 18;
+    const SPACE_AFTER_SECTION_HEADER_TEXT = 1; // Minimal, line will create more space
+    const SPACE_AFTER_SECTION_DIVIDER = 8;
+    const SPACE_BETWEEN_ITEMS = 12; // Between job entries, education entries etc.
+    const SPACE_AFTER_ITEM_MAIN_TITLE = 1;
+    const SPACE_AFTER_ITEM_SUB_TITLE = 1;
+    const SPACE_AFTER_ITEM_DATE_LOCATION = 4; 
+    const SPACE_BEFORE_FIRST_BULLET = 5;
+    const SPACE_BETWEEN_BULLET_LINES = BODY_TEXT_SIZE * 0.3; // Extra space between lines of a multi-line bullet
+    const BULLET_POINT_LEADING_FACTOR = 1.4; // Line height factor for bullet text
 
     let yPos = MARGIN;
     let currentSection = ""; 
@@ -506,8 +511,9 @@ export default function MentorAiPage() {
     };
 
     const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB, lengthPercent = 100) => {
+        addNewPageIfNeeded(thickness + 2); // Ensure divider itself doesn't go off page
         const lineWidth = MAX_TEXT_WIDTH * (lengthPercent / 100);
-        const lineXStart = MARGIN + (MAX_TEXT_WIDTH - lineWidth) / 2; // Center the line if not full width
+        const lineXStart = MARGIN + (MAX_TEXT_WIDTH - lineWidth) / 2;
         doc.setDrawColor(color[0], color[1], color[2]);
         doc.setLineWidth(thickness);
         doc.line(lineXStart, y, lineXStart + lineWidth, y);
@@ -522,74 +528,68 @@ export default function MentorAiPage() {
     }
 
     // --- Extract and Render Header Section ---
-    let fullName = "Candidate Name"; // Default placeholder
-    let professionalTitle = "Professional Title"; // Default placeholder
-    let contactInfoString = "";
+    let fullName = "CANDIDATE NAME"; 
+    let professionalTitle = "PROFESSIONAL TITLE"; 
+    let contactInfoString = "Phone: N/A | Email: N/A | LinkedIn: N/A | Location: N/A";
 
-    // Extract Name
     if (currentLineIndex < lines.length && lines[currentLineIndex].startsWith("### ")) {
-      fullName = lines[currentLineIndex].substring(4).trim();
+      fullName = lines[currentLineIndex].substring(4).trim().toUpperCase(); // Uppercase for name
       currentLineIndex++;
     }
-    // Extract Professional Title (expected on the next line)
-    if (currentLineIndex < lines.length && 
-        !lines[currentLineIndex].startsWith("## ") && 
-        !lines[currentLineIndex].startsWith("### ") &&
-        !(lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:")) &&
-        lines[currentLineIndex].trim() !== "") {
+    if (currentLineIndex < lines.length && !lines[currentLineIndex].startsWith("## ") && !lines[currentLineIndex].startsWith("### ") && lines[currentLineIndex].trim() !== "" && !(lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
       professionalTitle = lines[currentLineIndex].trim();
       currentLineIndex++;
     }
-    // Extract Contact Info (expected on the next line or after title)
-    if (currentLineIndex < lines.length && 
-        (lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
+    if (currentLineIndex < lines.length && (lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
       contactInfoString = lines[currentLineIndex].trim();
       currentLineIndex++;
     }
     
     // Render Name
-    addNewPageIfNeeded(NAME_SIZE * LINE_SPACING_FACTOR_HEADER);
     doc.setFont(FONT_FAMILY_SANS, 'bold');
     doc.setFontSize(NAME_SIZE);
     doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-    doc.text(fullName, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += NAME_SIZE * LINE_SPACING_FACTOR_HEADER * 0.9; // Slightly tighter for header block
+    const nameLines = doc.splitTextToSize(fullName, MAX_TEXT_WIDTH);
+    const nameHeight = doc.getTextDimensions(nameLines).h;
+    addNewPageIfNeeded(nameHeight);
+    doc.text(nameLines, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += nameHeight + SPACE_AFTER_NAME;
 
     // Render Professional Title
-    addNewPageIfNeeded(PROFESSIONAL_TITLE_SIZE * LINE_SPACING_FACTOR_HEADER);
-    doc.setFont(FONT_FAMILY_SANS, 'normal'); // Prominent, but not necessarily bold if name is bold
+    doc.setFont(FONT_FAMILY_SANS, 'bold'); // Keep it bold but smaller
     doc.setFontSize(PROFESSIONAL_TITLE_SIZE);
-    doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]); // Use accent color
-    doc.text(professionalTitle, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += PROFESSIONAL_TITLE_SIZE * LINE_SPACING_FACTOR_HEADER * 0.9;
+    doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
+    const titleLines = doc.splitTextToSize(professionalTitle, MAX_TEXT_WIDTH);
+    const titleHeight = doc.getTextDimensions(titleLines).h;
+    addNewPageIfNeeded(titleHeight);
+    doc.text(titleLines, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
+    yPos += titleHeight + SPACE_AFTER_PROFESSIONAL_TITLE;
     
     // Render Contact Information
     if (contactInfoString) {
-        yPos += CONTACT_ITEM_SPACING * 0.5; // Small gap before contact info
-        addNewPageIfNeeded(CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR_HEADER);
         doc.setFont(FONT_FAMILY_SANS, 'normal');
         doc.setFontSize(CONTACT_TEXT_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        
         const contactParts = contactInfoString.split('|').map(s => s.trim());
         let contactLineText = "";
         contactParts.forEach((part, index) => {
             let icon = "";
             let text = part;
-            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); } // ☎
-            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); } // ✉
-            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); } // LinkedIn PUA icon (may need font support)
-            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); } // 📍
-            contactLineText += `${icon}${text}${index < contactParts.length - 1 ? "  \u2022  " : ""}`; // Use a bullet as a separator
+            if (part.toLowerCase().includes("phone:")) { icon = "\u260E "; text = part.replace(/Phone:\s*/i, ""); } 
+            else if (part.toLowerCase().includes("email:")) { icon = "\u2709 "; text = part.replace(/Email:\s*/i, ""); } 
+            else if (part.toLowerCase().includes("linkedin:")) { icon = "\uF0E1 "; text = part.replace(/LinkedIn:\s*/i, ""); } 
+            else if (part.toLowerCase().includes("location:")) { icon = "\uD83D\uDCCD "; text = part.replace(/Location:\s*/i, ""); } 
+            contactLineText += `${icon}${text}${index < contactParts.length - 1 ? "  \u2022  " : ""}`; 
         });
-        doc.text(contactLineText, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center'});
-        yPos += CONTACT_TEXT_SIZE * LINE_SPACING_FACTOR_HEADER;
+        const contactLines = doc.splitTextToSize(contactLineText, MAX_TEXT_WIDTH);
+        const contactHeight = doc.getTextDimensions(contactLines).h;
+        addNewPageIfNeeded(contactHeight);
+        doc.text(contactLines, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center'});
+        yPos += contactHeight + SPACE_AFTER_CONTACT_INFO;
     }
     
-    yPos += SECTION_TOP_MARGIN * 0.6; // Space after header block
-    drawDivider(yPos, 1, ACCENT_COLOR_RGB); // Main divider after header
-    yPos += SECTION_TOP_MARGIN * 0.7;
-
+    drawDivider(yPos, 1, ACCENT_COLOR_RGB); 
+    yPos += SPACE_AFTER_MAIN_DIVIDER;
 
     // Process remaining lines for sections
     for (let i = currentLineIndex; i < lines.length; i++) {
@@ -598,33 +598,37 @@ export default function MentorAiPage() {
 
       if (line.startsWith("## ")) { 
         currentSection = line.substring(3).trim().toUpperCase();
-        // Add space before a new section, unless it's the very first section after the header
-        if (i > currentLineIndex || yPos > MARGIN + NAME_SIZE + PROFESSIONAL_TITLE_SIZE + CONTACT_TEXT_SIZE + SECTION_TOP_MARGIN) {
-            yPos += SECTION_TOP_MARGIN * 0.8;
-        }
-        addNewPageIfNeeded(SECTION_HEADER_SIZE * LINE_SPACING_FACTOR_BODY + 8); // +8 for divider and space after
+        yPos += SPACE_ABOVE_SECTION_HEADER;
         
         doc.setFont(FONT_FAMILY_SANS, 'bold');
         doc.setFontSize(SECTION_HEADER_SIZE);
-        doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]); // Accent for section headers
-        doc.text(currentSection, MARGIN, yPos);
-        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR_BODY * 0.7; // Space for the text itself
-        drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB); // Thin elegant line
-        yPos += SECTION_HEADER_SIZE * LINE_SPACING_FACTOR_BODY * 0.8; // Space after divider
+        doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]); 
+        const sectionHeaderLines = doc.splitTextToSize(currentSection, MAX_TEXT_WIDTH);
+        const sectionHeaderHeight = doc.getTextDimensions(sectionHeaderLines).h;
+        addNewPageIfNeeded(sectionHeaderHeight + SPACE_AFTER_SECTION_HEADER_TEXT + 0.5 + SPACE_AFTER_SECTION_DIVIDER); // header + space + divider + space
+        doc.text(sectionHeaderLines, MARGIN, yPos);
+        yPos += sectionHeaderHeight + SPACE_AFTER_SECTION_HEADER_TEXT;
+        drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB); 
+        yPos += SPACE_AFTER_SECTION_DIVIDER;
 
-      } else if (line.startsWith("**") && line.substring(2).includes("**")) { // **Job Title/Degree/Project** | Company/Uni | Dates
-        yPos += (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && lines[i-1].trim() !== "" ? ITEM_SPACING : 0);
-        
+      } else if (line.startsWith("**") && line.substring(2).includes("**")) { 
+        if (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && lines[i-1].trim() !== "" && !lines[i-1].trim().startsWith("**")) { // Add space if previous line was not a section header or another item title
+             yPos += SPACE_BETWEEN_ITEMS;
+        } else if (i > currentLineIndex && lines[i-1].trim().startsWith("* ") ) { // Space after bullet points of previous item
+             yPos += SPACE_BETWEEN_ITEMS * 0.75;
+        }
+
+
         const firstStarEnd = line.indexOf("**", 2);
-        const mainTitleText = line.substring(2, firstStarEnd).trim(); // Job Title, Degree Name, Project Name
+        const mainTitleText = line.substring(2, firstStarEnd).trim();
         const restOfLineOriginal = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim();
         
         const detailsParts = restOfLineOriginal.split('|').map(s => s.trim());
-        let itemSubtitleText = ""; // Company, University Name, Project Date/Tech
+        let itemSubtitleText = ""; 
         let dateLocationText = "";
 
         if (currentSection === "EXPERIENCE" || currentSection === "EDUCATION") {
-            itemSubtitleText = detailsParts[0] || ""; // Company or University
+            itemSubtitleText = detailsParts[0] || ""; 
             const datePart = detailsParts[1] || "";
             const locationPart = detailsParts[2] || "";
             dateLocationText = `${datePart}${locationPart ? ` | ${locationPart}` : ''}`;
@@ -632,129 +636,89 @@ export default function MentorAiPage() {
             itemSubtitleText = detailsParts[0] || ""; // Date or Duration for Project
         }
 
-        // Render Main Title (Job Title, Degree, Project Name)
-        addNewPageIfNeeded(SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
         doc.setFont(FONT_FAMILY_SANS, 'bold');
         doc.setFontSize(SUB_HEADER_TITLE_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        const splitMainTitle = doc.splitTextToSize(mainTitleText, MAX_TEXT_WIDTH);
-        for (let j = 0; j < splitMainTitle.length; j++) {
-            if (j > 0) yPos += SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
-            addNewPageIfNeeded(SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
-            doc.text(splitMainTitle[j], MARGIN, yPos);
-        }
+        const mainTitleLines = doc.splitTextToSize(mainTitleText, MAX_TEXT_WIDTH);
+        const mainTitleHeight = doc.getTextDimensions(mainTitleLines).h;
+        addNewPageIfNeeded(mainTitleHeight);
+        doc.text(mainTitleLines, MARGIN, yPos);
+        yPos += mainTitleHeight + SPACE_AFTER_ITEM_MAIN_TITLE;
         
-        // Render Item Subtitle (Company, University) & DateLocation on the same line if possible
-        let yPosAfterMainTitle = yPos + SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.4; // Base for subtitle/date
-        yPos = yPosAfterMainTitle; // Advance yPos for next elements
-
+        const initialYForSubtitleAndDate = yPos;
+        let subtitleHeight = 0;
         if (itemSubtitleText) {
-            addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
-            doc.setFont(FONT_FAMILY_SANS, 'normal'); // Not bold for subtitle
+            doc.setFont(FONT_FAMILY_SANS, 'italic'); // Italic for subtitle
             doc.setFontSize(SUB_HEADER_SUBTITLE_SIZE);
             doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-            
-            const itemSubtitleWidth = doc.getTextWidth(itemSubtitleText);
-            const dateLocationWidth = dateLocationText ? doc.getTextWidth(dateLocationText) : 0;
-            
-            if (itemSubtitleWidth + dateLocationWidth + 10 < MAX_TEXT_WIDTH) { // If subtitle and date fit on one line
-                doc.text(itemSubtitleText, MARGIN, yPos);
-                if (dateLocationText) {
-                    doc.text(dateLocationText, MAX_TEXT_WIDTH + MARGIN - dateLocationWidth, yPos);
-                }
-                yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
-            } else { // Subtitle and date on separate lines or subtitle too long
-                const splitItemSubtitle = doc.splitTextToSize(itemSubtitleText, MAX_TEXT_WIDTH);
-                for (let k=0; k < splitItemSubtitle.length; k++) {
-                    if (k > 0) yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT;
-                    addNewPageIfNeeded(SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT);
-                    doc.text(splitItemSubtitle[k], MARGIN, yPos);
-                }
-                yPos += SUB_HEADER_SUBTITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.5; // Space after subtitle
-                
-                if (dateLocationText) {
-                    addNewPageIfNeeded(SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
-                    doc.setFont(FONT_FAMILY_SANS, 'normal');
-                    doc.setFontSize(SMALL_TEXT_SIZE);
-                    doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-                    doc.text(dateLocationText, MARGIN, yPos);
-                    yPos += SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT;
-                }
-            }
-        } else if (dateLocationText) { // No subtitle, but date/location exists
-             addNewPageIfNeeded(SMALL_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
-             doc.setFont(FONT_FAMILY_SANS, 'normal');
-             doc.setFontSize(SMALL_TEXT_SIZE);
-             doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-             doc.text(dateLocationText, MAX_TEXT_WIDTH + MARGIN - doc.getTextWidth(dateLocationText), yPos - (SUB_HEADER_TITLE_SIZE * LINE_SPACING_FACTOR_TIGHT * 0.4) ); // Try to align with main title line
-             // yPos advancement is tricky here, it might have already advanced if mainTitle was multiline
-             // Add a small fixed advance if date was printed
-             if (doc.getTextWidth(dateLocationText) > 0) yPos += SMALL_TEXT_SIZE * 0.5;
+            const subTitleLines = doc.splitTextToSize(itemSubtitleText, dateLocationText ? MAX_TEXT_WIDTH * 0.65 : MAX_TEXT_WIDTH); // Give less width if date is next to it
+            subtitleHeight = doc.getTextDimensions(subTitleLines).h;
+            addNewPageIfNeeded(subtitleHeight);
+            doc.text(subTitleLines, MARGIN, yPos);
+            // yPos advanced only if dateLocation is not on same line or subtitle is multi-line
         }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY * 0.2; // Small gap before potential bullets
+
+        let dateLocationHeight = 0;
+        if (dateLocationText) {
+            doc.setFont(FONT_FAMILY_SANS, 'normal');
+            doc.setFontSize(DATE_LOCATION_SIZE);
+            doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
+            const dateLocationLines = doc.splitTextToSize(dateLocationText, MAX_TEXT_WIDTH * 0.33); // Max width for date/location
+            dateLocationHeight = doc.getTextDimensions(dateLocationLines).h;
+            
+            const dateXPos = MARGIN + MAX_TEXT_WIDTH - doc.getTextWidth(dateLocationLines[0]); // Align to right
+            
+            if (itemSubtitleText && subtitleHeight <= DATE_LOCATION_SIZE * 1.5 && (doc.getTextWidth(itemSubtitleText) + doc.getTextWidth(dateLocationText) < MAX_TEXT_WIDTH * 0.95) ) { // Attempt to put on same line if subtitle is short
+                 addNewPageIfNeeded(dateLocationHeight); // Check if date fits
+                 doc.text(dateLocationLines, dateXPos > MARGIN ? dateXPos : MARGIN, initialYForSubtitleAndDate); // Use initial Y
+                 yPos = initialYForSubtitleAndDate + Math.max(subtitleHeight, dateLocationHeight); // Advance by max height
+            } else { // Put date on new line or if subtitle was multi-line
+                yPos = initialYForSubtitleAndDate + subtitleHeight + (subtitleHeight > 0 ? SPACE_AFTER_ITEM_SUB_TITLE : 0);
+                addNewPageIfNeeded(dateLocationHeight);
+                doc.text(dateLocationLines, MARGIN, yPos); // Left align if on new line
+                yPos += dateLocationHeight;
+            }
+        } else { // No date/location text
+             yPos = initialYForSubtitleAndDate + subtitleHeight;
+        }
+        yPos += SPACE_AFTER_ITEM_DATE_LOCATION;
 
 
       } else if (line.startsWith("* ")) { 
         const bulletText = line.substring(2).trim();
-        yPos += BULLET_POINT_TOP_MARGIN;
-        addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
+        yPos += SPACE_BEFORE_FIRST_BULLET;
+        
         doc.setFont(FONT_FAMILY_SANS, 'normal');
         doc.setFontSize(BODY_TEXT_SIZE);
         doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
         
         const bulletChar = "\u2022"; 
-        const splitBulletText = doc.splitTextToSize(bulletText, MAX_TEXT_WIDTH - BULLET_INDENT);
+        const indent = 15;
+        const splitBulletText = doc.splitTextToSize(bulletText, MAX_TEXT_WIDTH - indent);
+        
         for (let j = 0; j < splitBulletText.length; j++) {
-            if (j > 0) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY;
-            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
-            doc.text(j === 0 ? bulletChar : "", MARGIN, yPos, {align: 'left'}); 
-            doc.text(splitBulletText[j], MARGIN + (j === 0 ? BULLET_INDENT * 0.6 : BULLET_INDENT), yPos);
+            const textLineHeight = doc.getTextDimensions(splitBulletText[j]).h * BULLET_POINT_LEADING_FACTOR;
+            addNewPageIfNeeded(textLineHeight + (j < splitBulletText.length - 1 ? SPACE_BETWEEN_BULLET_LINES : 0));
+            doc.text(j === 0 ? bulletChar : "", MARGIN, yPos + (doc.getTextDimensions(splitBulletText[j]).h * (BULLET_POINT_LEADING_FACTOR -1) / 2) ); // Vertically center bullet with first line
+            doc.text(splitBulletText[j], MARGIN + indent, yPos + (doc.getTextDimensions(splitBulletText[j]).h * (BULLET_POINT_LEADING_FACTOR -1) / 2));
+            yPos += textLineHeight + (j < splitBulletText.length - 1 ? SPACE_BETWEEN_BULLET_LINES : 0);
         }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY * 0.3; // More space after a bullet item
+         yPos += BODY_TEXT_SIZE * 0.2; // Tiny space after a full bullet item (multi-line or single)
 
-      } else { // Regular text (e.g., summary, skills content)
-        // If it's the skills section, try to make it slightly more compact or grid-like if possible with single column
-        if (currentSection === "SKILLS" && line.includes(":")) { // Simple heuristic: "Category: Skill A, Skill B"
-            const parts = line.split(':');
-            const skillCategory = parts[0].trim();
-            const skillsInCat = parts[1] ? parts[1].trim() : "";
-
-            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
-            doc.setFont(FONT_FAMILY_SANS, 'bold'); // Bold category
-            doc.setFontSize(BODY_TEXT_SIZE);
-            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-            doc.text(skillCategory + ":", MARGIN, yPos);
-            
-            if (skillsInCat) {
-                doc.setFont(FONT_FAMILY_SANS, 'normal');
-                const skillTextWidth = doc.getTextWidth(skillCategory + ": ");
-                const remainingWidth = MAX_TEXT_WIDTH - skillTextWidth;
-                const splitSkills = doc.splitTextToSize(skillsInCat, remainingWidth > 0 ? remainingWidth : MAX_TEXT_WIDTH);
-                for (const skillLine of splitSkills) {
-                     addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT);
-                     doc.text(skillLine, MARGIN + skillTextWidth, yPos);
-                     if (splitSkills.indexOf(skillLine) < splitSkills.length - 1) yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT;
-                }
-            }
-            yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_TIGHT * 1.2; // Spacing after skill category line
-        } else {
-            addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
-            doc.setFont(FONT_FAMILY_SANS, 'normal');
-            doc.setFontSize(BODY_TEXT_SIZE);
-            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-            const splitText = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-            for (const textLine of splitText) {
-                addNewPageIfNeeded(BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY);
-                doc.text(textLine, MARGIN, yPos);
-                yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY;
-            }
-        }
-        yPos += BODY_TEXT_SIZE * LINE_SPACING_FACTOR_BODY * 0.1; 
+      } else { // Regular text (e.g., summary, skills content not fitting category pattern)
+        doc.setFont(FONT_FAMILY_SANS, 'normal');
+        doc.setFontSize(BODY_TEXT_SIZE);
+        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+        const textLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
+        const textBlockHeight = doc.getTextDimensions(textLines).h * 1.4; // Add some line spacing
+        addNewPageIfNeeded(textBlockHeight);
+        doc.text(textLines, MARGIN, yPos);
+        yPos += textBlockHeight + SPACE_SM; // Space after regular text block
       }
     }
     
-    doc.save('ai_mentor_resume_professional_v2.pdf');
-    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved in an enhanced professional format." });
+    doc.save('ai_mentor_resume_professional_v3.pdf');
+    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved with refined formatting." });
   };
 
 
@@ -1993,6 +1957,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-
-
-
