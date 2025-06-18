@@ -82,7 +82,7 @@ Tailor your feedback, the rewritten/created resume, and LinkedIn suggestions acc
 {{#if additionalInformation}}
 User's Details / Additional Information to Incorporate/Use for Creation:
 "{{{additionalInformation}}}"
-*   If analyzing an existing resume (from upload or text): Thoughtfully integrate this additional information into the rewritten resume.
+*   If analyzing an existing resume (from upload or text): Thoughtfully integrate this additionalInformation into the rewritten resume.
 *   If creating a new resume (Scenario C, or if uploaded document was unreadable and additionalInformation exists): This field is the *primary source* for creating the new resume. Parse all details (name, contact, experience, education, skills, projects) from here.
 {{/if}}
 
@@ -119,6 +119,11 @@ Maintain consistency with layout, font (implied by structure for the text output
 – Format consistently (dates, bullet points, spacing).
 
 *Include the following structured sections using Markdown H2 (e.g., "## Summary") for main section titles. Use Markdown Bold for sub-headings like job titles or degree names.*
+
+When creating a new resume (Scenario C or fallback due to unreadable document):
+-   Meticulously parse the 'additionalInformation' field to extract the user's full name, their desired role/professional title, phone number, email address, LinkedIn profile URL (if provided), and their location (e.g., city, state).
+-   Populate these extracted details directly into the corresponding placeholders in the resume header template that follows.
+-   If a specific piece of contact information (like LinkedIn URL or phone) is not explicitly found in 'additionalInformation', use a clear placeholder like "[LinkedIn Not Provided]" or "[Phone Not Provided]", or omit that part of the contact line if more appropriate for a clean look (e.g., if only email and location are found, just show those). For Full Name and Role/Title, if not clearly specified, use a generic placeholder like "[Full Name]" or "[Professional Title]".
 
 ### [User's Full Name - Extract or use placeholder if not found]
 [User's Desired Role/Title - Extract or use placeholder if not found, place below name]
