@@ -720,6 +720,7 @@ export default function MentorAiPage() {
 
         yRight += height + 5;
     });
+    yRight += 15;
 
     if (education.length > 0) {
         yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight);
@@ -2087,5 +2088,7 @@ export default function MentorAiPage() {
     
 
 
+
+    
 
     
