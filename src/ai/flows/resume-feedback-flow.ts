@@ -6,7 +6,7 @@
  *
  * - getResumeFeedback - A function that analyzes resume text/document or details, provides suggestions/creates a resume,
  *                       rewrites/formats it, and suggests LinkedIn improvements.
- * - ResumeFeedbackInput - The input type for the getResumeFeedback function.
+ * - ResumeFeedbackInput - The input type for the getResumefeedback function.
  * - ResumeFeedbackOutput - The return type for the getResumeFeedback function.
  */
 
@@ -100,75 +100,62 @@ User's Details / Additional Information to Incorporate/Use for Creation:
 
 **Part 2: Final Resume (for \`modifiedResumeText\` field)**
 Generate a professional resume. Take the user's input (from uploaded document, pasted text, or additional details for creation) and improve/structure it.
-**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY and reflects a traditional professional format often preferred by large multinational companies.** This means:
-- Use standard, universally recognized section headings.
-- Avoid tables, columns, or complex graphical elements *in the text itself*. The formatting will be applied later (e.g., by PDF generator). Your output should be a single stream of structured text.
-- Ensure dates are consistently formatted (e.g., MM/YYYY – MM/YYYY or Month YYYY – Month YYYY).
-- Use standard bullet points for lists.
-- Incorporate keywords relevant to the job role naturally within the text.
-- Ensure a clear, logical flow of information, with experience and education typically in reverse chronological order.
+**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY and reflects the exact labeled format below.** This means:
+- Use standard, universally recognized section headings and labels as shown.
+- Avoid tables, columns, or complex graphical elements *in the text itself*.
+- Ensure dates are consistently formatted.
 - Use simple, clean, professional language. Ensure the resume is free of grammatical errors and typos.
 - Emphasize quantifiable achievements using specific numbers and metrics.
+- List experience and education in reverse chronological order.
 
-Maintain consistency with layout, font (implied by structure for the text output), and section structure. The goal is to produce a \`modifiedResumeText\` that is highly organized and clearly sectioned, ready for professional PDF conversion, and has the highest chance of being parsed correctly by various ATS.
+**IMPORTANT INSTRUCTION FOR 'EXPERIENCE' and 'PROJECTS' SECTIONS:**
+- If your analysis of the user's provided information indicates that the user has NO work experience, then you MUST OMIT the entire "3. Experience" section.
+- If the user has NO projects to list, then you MUST OMIT the entire "7. Projects" section.
 
-*Improve (if existing content is provided):*
-– Grammar, tone, and phrasing for professionalism.
-– Quantify achievements where possible using strong action verbs.
-– Reorganize content for logical flow and ATS readability.
-– Format consistently (dates, bullet points, spacing).
+When creating a new resume (Scenario C) or if the uploaded document is unreadable, meticulously parse the 'additionalInformation' field to extract the user's details and populate them into the corresponding placeholders in the template. If a detail is not found, use a clear placeholder like "[Enter your...]" or "[Not Provided]".
 
-*Include the following structured sections using Markdown H2 (e.g., "## Summary") for main section titles. Use Markdown Bold for sub-headings like job titles or degree names.*
+**Resume Template to follow exactly:**
 
-When creating a new resume (Scenario C or fallback due to unreadable document):
--   Meticulously parse the 'additionalInformation' field to extract the user's full name, their desired role/professional title, phone number, email address, LinkedIn profile URL (if provided), and their location (e.g., city, state).
--   Populate these extracted details directly into the corresponding placeholders in the resume header template that follows.
--   If a specific piece of contact information (like LinkedIn URL or phone) is not explicitly found in 'additionalInformation', use a clear placeholder like "[LinkedIn Not Provided]" or "[Phone Not Provided]", or omit that part of the contact line if more appropriate for a clean look (e.g., if only email and location are found, just show those). For Full Name and Role/Title, if not clearly specified, use a generic placeholder like "[Full Name]" or "[Professional Title]".
+1. Personal Information:
 
-### [User's Full Name - Extract or use placeholder if not found]
-[User's Desired Role/Title - Extract or use placeholder if not found, place below name]
-Phone: [User's Phone Number] | Email: [User's Email] | LinkedIn: [User's LinkedIn Profile URL] | Location: [User's Location]
+Full Name: [Enter your full name]
+Contact Number: [Enter your phone number]
+Email Address: [Enter your email address]
+LinkedIn Profile: [Enter your LinkedIn URL]
+Location: [Enter your city, country]
 
-## SUMMARY
-[Provide a brief professional summary (3-5 lines max) highlighting key skills, expertise, and career goals. Keep it impactful, concise, and keyword-rich for ATS.]
+2. Summary:
 
-{{!-- Experience Section - Conditionally Included by AI --}}
-Based on your analysis of the user's provided information (from resumeDataUri, resumeText, or additionalInformation):
-- If the user HAS relevant professional work experience (paid jobs, internships, significant volunteer roles directly related to a profession), include an 'EXPERIENCE' section next, formatted as specified below.
-- The 'EXPERIENCE' section should NOT include general extracurricular activities, academic club leadership unless it was a formal, project-driven role with clear responsibilities akin to a job, or hobbies. These might belong in a 'Projects' section or an optional 'Leadership & Activities' section if the user explicitly requests or if it's highly relevant and doesn't fit elsewhere. For most professional resumes, focus this section on work history.
-- If the user has NO such professional work experience, OMIT the 'EXPERIENCE' section entirely (do not write '## EXPERIENCE' or any related content) and proceed directly to '## EDUCATION'.
+[Write a brief summary (2-3 sentences) highlighting your professional background, key skills, and career aspirations. Focus on your specialization and what you aim to achieve in your next role.]
 
-If including 'EXPERIENCE', structure it as:
-## EXPERIENCE
-(List in reverse chronological order)
-**[Job Title]** | [Company Name] | [Start Date] – [End Date] | [Location]
-*   [Bullet points outlining responsibilities and achievements, quantifying impact where possible with numbers and metrics. Start each bullet with a strong action verb. Use clear, concise language.]
-*   [Another bullet point...]
-{{!-- End Experience Section --}}
+3. Experience:
 
-## EDUCATION
-(List in reverse chronological order)
-**[Degree Name]** ([Major/Concentration if applicable]) | [University Name] | [Graduation Date or Expected Graduation Date] | [Location]
-*   [Optional: Relevant coursework, GPA if high, honors, or academic achievements as bullet points.]
+Position: [Enter your job title]
+Company Name: [Enter the name of the company]
+Location: [Enter the location of the company]
+Start Date - End Date: [Enter the duration of your employment]
+Responsibilities and Achievements:
+[List your key responsibilities and achievements in bullet points. Use action verbs and quantify results where possible.]
 
-## SKILLS
-(Group skills logically, e.g., Programming Languages, Software & Tools, Methodologies, Certifications. Use clear, common skill names for ATS. Present as a comma-separated list or categorized bullet points as appropriate for clarity and ATS-friendliness.)
-*   **Category 1:** Skill A, Skill B, Skill C
-*   **Category 2:** Skill D, Skill E
+4. Education:
 
-## PROJECTS
-(Optional, but recommended if relevant; for each project)
-**[Project Name]** | [Date or Duration, e.g., Fall 2023 or 3 months] (Optional)
-*   [Description of the project, your role, key contributions, its impact/results, and technologies used. e.g., Tech Stack: Python, React, AWS. Quantify results.]
-*   [Bullet points highlighting your role and impact, if any.]
+Degree: [Enter your degree, e.g., Bachelor of Technology in Robotics and Artificial Intelligence]
+Institution Name: [Enter the name of the institution]
+Location: [Enter the location of the institution]
+Start Date - End Date: [Enter the duration of your education]
 
-## KEY ACHIEVEMENTS
-(Optional section, include if distinct major achievements can be highlighted separately from experience bullets. Make them quantifiable and impactful. These should be specific accomplishments, not general activities.)
-*   [Highlight major accomplishments, projects, or recognitions that reinforce expertise. E.g., "Increased sales by 15% in Q3 2023 by implementing..."]
-*   [Another key achievement...]
+5. Key Achievements:
 
-If creating a new resume from \`additionalInformation\` (Scenario C), use these same content and structure guidelines, prioritizing ATS-friendliness and a traditional professional format.
-If an uploaded document was unreadable and no \`additionalInformation\` was sufficient for creation, output a message like "The uploaded document could not be read, and insufficient details were provided in 'Additional Information' to create a resume." in this field.
+[List any significant achievements or projects that demonstrate your skills and contributions. Use bullet points for clarity.]
+
+6. Skills:
+
+[List your technical and soft skills relevant to the job you are applying for. Use bullet points or a comma-separated format.]
+
+7. Projects:
+
+Project Title: [Enter the title of the project]
+Description: [Provide a brief description of the project, your role, and the technologies used. Highlight the impact or results of the project.]
 
 **Part 3: Detailed LinkedIn Profile Suggestions (for \`linkedinProfileSuggestions\` field and its sub-fields)**
 *   Based on the \`modifiedResumeText\` (rewritten or created) and \`targetJobRole\`:
@@ -178,8 +165,6 @@ If an uploaded document was unreadable and no \`additionalInformation\` was suff
     *   **\`skillsSectionTips\`**: 2-3 concise bullet points/short paragraph of recommendations for LinkedIn skills section (e.g., which key skills from the resume to list, getting endorsements, ordering skills, aligning with job targets).
 *   Ensure content for \`suggestedHeadline\` and \`suggestedAboutSection\` is well-written and almost ready for copy-paste. Tips should be actionable.
 
-The \`modifiedResumeText\` must be a complete, well-formatted resume text optimized for ATS, or an error message if applicable.
-The \`linkedinProfileSuggestions\` must provide clear, practical, detailed advice for key LinkedIn sections.
 If no resume source (\`resumeDataUri\` or \`resumeText\`) is provided, and \`additionalInformation\` is also insufficient to create a meaningful resume (e.g., just a few words), then for \`modifiedResumeText\` you should output a message like "Insufficient details provided to create a resume. Please provide more comprehensive information in the 'Additional Information' field, including your work experience, education, skills, and projects." and other fields should be minimal or indicate that creation was not possible.
 `,
 });
@@ -216,4 +201,3 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
-

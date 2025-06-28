@@ -460,6 +460,7 @@ export default function MentorAiPage() {
       toast({ title: "Error", description: "No valid resume text to download.", variant: "destructive" });
       return;
     }
+    
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const text = resumeFeedback.modifiedResumeText;
     
@@ -470,236 +471,122 @@ export default function MentorAiPage() {
     const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray
     const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200];
 
-    const NAME_SIZE = 22;
-    const PROFESSIONAL_TITLE_SIZE = 13;
-    const CONTACT_TEXT_SIZE = 9;
-    const SECTION_HEADER_SIZE = 12;
-    const SUB_HEADER_TITLE_SIZE = 11; // Job Title, Degree, Project Name
-    const SUB_HEADER_SUBTITLE_SIZE = 10; // Company, University, Project Dates/Tech
+    const SECTION_HEADER_SIZE = 14;
+    const LABEL_SIZE = 11;
+    const VALUE_SIZE = 11;
     const BODY_TEXT_SIZE = 10;
-    const DATE_LOCATION_SIZE = 9;
-
+    
     const MARGIN = 40; // pt
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
-    
-    // Spacing constants (in points)
-    const SPACE_AFTER_NAME = 2;
-    const SPACE_AFTER_PROFESSIONAL_TITLE = 4;
-    const SPACE_AFTER_CONTACT_INFO = 8;
-    const SPACE_AFTER_MAIN_DIVIDER = 12;
-    const SPACE_ABOVE_SECTION_HEADER = 18;
-    const SPACE_AFTER_SECTION_HEADER_TEXT = 1; 
-    const SPACE_AFTER_SECTION_DIVIDER = 8;
-    const SPACE_BETWEEN_ITEMS = 12; 
-    const SPACE_AFTER_ITEM_MAIN_TITLE = 1;
-    const SPACE_AFTER_ITEM_SUB_TITLE = 2; // Increased slightly for clarity between Subtitle and Date/Location
-    const SPACE_AFTER_ITEM_DATE_LOCATION = 4; 
-    const SPACE_BEFORE_FIRST_BULLET = 5;
-    const SPACE_BETWEEN_BULLET_LINES = BODY_TEXT_SIZE * 0.3; 
-    const BULLET_POINT_LEADING_FACTOR = 1.4; 
-    const LINE_SPACING_FACTOR_BODY = 1.3;
+    const LINE_SPACING_FACTOR = 1.4;
+    const SECTION_SPACING = 18;
+    const ITEM_SPACING = 12;
+    const LABEL_VALUE_SPACING = 5;
+    const BULLET_INDENT = 15;
 
     let yPos = MARGIN;
-    let currentSection = ""; 
-    const lines = text.split('\n');
-    let currentLineIndex = 0;
 
     const addNewPageIfNeeded = (neededHeight: number): boolean => {
       if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
         doc.addPage();
         yPos = MARGIN;
-        // If a new page is added, and we were in a section, re-draw section header if desired (complex, skip for now)
         return true;
       }
       return false;
     };
 
-    const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB, lengthPercent = 100) => {
-        addNewPageIfNeeded(thickness + 2); 
-        const lineWidth = MAX_TEXT_WIDTH * (lengthPercent / 100);
-        const lineXStart = MARGIN + (MAX_TEXT_WIDTH - lineWidth) / 2;
+    const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB) => {
+        addNewPageIfNeeded(thickness + 4); 
         doc.setDrawColor(color[0], color[1], color[2]);
         doc.setLineWidth(thickness);
-        doc.line(lineXStart, y, lineXStart + lineWidth, y);
+        doc.line(MARGIN, y, doc.internal.pageSize.getWidth() - MARGIN, y);
+        yPos += thickness + 4;
     };
-    
-    // Skip initial empty lines
-    while (currentLineIndex < lines.length && lines[currentLineIndex].trim() === "") {
-        currentLineIndex++;
-    }
 
-    // --- Extract and Render Header Section ---
-    let fullName = "CANDIDATE NAME"; 
-    let professionalTitle = "PROFESSIONAL TITLE"; 
-    let contactInfoString = "Phone: N/A | Email: N/A | LinkedIn: N/A | Location: N/A";
+    const lines = text.split('\n');
+    let inExperienceBlock = false; // Flag to handle multi-line responsibilities
 
-    if (currentLineIndex < lines.length && lines[currentLineIndex].startsWith("### ")) {
-      fullName = lines[currentLineIndex].substring(4).trim().toUpperCase();
-      currentLineIndex++;
-    }
-    if (currentLineIndex < lines.length && !lines[currentLineIndex].startsWith("## ") && !lines[currentLineIndex].startsWith("### ") && lines[currentLineIndex].trim() !== "" && !(lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
-      professionalTitle = lines[currentLineIndex].trim();
-      currentLineIndex++;
-    }
-    if (currentLineIndex < lines.length && (lines[currentLineIndex].includes("Phone:") || lines[currentLineIndex].includes("Email:") || lines[currentLineIndex].includes("LinkedIn:") || lines[currentLineIndex].includes("Location:"))) {
-      contactInfoString = lines[currentLineIndex].trim();
-      currentLineIndex++;
-    }
-    
-    doc.setFont(FONT_FAMILY_SANS, 'bold');
-    doc.setFontSize(NAME_SIZE);
-    doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-    const nameLines = doc.splitTextToSize(fullName, MAX_TEXT_WIDTH);
-    const nameHeight = doc.getTextDimensions(nameLines).h;
-    addNewPageIfNeeded(nameHeight);
-    doc.text(nameLines, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += nameHeight + SPACE_AFTER_NAME;
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
 
-    doc.setFont(FONT_FAMILY_SANS, 'bold');
-    doc.setFontSize(PROFESSIONAL_TITLE_SIZE);
-    doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
-    const titleLines = doc.splitTextToSize(professionalTitle, MAX_TEXT_WIDTH);
-    const titleHeight = doc.getTextDimensions(titleLines).h;
-    addNewPageIfNeeded(titleHeight);
-    doc.text(titleLines, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center' });
-    yPos += titleHeight + SPACE_AFTER_PROFESSIONAL_TITLE;
-    
-    if (contactInfoString) {
-        doc.setFont(FONT_FAMILY_SANS, 'normal');
-        doc.setFontSize(CONTACT_TEXT_SIZE);
-        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        const contactParts = contactInfoString.split('|').map(s => s.trim());
-        let contactLineText = "";
-        contactParts.forEach((part, index) => {
-            let icon = ""; let text = part;
-            if (part.toLowerCase().includes("phone:")) { icon = "☎ "; text = part.replace(/Phone:\s*/i, ""); } 
-            else if (part.toLowerCase().includes("email:")) { icon = "✉ "; text = part.replace(/Email:\s*/i, ""); } 
-            else if (part.toLowerCase().includes("linkedin:")) { icon = "🌐 "; text = part.replace(/LinkedIn:\s*/i, ""); } // Simple web icon
-            else if (part.toLowerCase().includes("location:")) { icon = "📍 "; text = part.replace(/Location:\s*/i, ""); } 
-            contactLineText += `${icon}${text}${index < contactParts.length - 1 ? "  •  " : ""}`; 
-        });
-        const contactLinesText = doc.splitTextToSize(contactLineText, MAX_TEXT_WIDTH);
-        const contactHeight = doc.getTextDimensions(contactLinesText).h;
-        addNewPageIfNeeded(contactHeight);
-        doc.text(contactLinesText, doc.internal.pageSize.getWidth() / 2, yPos, { align: 'center'});
-        yPos += contactHeight + SPACE_AFTER_CONTACT_INFO;
-    }
-    
-    drawDivider(yPos, 1, ACCENT_COLOR_RGB); 
-    yPos += SPACE_AFTER_MAIN_DIVIDER;
-
-    for (let i = currentLineIndex; i < lines.length; i++) {
-      let line = lines[i].trim();
-      if (!line) continue; 
-
-      if (line.startsWith("## ")) { 
-        currentSection = line.substring(3).trim().toUpperCase();
-        yPos += SPACE_ABOVE_SECTION_HEADER;
-        
-        doc.setFont(FONT_FAMILY_SANS, 'bold');
-        doc.setFontSize(SECTION_HEADER_SIZE);
-        doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]); 
-        const sectionHeaderLines = doc.splitTextToSize(currentSection, MAX_TEXT_WIDTH);
-        const sectionHeaderHeight = doc.getTextDimensions(sectionHeaderLines).h;
-        addNewPageIfNeeded(sectionHeaderHeight + SPACE_AFTER_SECTION_HEADER_TEXT + 0.5 + SPACE_AFTER_SECTION_DIVIDER);
-        doc.text(sectionHeaderLines, MARGIN, yPos);
-        yPos += sectionHeaderHeight + SPACE_AFTER_SECTION_HEADER_TEXT;
-        drawDivider(yPos, 0.5, DIVIDER_COLOR_RGB); 
-        yPos += SPACE_AFTER_SECTION_DIVIDER;
-
-      } else if (line.startsWith("**") && line.substring(2).includes("**")) { 
-        if (i > currentLineIndex && !lines[i-1].trim().startsWith("## ") && lines[i-1].trim() !== "" && !lines[i-1].trim().startsWith("**") && !lines[i-1].trim().startsWith("* ")) {
-             yPos += SPACE_BETWEEN_ITEMS * 0.7; // Reduced space if previous was not header/item/bullet
-        } else if (i > currentLineIndex && lines[i-1].trim().startsWith("* ") ) { 
-             yPos += SPACE_BETWEEN_ITEMS * 0.75; // Space after bullet points of previous item
+        // Check for Section Headers (e.g., "1. Personal Information:")
+        if (line.match(/^\d+\. .*:$/)) {
+            yPos += (yPos > MARGIN ? SECTION_SPACING : 0); // Add space before new section
+            doc.setFont(FONT_FAMILY_SANS, 'bold');
+            doc.setFontSize(SECTION_HEADER_SIZE);
+            doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
+            const headerLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
+            const headerHeight = doc.getTextDimensions(headerLines).h * (LINE_SPACING_FACTOR - 0.2);
+            addNewPageIfNeeded(headerHeight);
+            doc.text(headerLines, MARGIN, yPos);
+            yPos += headerHeight;
+            drawDivider(yPos);
+            inExperienceBlock = line.includes("Experience");
+            continue;
         }
 
-        const firstStarEnd = line.indexOf("**", 2);
-        const mainTitleText = line.substring(2, firstStarEnd).trim();
-        const restOfLineOriginal = line.substring(firstStarEnd + 2).trim().replace(/^\|/, '').trim();
-        
-        const detailsParts = restOfLineOriginal.split('|').map(s => s.trim());
-        let itemSubtitleText = ""; 
-        let dateLocationText = "";
+        // Handle labeled content (e.g., "Full Name: John Doe")
+        const splitIndex = line.indexOf(':');
+        if (splitIndex > 0) {
+            const label = line.substring(0, splitIndex + 1);
+            const value = line.substring(splitIndex + 1).trim();
 
-        if (currentSection === "EXPERIENCE" || currentSection === "EDUCATION") {
-            itemSubtitleText = detailsParts[0] || ""; 
-            const datePart = detailsParts[1] || "";
-            const locationPart = detailsParts[2] || "";
-            dateLocationText = `${datePart}${locationPart ? ` | ${locationPart}` : ''}`;
-        } else if (currentSection === "PROJECTS") {
-            itemSubtitleText = detailsParts[0] || ""; // Date or Duration for Project
-        }
+            if (label.trim() === "Responsibilities and Achievements:") {
+                doc.setFont(FONT_FAMILY_SANS, 'bold');
+                doc.setFontSize(LABEL_SIZE);
+                doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+                const labelLines = doc.splitTextToSize(label, MAX_TEXT_WIDTH);
+                const labelHeight = doc.getTextDimensions(labelLines).h * LINE_SPACING_FACTOR;
+                addNewPageIfNeeded(labelHeight);
+                doc.text(labelLines, MARGIN, yPos);
+                yPos += labelHeight;
+            } else if (value) {
+                doc.setFont(FONT_FAMILY_SANS, 'bold');
+                doc.setFontSize(LABEL_SIZE);
+                doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+                const labelWidth = doc.getTextWidth(label);
+                
+                doc.setFont(FONT_FAMILY_SANS, 'normal');
+                doc.setFontSize(VALUE_SIZE);
+                const valueLines = doc.splitTextToSize(value, MAX_TEXT_WIDTH - labelWidth - LABEL_VALUE_SPACING);
+                const blockHeight = doc.getTextDimensions(valueLines).h * LINE_SPACING_FACTOR;
 
-        doc.setFont(FONT_FAMILY_SANS, 'bold');
-        doc.setFontSize(SUB_HEADER_TITLE_SIZE);
-        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        const mainTitleRenderLines = doc.splitTextToSize(mainTitleText, MAX_TEXT_WIDTH);
-        const mainTitleHeight = doc.getTextDimensions(mainTitleRenderLines).h * LINE_SPACING_FACTOR_BODY;
-        addNewPageIfNeeded(mainTitleHeight);
-        doc.text(mainTitleRenderLines, MARGIN, yPos);
-        yPos += mainTitleHeight + SPACE_AFTER_ITEM_MAIN_TITLE;
-        
-        if (itemSubtitleText) {
-            doc.setFont(FONT_FAMILY_SANS, 'italic');
-            doc.setFontSize(SUB_HEADER_SUBTITLE_SIZE);
-            doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-            const subTitleRenderLines = doc.splitTextToSize(itemSubtitleText, MAX_TEXT_WIDTH);
-            const subtitleHeight = doc.getTextDimensions(subTitleRenderLines).h * LINE_SPACING_FACTOR_BODY;
-            addNewPageIfNeeded(subtitleHeight);
-            doc.text(subTitleRenderLines, MARGIN, yPos);
-            yPos += subtitleHeight + SPACE_AFTER_ITEM_SUB_TITLE;
-        }
+                addNewPageIfNeeded(blockHeight);
 
-        if (dateLocationText) {
+                doc.setFont(FONT_FAMILY_SANS, 'bold');
+                doc.text(label, MARGIN, yPos);
+                
+                doc.setFont(FONT_FAMILY_SANS, 'normal');
+                doc.text(valueLines, MARGIN + labelWidth + LABEL_VALUE_SPACING, yPos);
+                
+                yPos += blockHeight;
+            }
+            if (inExperienceBlock && label.includes("End Date")) {
+                 yPos += ITEM_SPACING / 2; // Add a small space before achievements
+            } else if (line.includes("Location:") || line.includes("End Date:")) {
+                yPos += ITEM_SPACING; // Space after a block of info (like after a full job or education entry)
+            }
+        } else { // Handle non-labeled lines (summaries, bullet points)
+            const isBullet = line.startsWith("[") && line.endsWith("]");
+            const content = isBullet ? `• ${line.substring(1, line.length - 1)}` : line;
+            const indent = isBullet ? BULLET_INDENT : 0;
+            
             doc.setFont(FONT_FAMILY_SANS, 'normal');
-            doc.setFontSize(DATE_LOCATION_SIZE);
-            doc.setTextColor(LIGHT_TEXT_COLOR_RGB[0], LIGHT_TEXT_COLOR_RGB[1], LIGHT_TEXT_COLOR_RGB[2]);
-            const dateLocationRenderLines = doc.splitTextToSize(dateLocationText, MAX_TEXT_WIDTH);
-            const dateLocationHeight = doc.getTextDimensions(dateLocationRenderLines).h * LINE_SPACING_FACTOR_BODY;
-            addNewPageIfNeeded(dateLocationHeight);
-            doc.text(dateLocationRenderLines, MARGIN, yPos);
-            yPos += dateLocationHeight;
-        }
-        yPos += SPACE_AFTER_ITEM_DATE_LOCATION;
+            doc.setFontSize(BODY_TEXT_SIZE);
+            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
 
-      } else if (line.startsWith("* ")) { 
-        const bulletText = line.substring(2).trim();
-        yPos += SPACE_BEFORE_FIRST_BULLET;
-        
-        doc.setFont(FONT_FAMILY_SANS, 'normal');
-        doc.setFontSize(BODY_TEXT_SIZE);
-        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        
-        const bulletChar = "\u2022"; 
-        const indent = 15;
-        const splitBulletText = doc.splitTextToSize(bulletText, MAX_TEXT_WIDTH - indent);
-        
-        for (let j = 0; j < splitBulletText.length; j++) {
-            const textLineHeight = doc.getTextDimensions(splitBulletText[j]).h * BULLET_POINT_LEADING_FACTOR;
-            addNewPageIfNeeded(textLineHeight + (j < splitBulletText.length - 1 ? SPACE_BETWEEN_BULLET_LINES : 0));
-            // For vertical centering of bullet with first line of text:
-            const bulletYOffset = (textLineHeight - doc.getTextDimensions(bulletChar).h) / 2 + doc.getTextDimensions(bulletChar).h * 0.1; // Small adjustment
-            if (j === 0) doc.text(bulletChar, MARGIN, yPos + bulletYOffset);
-            doc.text(splitBulletText[j], MARGIN + indent, yPos + bulletYOffset);
-            yPos += textLineHeight + (j < splitBulletText.length - 1 ? SPACE_BETWEEN_BULLET_LINES : 0);
+            const contentLines = doc.splitTextToSize(content, MAX_TEXT_WIDTH - indent);
+            const contentHeight = doc.getTextDimensions(contentLines).h * LINE_SPACING_FACTOR;
+            
+            addNewPageIfNeeded(contentHeight);
+            doc.text(contentLines, MARGIN + indent, yPos);
+            yPos += contentHeight;
         }
-         yPos += BODY_TEXT_SIZE * 0.3; // Tiny space after a full bullet item
-
-      } else if (currentSection === "SUMMARY" || (currentSection === "SKILLS" && !line.startsWith("**")) ) { 
-        doc.setFont(FONT_FAMILY_SANS, 'normal');
-        doc.setFontSize(BODY_TEXT_SIZE);
-        doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-        const textRenderLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-        const textBlockHeight = doc.getTextDimensions(textRenderLines).h * LINE_SPACING_FACTOR_BODY;
-        addNewPageIfNeeded(textBlockHeight);
-        doc.text(textRenderLines, MARGIN, yPos);
-        yPos += textBlockHeight + (BODY_TEXT_SIZE * 0.3); 
-      }
     }
     
-    doc.save('ai_mentor_resume_professional_v4.pdf');
-    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved with refined formatting." });
+    doc.save('ai_mentor_resume_professional.pdf');
+    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved with the new format." });
   };
 
 
