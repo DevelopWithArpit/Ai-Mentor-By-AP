@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay } from 'lucide-react'; // Added UserSquare2, ImagePlay
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -456,156 +456,278 @@ export default function MentorAiPage() {
   };
 
   const handleDownloadResumePdf = () => {
-    if (!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) {
-      toast({ title: "Error", description: "No valid resume text to download.", variant: "destructive" });
-      return;
+    if (!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR")) {
+        toast({ title: "Error", description: "No valid resume data to generate PDF.", variant: "destructive" });
+        return;
     }
-    
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
+
+    const doc = new jsPDF({ unit: "px", format: "a4" });
+    doc.addFont('Helvetica', 'Helvetica', 'normal');
+    doc.addFont('Helvetica', 'Helvetica', 'bold');
+
+    // --- PARSE STRUCTURED TEXT ---
+    const sections: { [key: string]: string } = {};
     const text = resumeFeedback.modifiedResumeText;
-    
-    // --- Style & Spacing Definitions ---
-    const FONT_FAMILY_SANS = "Helvetica"; 
-    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue
-    const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; // Dark Gray
-    const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200];
+    const sectionRegex = /SECTION: ([\s\S]*?)\n([\s\S]*?)\nEND_SECTION/g;
+    let match;
+    while ((match = sectionRegex.exec(text)) !== null) {
+        sections[match[1].trim()] = match[2].trim();
+    }
 
-    const SECTION_HEADER_SIZE = 14;
-    const LABEL_SIZE = 10;
-    const VALUE_SIZE = 10;
-    const BODY_TEXT_SIZE = 10;
-    const LINE_SPACING_FACTOR = 1.4;
-    
-    const MARGIN = 40; // pt
-    const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
-    const SECTION_SPACING = 18;
-    const ITEM_SPACING = 4; // Space between label and value
-    const BULLET_INDENT = 15;
-    const SPACE_AFTER_SECTION_HEADER = 4;
-    const SPACE_AFTER_ITEM_BLOCK = 12;
-
-    let yPos = MARGIN;
-    let inBulletList = false;
-
-    const addNewPageIfNeeded = (neededHeight: number): boolean => {
-      if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
-        doc.addPage();
-        yPos = MARGIN;
-        return true;
-      }
-      return false;
-    };
-
-    const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB) => {
-        addNewPageIfNeeded(thickness + SPACE_AFTER_SECTION_HEADER); 
-        doc.setDrawColor(color[0], color[1], color[2]);
-        doc.setLineWidth(thickness);
-        doc.line(MARGIN, y, doc.internal.pageSize.getWidth() - MARGIN, y);
-        yPos += thickness + SPACE_AFTER_SECTION_HEADER;
-    };
-
-    const lines = text.split('\n');
-
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trim();
-        if (!line) {
-            inBulletList = false; // Reset bullet list on empty line
-            continue;
-        }
-
-        // Check for Section Headers (e.g., "1. Personal Information:")
-        if (line.match(/^\d+\. .*:$/)) {
-            yPos += (yPos > MARGIN + 1 ? SECTION_SPACING : 0);
-            doc.setFont(FONT_FAMILY_SANS, 'bold');
-            doc.setFontSize(SECTION_HEADER_SIZE);
-            doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
-            const headerLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-            const headerHeight = doc.getTextDimensions(headerLines).h;
-            addNewPageIfNeeded(headerHeight + 2);
-            doc.text(headerLines, MARGIN, yPos);
-            yPos += headerHeight;
-            drawDivider(yPos + 1);
-            inBulletList = false;
-            continue;
-        }
-
-        // Check for start of bullet list
-        if (line.endsWith("Achievements:") || line.endsWith("Skills:") || line.endsWith("Description:")) {
-            inBulletList = true;
-            doc.setFont(FONT_FAMILY_SANS, 'bold');
-            doc.setFontSize(LABEL_SIZE);
-            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-            const labelLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-            const labelHeight = doc.getTextDimensions(labelLines).h * LINE_SPACING_FACTOR;
-            addNewPageIfNeeded(labelHeight);
-            doc.text(labelLines, MARGIN, yPos);
-            yPos += labelHeight;
-            continue;
-        }
-
-        // Handle Bullet Points
-        if (inBulletList && line.startsWith("[") && line.endsWith("]")) {
-            const content = `• ${line.substring(1, line.length - 1)}`;
-            doc.setFont(FONT_FAMILY_SANS, 'normal');
-            doc.setFontSize(BODY_TEXT_SIZE);
-            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-            const contentLines = doc.splitTextToSize(content, MAX_TEXT_WIDTH - BULLET_INDENT);
-            const contentHeight = doc.getTextDimensions(contentLines).h * (LINE_SPACING_FACTOR - 0.1);
-            addNewPageIfNeeded(contentHeight);
-            doc.text(contentLines, MARGIN + BULLET_INDENT, yPos);
-            yPos += contentHeight;
-            continue;
-        }
-
-        // Handle labeled content (e.g., "Full Name: John Doe")
-        const splitIndex = line.indexOf(':');
-        if (splitIndex > 0) {
-            const label = line.substring(0, splitIndex + 1);
-            const value = line.substring(splitIndex + 1).trim();
-
-            if (value) {
-                inBulletList = false; // A labeled line resets bullet list mode
-                doc.setFont(FONT_FAMILY_SANS, 'bold');
-                doc.setFontSize(LABEL_SIZE);
-                doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-                const labelWidth = doc.getTextWidth(label);
-                
-                doc.setFont(FONT_FAMILY_SANS, 'normal');
-                doc.setFontSize(VALUE_SIZE);
-                doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-                const valueLines = doc.splitTextToSize(value, MAX_TEXT_WIDTH - labelWidth - ITEM_SPACING);
-                const blockHeight = doc.getTextDimensions(valueLines).h * LINE_SPACING_FACTOR;
-
-                addNewPageIfNeeded(blockHeight);
-                
-                doc.setFont(FONT_FAMILY_SANS, 'bold');
-                doc.text(label, MARGIN, yPos);
-                
-                doc.setFont(FONT_FAMILY_SANS, 'normal');
-                doc.text(valueLines, MARGIN + labelWidth + ITEM_SPACING, yPos);
-                
-                yPos += blockHeight;
-
-                if (label.includes("End Date")) {
-                    yPos += SPACE_AFTER_ITEM_BLOCK;
-                }
+    const parseSection = (sectionContent: string) => {
+        const lines = sectionContent.split('\n').filter(l => l.trim() !== '');
+        const data: { [key: string]: any } = {};
+        lines.forEach(line => {
+            const parts = line.split(':');
+            if (parts.length > 1) {
+                const key = parts[0].trim();
+                const value = parts.slice(1).join(':').trim();
+                data[key] = value;
             }
-        } else { // Handle non-labeled, non-bullet lines (e.g., summary)
-            inBulletList = false;
-            doc.setFont(FONT_FAMILY_SANS, 'normal');
-            doc.setFontSize(BODY_TEXT_SIZE);
-            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-            const contentLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-            const contentHeight = doc.getTextDimensions(contentLines).h * LINE_SPACING_FACTOR;
-            addNewPageIfNeeded(contentHeight);
-            doc.text(contentLines, MARGIN, yPos);
-            yPos += contentHeight;
-        }
+        });
+        return data;
+    };
+    
+    const parseMultiEntrySection = (sectionContent: string, titleKey: string) => {
+        const entryRegex = new RegExp(`^${titleKey}:`, 'm');
+        const entries = sectionContent.split(entryRegex).filter(s => s.trim() !== '');
+        return entries.map(entryText => {
+            const lines = (`${titleKey}:` + entryText).split('\n').filter(l => l.trim() !== '');
+            const data: { [key: string]: any } = { details: [] };
+            let isDetailsSection = false;
+            lines.forEach(line => {
+                if (line.trim().startsWith('-')) {
+                    data.details.push(line.substring(1).trim());
+                    isDetailsSection = false;
+                } else {
+                    const parts = line.split(':');
+                    if (parts.length > 1 && !isDetailsSection) {
+                        const key = parts[0].trim();
+                        const value = parts.slice(1).join(':').trim();
+                        data[key] = value;
+                        if (key === 'details') {
+                            isDetailsSection = true;
+                            // in case details are on the same line
+                            if(value) data.details.push(value);
+                        }
+                    }
+                }
+            });
+            return data;
+        });
+    };
+
+    const personalInfo = sections.PERSONAL_INFO ? parseSection(sections.PERSONAL_INFO) : {};
+    const summary = sections.SUMMARY || '';
+    const keyAchievements = sections.KEY_ACHIEVEMENTS ? parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, 'title')[0] : null;
+    const experience = sections.EXPERIENCE ? parseMultiEntrySection(sections.EXPERIENCE, 'title') : [];
+    const education = sections.EDUCATION ? parseMultiEntrySection(sections.EDUCATION, 'degree') : [];
+    const projects = sections.PROJECTS ? parseMultiEntrySection(sections.PROJECTS, 'title') : [];
+    const skillsStr = sections.SKILLS ? (parseSection(sections.SKILLS).skills || '') : '';
+    const skills = skillsStr ? skillsStr.split(',').map((s:string) => s.trim()) : [];
+    
+    // --- RENDER PDF ---
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    const MARGIN = 40;
+    const COL_GAP = 20;
+    const LEFT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.65;
+    const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
+    const RIGHT_COL_WIDTH = PAGE_WIDTH - RIGHT_COL_X - MARGIN;
+    const FONT_NAME = 'Helvetica';
+    const COLOR_PRIMARY = '#1e90ff'; // DodgerBlue
+    const COLOR_TEXT_DARK = '#000000';
+    const COLOR_TEXT_MEDIUM = '#555555';
+    const LINE_HEIGHT_RATIO = 1.4;
+
+    let yLeft = MARGIN;
+    let yRight = MARGIN;
+
+    // --- HELPER FUNCTIONS ---
+    const renderWrappedText = (text: string, x: number, y: number, maxWidth: number, options: { fontSize: number, fontStyle?: 'normal' | 'bold', color?: string, lineHeight?: number, icon?: React.FC<{className?:string}>, iconText?: string }): number => {
+      doc.setFont(FONT_NAME, options.fontStyle || 'normal');
+      doc.setFontSize(options.fontSize);
+      doc.setTextColor(options.color || COLOR_TEXT_MEDIUM);
+      let currentX = x;
+
+      if(options.icon && options.iconText) {
+        // This part needs a way to render Lucide icons to PDF, which is non-trivial.
+        // As a fallback, we'll use unicode characters or simple text.
+        let iconUnicode = '';
+        if(options.icon.displayName?.includes('Phone')) iconUnicode = '📞';
+        else if (options.icon.displayName?.includes('Mail')) iconUnicode = '✉️';
+        else if (options.icon.displayName?.includes('Linkedin')) iconUnicode = '🔗';
+        else if (options.icon.displayName?.includes('MapPin')) iconUnicode = '📍';
+        else if (options.icon.displayName?.includes('Calendar')) iconUnicode = '🗓️';
+        
+        const iconText = `${iconUnicode} ${options.iconText}`;
+        doc.text(iconText, currentX, y);
+        currentX += doc.getTextWidth(iconText) + 8;
+      } else {
+         const lines = doc.splitTextToSize(text, maxWidth);
+         doc.text(lines, x, y);
+         return doc.getTextDimensions(lines).h * (options.lineHeight || 1);
+      }
+      return 0; // for icon case
+    };
+    
+    // --- HEADER ---
+    doc.setFont(FONT_NAME, 'bold');
+    doc.setFontSize(32);
+    doc.setTextColor(COLOR_TEXT_DARK);
+    doc.text(personalInfo.name || '[Full Name]', MARGIN, yLeft);
+    yLeft += 20;
+
+    doc.setFont(FONT_NAME, 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(COLOR_PRIMARY);
+    doc.text(personalInfo.title || '[Professional Title]', MARGIN, yLeft);
+    yLeft += 15;
+
+    // Contact info line
+    let contactX = MARGIN;
+    doc.setFontSize(9);
+    doc.setTextColor(COLOR_TEXT_MEDIUM);
+    const contactItems = [
+      { text: personalInfo.phone, icon: Phone},
+      { text: personalInfo.email, icon: AtSign },
+      { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin}`: '', icon: Linkedin },
+      { text: personalInfo.location, icon: MapPin }
+    ].filter(item => item.text);
+
+    contactItems.forEach((item, index) => {
+      renderWrappedText('', contactX, yLeft, 0, { fontSize: 9, icon: item.icon, iconText: item.text });
+      contactX += doc.getTextWidth(item.text!) + 25;
+    });
+    yLeft += 20;
+    
+    // Initials Circle
+    const CIRCLE_DIA = 50;
+    doc.setFillColor(COLOR_PRIMARY);
+    doc.circle(PAGE_WIDTH - MARGIN - (CIRCLE_DIA/2), MARGIN + 5, CIRCLE_DIA/2, 'F');
+    doc.setFontSize(22);
+    doc.setTextColor('#FFFFFF');
+    doc.setFont(FONT_NAME, 'bold');
+    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("");
+    doc.text(initials, PAGE_WIDTH - MARGIN - (CIRCLE_DIA/2), MARGIN + 9, { align: 'center'});
+    
+    yRight = MARGIN + CIRCLE_DIA + 15;
+
+    // --- RENDER SECTIONS ---
+    const renderSectionTitle = (title: string, x: number, y: number): number => {
+      doc.setFont(FONT_NAME, 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(COLOR_TEXT_DARK);
+      doc.text(title.toUpperCase(), x, y);
+      const titleWidth = doc.getTextWidth(title);
+      doc.setDrawColor(COLOR_TEXT_DARK);
+      doc.setLineWidth(1.5);
+      doc.line(x, y + 4, x + titleWidth, y + 4);
+      return y + 20;
+    };
+    
+    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number): number => {
+        let currentY = y;
+        bullets.forEach(bullet => {
+            doc.setFontSize(16);
+            doc.setTextColor(COLOR_PRIMARY);
+            doc.text("•", x, currentY);
+            
+            doc.setFontSize(9);
+            doc.setTextColor(COLOR_TEXT_MEDIUM);
+            const textX = x + 8;
+            const textMaxWidth = maxWidth - 8;
+            const lines = doc.splitTextToSize(bullet, textMaxWidth);
+            doc.text(lines, textX, currentY);
+            currentY += doc.getTextDimensions(lines).h * LINE_HEIGHT_RATIO;
+        });
+        return currentY;
+    };
+
+    // --- LEFT COLUMN ---
+    if (summary) {
+        yLeft = renderSectionTitle('Summary', MARGIN, yLeft);
+        const height = renderWrappedText(summary, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 9, lineHeight: LINE_HEIGHT_RATIO });
+        yLeft += height + 15;
+    }
+
+    if (experience.length > 0) {
+        yLeft = renderSectionTitle('Experience', MARGIN, yLeft);
+        experience.forEach(exp => {
+            let height = renderWrappedText(exp.title, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+            yLeft += height;
+            height = renderWrappedText(exp.company, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 10, color: COLOR_PRIMARY });
+            yLeft += height + 2;
+            
+            const dateLocHeight = renderWrappedText(`${exp.date} | ${exp.location}`, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 8 });
+            yLeft += dateLocHeight + 5;
+            
+            yLeft = renderBulletList(exp.details, MARGIN, yLeft, LEFT_COL_WIDTH);
+            yLeft += 15;
+        });
+    }
+
+    if (education.length > 0) {
+        yLeft = renderSectionTitle('Education', MARGIN, yLeft);
+        education.forEach(edu => {
+             let height = renderWrappedText(edu.degree, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+             yLeft += height;
+             height = renderWrappedText(edu.institution, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 10, color: COLOR_PRIMARY });
+             yLeft += height + 2;
+             const dateLocHeight = renderWrappedText(`${edu.date} | ${edu.location}`, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 8 });
+             yLeft += dateLocHeight + 15;
+        });
+    }
+
+    // --- RIGHT COLUMN ---
+    if (keyAchievements) {
+        yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight);
+        const height = renderWrappedText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+        yRight += height + 5;
+        yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+        yRight += 15;
     }
     
-    doc.save('ai_mentor_resume_professional.pdf');
-    toast({ title: "Professional Resume PDF Downloaded", description: "Your resume has been saved with the new format." });
-  };
+    if (skills.length > 0) {
+        yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight);
+        let currentX = RIGHT_COL_X;
+        let currentY = yRight;
+        const skillPadding = 6;
+        const skillMargin = 5;
+        doc.setFontSize(9);
+        doc.setFont(FONT_NAME, 'normal');
+
+        skills.forEach(skill => {
+            const textWidth = doc.getTextWidth(skill);
+            const skillWidth = textWidth + skillPadding * 2;
+            if (currentX + skillWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
+                currentX = RIGHT_COL_X;
+                currentY += 12 + skillMargin;
+            }
+            doc.setDrawColor(COLOR_TEXT_MEDIUM);
+            doc.setTextColor(COLOR_TEXT_MEDIUM);
+            doc.roundedRect(currentX, currentY - 9, skillWidth, 12, 2, 2, 'S');
+            doc.text(skill, currentX + skillPadding, currentY);
+            currentX += skillWidth + skillMargin;
+        });
+        yRight = currentY + 15;
+    }
+
+    if (projects.length > 0) {
+        yRight = renderSectionTitle('Projects', RIGHT_COL_X, yRight);
+        projects.forEach(proj => {
+            let height = renderWrappedText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+            yRight += height;
+            const dateHeight = renderWrappedText(proj.date, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 8 });
+            yRight += dateHeight + 5;
+            yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+            yRight += 15;
+        });
+    }
+
+
+    doc.save('ai_mentor_resume.pdf');
+    toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
+};
 
 
   const handleResetResumeImprover = () => {
@@ -1340,8 +1462,8 @@ export default function MentorAiPage() {
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
                                 <div>
                                     <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
-                                        <h4 className="font-semibold text-foreground">{resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read") ? "Message:" : "AI-Generated/Modified Resume:"}</h4>
-                                        {!(resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) && (
+                                        <h4 className="font-semibold text-foreground">{resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? "Message:" : "AI-Generated/Modified Resume:"}</h4>
+                                        {!resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") && (
                                         <div className="flex gap-2">
                                             <Button
                                                 variant="ghost"
@@ -1383,7 +1505,7 @@ export default function MentorAiPage() {
                                   </div>
                                 )}
 
-                                {resumeFeedback.feedbackItems && resumeFeedback.feedbackItems.length > 0 && !(resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) && (
+                                {resumeFeedback.feedbackItems && resumeFeedback.feedbackItems.length > 0 && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") && (
                                 <div>
                                     <h4 className="font-semibold mb-2 text-foreground">Feedback &amp; Analysis:</h4>
                                     <p className="text-sm mb-3 p-3 bg-background/50 rounded-md"><strong>Overall Assessment:</strong> {resumeFeedback.overallAssessment}</p>
@@ -1405,7 +1527,7 @@ export default function MentorAiPage() {
                                     </Accordion>
                                 </div>
                                 )}
-                                {resumeFeedback.linkedinProfileSuggestions && !(resumeFeedback.modifiedResumeText.startsWith("Insufficient details") || resumeFeedback.modifiedResumeText.startsWith("The uploaded document could not be read")) && (
+                                {resumeFeedback.linkedinProfileSuggestions && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") && (
                                     <div className="mt-4">
                                         <h4 className="font-semibold text-foreground mb-2 flex items-center">
                                             <Linkedin className="mr-2 h-5 w-5 text-blue-700 dark:text-blue-500" />
