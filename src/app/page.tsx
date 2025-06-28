@@ -450,8 +450,7 @@ export default function MentorAiPage() {
     const parseSimpleSection = (content: string | undefined) => {
         if (!content) return {};
         const data: { [key: string]: any } = {};
-        const lines = content.split('\n');
-        lines.forEach(line => {
+        content.split('\n').forEach(line => {
             const parts = line.split(':');
             if (parts.length > 1) {
                 const key = parts[0].trim();
@@ -461,48 +460,36 @@ export default function MentorAiPage() {
         });
         return data;
     };
-
+    
+    // New, more robust parser for multi-entry sections
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent || sectionContent.trim() === '') return [];
-        
-        const entries: any[] = [];
-        let currentEntry: any = null;
-        const lines = sectionContent.split('\n');
 
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            const isNewEntry = trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:');
+        const entryBlocks = sectionContent.split(/\n(?=title:|degree:)/).filter(block => block.trim() !== '');
 
-            if (isNewEntry) {
-                if (currentEntry) {
-                    entries.push(currentEntry);
-                }
-                currentEntry = { details: [] };
-            }
+        const entries = entryBlocks.map(block => {
+            const entry: any = { details: [] };
+            const lines = block.trim().split('\n');
 
-            if (!currentEntry) {
-                continue; 
-            }
-
-            if (trimmedLine.startsWith('-')) {
-                currentEntry.details.push(trimmedLine.substring(1).trim());
-            } else {
-                const parts = trimmedLine.split(':');
-                if (parts.length > 1) {
-                    const key = parts[0].trim().toLowerCase();
-                    const value = parts.slice(1).join(':').trim();
-                    if (key) {
-                        currentEntry[key] = value;
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('-')) {
+                    entry.details.push(trimmedLine.substring(1).trim());
+                } else {
+                    const parts = trimmedLine.split(':');
+                    if (parts.length > 1) {
+                        const key = parts[0].trim().toLowerCase();
+                        const value = parts.slice(1).join(':').trim();
+                        if (key) {
+                            entry[key] = value;
+                        }
                     }
                 }
-            }
-        }
+            });
+            return entry;
+        });
 
-        if (currentEntry && (currentEntry.title || currentEntry.degree)) {
-            entries.push(currentEntry);
-        }
-
-        return entries;
+        return entries.filter(e => e.title || e.degree); // Ensure only valid entries are returned
     };
 
 
@@ -750,18 +737,16 @@ export default function MentorAiPage() {
     if (contactItems.length > 0) {
         yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRightInitial, false);
         doc.setFontSize(9);
+        doc.setFont(FONT_NAME, 'normal');
         contactItems.forEach(item => {
-            let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(item.label) - 5);
+            const contactLine = `${item.label} ${item.value}`;
+            let valueLines = doc.splitTextToSize(contactLine, RIGHT_COL_WIDTH);
             let height = doc.getTextDimensions(valueLines).h;
             
             yRight = checkPageBreak(yRight, height);
 
-            doc.setFont(FONT_NAME, 'bold');
-            doc.text(item.label, RIGHT_COL_X, yRight);
-            
-            doc.setFont(FONT_NAME, 'normal');
             doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
-            doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(item.label) + 2, yRight);
+            doc.text(valueLines, RIGHT_COL_X, yRight);
 
             yRight += height + 5;
         });
@@ -2168,3 +2153,5 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
+    
