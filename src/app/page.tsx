@@ -486,7 +486,7 @@ export default function MentorAiPage() {
         });
         return data;
     };
-
+    
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent) return [];
         const entries: any[] = [];
@@ -517,7 +517,14 @@ export default function MentorAiPage() {
                 if (parts.length > 1) {
                     const key = parts[0].trim().toLowerCase();
                     const value = parts.slice(1).join(':').trim();
-                    currentEntry[key] = value;
+                    if (key === 'details') {
+                        const detailValue = value.trim().startsWith('-') ? value.trim().substring(1).trim() : value.trim();
+                        if (detailValue) {
+                           currentEntry.details.push(detailValue);
+                        }
+                    } else {
+                       currentEntry[key] = value;
+                    }
                 }
             }
         }
