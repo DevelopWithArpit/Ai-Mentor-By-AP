@@ -7,14 +7,16 @@ import { FileUpload } from '@/components/scholar-ai/FileUpload';
 import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
+import ResumePreview from '@/components/resume/ResumePreview';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -156,6 +158,8 @@ export default function MentorAiPage() {
   const [resumeAdditionalInfo, setResumeAdditionalInfo] = useState<string>('');
   const [resumeFeedback, setResumeFeedback] = useState<ResumeFeedbackOutput | null>(null);
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
+  const [parsedResumeData, setParsedResumeData] = useState<any | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
   const [coverLetterUserInfo, setCoverLetterUserInfo] = useState<string>('');
@@ -432,39 +436,7 @@ export default function MentorAiPage() {
     finally { setIsGeneratingInterviewQuestions(false); }
   };
 
-  const handleGetResumeFeedback = async () => {
-    const hasFile = !!resumeFile;
-    const hasText = !!resumeText.trim();
-    const hasAdditionalInfo = !!resumeAdditionalInfo.trim();
-
-    if (!hasFile && !hasText && !hasAdditionalInfo) { 
-      toast({ title: "Input Required", description: "Please upload/paste a resume OR provide details for AI to create one.", variant: "destructive" }); return; 
-    }
-    setIsGeneratingResumeFeedback(true); setResumeFeedback(null);
-    try {
-      const dataUriForFlow = resumeFile ? await fileToDataUri(resumeFile) : undefined;
-      const result = await getResumeFeedback({ 
-        resumeDataUri: dataUriForFlow,
-        resumeText: resumeText || undefined, 
-        targetJobRole: resumeTargetJobRole || undefined,
-        additionalInformation: resumeAdditionalInfo || undefined 
-      });
-      setResumeFeedback(result);
-      toast({ title: "Resume Assistant Complete!", description: "Your resume feedback/creation and LinkedIn suggestions are ready." });
-    } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
-    finally { setIsGeneratingResumeFeedback(false); }
-  };
-
-  const handleDownloadResumePdf = () => {
-    if (!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR")) {
-        toast({ title: "Error", description: "No valid resume data to generate PDF.", variant: "destructive" });
-        return;
-    }
-
-    const doc = new jsPDF({ unit: "px", format: "a4" });
-    const text = resumeFeedback.modifiedResumeText;
-
-    // --- PARSERS ---
+  const parseResumeData = (text: string) => {
     const sections: { [key: string]: string } = {};
     const sectionRegex = /SECTION: ([\s\S]*?)\n([\s\S]*?)\nEND_SECTION/g;
     let match;
@@ -486,62 +458,91 @@ export default function MentorAiPage() {
         });
         return data;
     };
-    
+
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
-        if (!sectionContent) return [];
-        const entries: any[] = [];
-        let currentEntry: any = null;
+        if (!sectionContent?.trim()) return [];
+        const entryBlocks = sectionContent.split(/\n(?=title:|degree:)/);
 
-        const lines = sectionContent.split('\n');
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-
-            const isNewEntry = /(^title:|^degree:)/.test(trimmedLine);
+        const entries = entryBlocks.map(block => {
+            if (!block.trim()) return null;
+            const entry: any = { details: [] };
+            const lines = block.trim().split('\n');
             
-            if (isNewEntry) {
-                if (currentEntry) {
-                    entries.push(currentEntry);
-                }
-                currentEntry = { details: [] };
-            }
-            
-            if (!currentEntry) {
-                 currentEntry = { details: [] };
-            }
-
-            if (trimmedLine.startsWith('-')) {
-                currentEntry.details.push(trimmedLine.substring(1).trim());
-            } else {
-                const parts = trimmedLine.split(':');
-                if (parts.length > 1) {
-                    const key = parts[0].trim().toLowerCase();
-                    const value = parts.slice(1).join(':').trim();
-                    if (key === 'details') {
-                        const detailValue = value.trim().startsWith('-') ? value.trim().substring(1).trim() : value.trim();
-                        if (detailValue) {
-                           currentEntry.details.push(detailValue);
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+                
+                if (trimmedLine.startsWith('-')) {
+                    entry.details.push(trimmedLine.substring(1).trim());
+                } else {
+                    const parts = trimmedLine.split(':');
+                    if (parts.length > 1) {
+                        const key = parts[0].trim().toLowerCase();
+                        const value = parts.slice(1).join(':').trim();
+                        if (key === 'details') {
+                            const detailValue = value.trim().startsWith('-') ? value.trim().substring(1).trim() : value.trim();
+                            if (detailValue) entry.details.push(detailValue);
+                        } else {
+                           entry[key] = value;
                         }
-                    } else {
-                       currentEntry[key] = value;
                     }
                 }
             }
-        }
-        if (currentEntry && (currentEntry.title || currentEntry.degree || (currentEntry.details && currentEntry.details.length > 0))) {
-            entries.push(currentEntry);
-        }
+            return entry;
+        }).filter(e => e && (e.title || e.degree));
+
         return entries;
     };
 
     const personalInfo = parseSection(sections.PERSONAL_INFO);
     const summary = sections.SUMMARY || '';
-    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0];
+    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0] || { details: [] };
     const experience = parseMultiEntrySection(sections.EXPERIENCE);
     const education = parseMultiEntrySection(sections.EDUCATION);
     const projects = parseMultiEntrySection(sections.PROJECTS);
     const skillsStr = parseSection(sections.SKILLS)?.skills || '';
     const skills = skillsStr ? skillsStr.split(',').map((s: string) => s.trim()) : [];
+
+    return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
+  }
+
+  const handleGetResumeFeedback = async () => {
+    const hasFile = !!resumeFile;
+    const hasText = !!resumeText.trim();
+    const hasAdditionalInfo = !!resumeAdditionalInfo.trim();
+
+    if (!hasFile && !hasText && !hasAdditionalInfo) { 
+      toast({ title: "Input Required", description: "Please upload/paste a resume OR provide details for AI to create one.", variant: "destructive" }); return; 
+    }
+    setIsGeneratingResumeFeedback(true); 
+    setResumeFeedback(null);
+    setParsedResumeData(null);
+    try {
+      const dataUriForFlow = resumeFile ? await fileToDataUri(resumeFile) : undefined;
+      const result = await getResumeFeedback({ 
+        resumeDataUri: dataUriForFlow,
+        resumeText: resumeText || undefined, 
+        targetJobRole: resumeTargetJobRole || undefined,
+        additionalInformation: resumeAdditionalInfo || undefined 
+      });
+      setResumeFeedback(result);
+      if (result?.modifiedResumeText && !result.modifiedResumeText.includes("SECTION: ERROR")) {
+        const data = parseResumeData(result.modifiedResumeText);
+        setParsedResumeData(data);
+      }
+      toast({ title: "Resume Assistant Complete!", description: "Your resume feedback/creation and LinkedIn suggestions are ready." });
+    } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
+    finally { setIsGeneratingResumeFeedback(false); }
+  };
+
+  const handleDownloadResumePdf = () => {
+    if (!parsedResumeData) {
+        toast({ title: "Error", description: "No resume data to generate PDF. Please generate feedback first.", variant: "destructive" });
+        return;
+    }
+
+    const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = parsedResumeData;
+    const doc = new jsPDF({ unit: "px", format: "a4" });
 
     // --- RENDER CONFIG ---
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
@@ -615,7 +616,6 @@ export default function MentorAiPage() {
         entries.forEach(entry => {
             if (!entry.title && !entry.degree) return;
             
-            // Render
             doc.setFont(FONT_NAME, 'bold');
             doc.setFontSize(11);
             doc.setTextColor(COLOR_TEXT_DARK);
@@ -640,6 +640,7 @@ export default function MentorAiPage() {
                 let dateLocText = entry.date;
                 if (entry.location) dateLocText += ` | ${entry.location}`;
                 doc.setFontSize(8);
+                doc.setTextColor(COLOR_TEXT_MEDIUM);
                 lines = doc.splitTextToSize(dateLocText, colWidth);
                 height = doc.getTextDimensions(lines).h;
                 currentY = checkPageBreak(currentY, height);
@@ -654,7 +655,6 @@ export default function MentorAiPage() {
         });
         return currentY;
     };
-
 
     // --- HEADER ---
     doc.setFont(FONT_NAME, 'bold');
@@ -703,7 +703,6 @@ export default function MentorAiPage() {
     // --- RENDER RIGHT COLUMN ---
     doc.setPage(1);
     
-    // Contact
     yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRight);
     const contactItems = [
         { label: 'Phone', value: personalInfo.phone },
@@ -722,6 +721,7 @@ export default function MentorAiPage() {
         doc.text(`${item.label}:`, RIGHT_COL_X, yRight);
         
         doc.setFont(FONT_NAME, 'normal');
+        doc.setTextColor(COLOR_TEXT_MEDIUM);
         let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(`${item.label}: `) - 5);
         doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(`${item.label}: `) + 2, yRight);
 
@@ -734,7 +734,7 @@ export default function MentorAiPage() {
         yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
     }
     
-    if (keyAchievements) {
+    if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
         yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight);
         if (keyAchievements.title) {
           doc.setFont(FONT_NAME, 'bold');
@@ -793,6 +793,7 @@ export default function MentorAiPage() {
     setResumeAdditionalInfo('');
     setResumeFeedback(null);
     setIsGeneratingResumeFeedback(false);
+    setParsedResumeData(null);
     toast({ title: "Cleared", description: "Resume Assistant form and results have been cleared." });
   };
 
@@ -1507,6 +1508,11 @@ export default function MentorAiPage() {
                                 {isGeneratingResumeFeedback && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
                                 {resumeButtonText}
                             </Button>
+                             {parsedResumeData && (
+                                <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
+                                    <Eye className="mr-2 h-4 w-4" /> Preview Resume
+                                </Button>
+                            )}
                             <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
                                 <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
                             </Button>
@@ -1533,7 +1539,7 @@ export default function MentorAiPage() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={handleDownloadResumePdf}
-                                                disabled={isGeneratingResumeFeedback}
+                                                disabled={isGeneratingResumeFeedback || !parsedResumeData}
                                             >
                                                 <Download className="mr-2 h-4 w-4" /> Download PDF
                                             </Button>
@@ -2088,14 +2094,11 @@ export default function MentorAiPage() {
       <footer className="text-center p-4 text-muted-foreground text-sm border-t border-border/50 bg-card">
         © {new Date().getFullYear()} AI Mentor By AP. Empowering students, creators, and professionals with AI.
       </footer>
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
+          {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
- 
-    
-
-
-
-    
-
-    
