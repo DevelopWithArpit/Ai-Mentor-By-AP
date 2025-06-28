@@ -462,20 +462,20 @@ export default function MentorAiPage() {
     }
 
     const doc = new jsPDF({ unit: "px", format: "a4" });
-    
-    // --- PARSE STRUCTURED TEXT ---
-    const sections: { [key: string]: string } = {};
     const text = resumeFeedback.modifiedResumeText;
+
+    // --- PARSERS ---
+    const sections: { [key: string]: string } = {};
     const sectionRegex = /SECTION: ([\s\S]*?)\n([\s\S]*?)\nEND_SECTION/g;
     let match;
     while ((match = sectionRegex.exec(text)) !== null) {
         sections[match[1].trim()] = match[2].trim();
     }
 
-    const parseSection = (sectionContent: string) => {
+    const parseSection = (sectionContent: string | undefined) => {
         if (!sectionContent) return {};
-        const lines = sectionContent.split('\n').filter(l => l.trim() !== '');
         const data: { [key: string]: any } = {};
+        const lines = sectionContent.split('\n').filter(l => l.trim() !== '');
         lines.forEach(line => {
             const parts = line.split(':');
             if (parts.length > 1) {
@@ -486,51 +486,57 @@ export default function MentorAiPage() {
         });
         return data;
     };
-    
-    const parseMultiEntrySection = (sectionContent: string) => {
+
+    const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent) return [];
-        const entryChunks = sectionContent.split(/(?=title:|degree:)/).filter(chunk => chunk.trim() !== "");
+        const entries: any[] = [];
+        let currentEntry: any = null;
 
-        return entryChunks.map(chunk => {
-            const lines = chunk.trim().split('\n');
-            const entry: any = { details: [] };
+        const lines = sectionContent.split('\n');
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
 
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                if (trimmedLine.startsWith('-')) {
-                    entry.details.push(trimmedLine.substring(1).trim());
-                    return; 
+            const isNewEntry = /(^title:|^degree:)/.test(trimmedLine);
+            
+            if (isNewEntry) {
+                if (currentEntry) {
+                    entries.push(currentEntry);
                 }
+                currentEntry = { details: [] };
+            }
+            
+            if (!currentEntry) {
+                continue;
+            }
 
+            if (trimmedLine.startsWith('-')) {
+                currentEntry.details.push(trimmedLine.substring(1).trim());
+            } else {
                 const parts = trimmedLine.split(':');
                 if (parts.length > 1) {
                     const key = parts[0].trim().toLowerCase();
                     const value = parts.slice(1).join(':').trim();
-
-                    if (key === 'details') {
-                        if (value.startsWith('-')) { 
-                            entry.details.push(value.substring(1).trim());
-                        }
-                    } 
-                    else {
-                        entry[key] = value;
-                    }
+                    currentEntry[key] = value;
                 }
-            });
-            return entry;
-        });
+            }
+        }
+        if (currentEntry && (currentEntry.title || currentEntry.degree)) {
+            entries.push(currentEntry);
+        }
+        return entries;
     };
 
-    const personalInfo = sections.PERSONAL_INFO ? parseSection(sections.PERSONAL_INFO) : {};
+    const personalInfo = parseSection(sections.PERSONAL_INFO);
     const summary = sections.SUMMARY || '';
-    const keyAchievements = sections.KEY_ACHIEVEMENTS ? parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0] : null;
-    const experience = sections.EXPERIENCE ? parseMultiEntrySection(sections.EXPERIENCE) : [];
-    const education = sections.EDUCATION ? parseMultiEntrySection(sections.EDUCATION) : [];
-    const projects = sections.PROJECTS ? parseMultiEntrySection(sections.PROJECTS) : [];
-    const skillsStr = sections.SKILLS ? (parseSection(sections.SKILLS).skills || '') : '';
-    const skills = skillsStr ? skillsStr.split(',').map((s:string) => s.trim()) : [];
-    
-    // --- RENDER PDF ---
+    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0];
+    const experience = parseMultiEntrySection(sections.EXPERIENCE);
+    const education = parseMultiEntrySection(sections.EDUCATION);
+    const projects = parseMultiEntrySection(sections.PROJECTS);
+    const skillsStr = parseSection(sections.SKILLS)?.skills || '';
+    const skills = skillsStr ? skillsStr.split(',').map((s: string) => s.trim()) : [];
+
+    // --- RENDER CONFIG ---
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const MARGIN = 40;
@@ -546,112 +552,49 @@ export default function MentorAiPage() {
 
     let yLeft = MARGIN;
     let yRight = MARGIN;
+    
     let currentPage = 1;
-
-    const checkPageBreak = (currentY: number, neededHeight: number, isLeftColumn: boolean) => {
+    const checkPageBreak = (currentY: number, neededHeight: number) => {
         if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
-            if (isLeftColumn) {
-                // If left column breaks, switch to drawing on the right column of the same page
-                if (yRight + neededHeight <= PAGE_HEIGHT - MARGIN) {
-                    return yRight; // Return Y position for right column
-                }
-            }
-            // If right column would also break, or if it was already the right column, add a new page.
             doc.addPage();
             currentPage++;
-            yLeft = MARGIN;
-            yRight = MARGIN;
-            return MARGIN; // Return top margin of new page
+            return MARGIN;
         }
         return currentY;
     };
-
-    const renderWrappedText = (text: string, x: number, y: number, maxWidth: number, options: { fontSize: number, fontStyle?: 'normal' | 'bold', color?: string }): number => {
-      doc.setFont(FONT_NAME, options.fontStyle || 'normal');
-      doc.setFontSize(options.fontSize);
-      doc.setTextColor(options.color || COLOR_TEXT_MEDIUM);
-      const lines = doc.splitTextToSize(text, maxWidth);
-      doc.text(lines, x, y);
-      return doc.getTextDimensions(lines).h;
+    
+    // --- RENDER HELPERS ---
+    const renderSectionTitle = (title: string, x: number, y: number) => {
+        const newY = checkPageBreak(y, 25);
+        doc.setFont(FONT_NAME, 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(COLOR_TEXT_DARK);
+        doc.text(title.toUpperCase(), x, newY);
+        const titleWidth = doc.getTextWidth(title);
+        doc.setDrawColor(COLOR_TEXT_DARK);
+        doc.setLineWidth(1.5);
+        doc.line(x, newY + 4, x + titleWidth, newY + 4);
+        return newY + 25;
     };
-    
-    // --- HEADER ---
-    yLeft += renderWrappedText(personalInfo.name || '[Full Name]', MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 32, fontStyle: 'bold', color: COLOR_TEXT_DARK });
-    yLeft += 5;
 
-    yLeft += renderWrappedText(personalInfo.title || '[Professional Title]', MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 12, color: COLOR_PRIMARY });
-    yLeft += 15;
-
-    let contactX = MARGIN;
-    doc.setFontSize(9);
-    doc.setTextColor(COLOR_TEXT_MEDIUM);
-    const contactItems = [
-      { text: personalInfo.phone, icon: Phone, unicode: '📞' },
-      { text: personalInfo.email, icon: AtSign, unicode: '✉️' },
-      { text: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}`: '', icon: Linkedin, unicode: '🔗' },
-      { text: personalInfo.location, icon: MapPin, unicode: '📍' }
-    ].filter(item => item.text);
-
-    contactItems.forEach((item) => {
-      const fullText = `${item.unicode} ${item.text}`;
-      const textWidth = doc.getTextWidth(fullText);
-      if (contactX + textWidth > MARGIN + LEFT_COL_WIDTH) {
-          yLeft += 15;
-          contactX = MARGIN;
-      }
-      doc.text(fullText, contactX, yLeft);
-      contactX += textWidth + 15;
-    });
-    yLeft += 20;
-    
-    const CIRCLE_DIA = 50;
-    const headerRightX = PAGE_WIDTH - MARGIN - (CIRCLE_DIA/2);
-    doc.setFillColor(COLOR_PRIMARY);
-    doc.circle(headerRightX, MARGIN + 10, CIRCLE_DIA/2, 'F');
-    doc.setFontSize(22);
-    doc.setTextColor('#FFFFFF');
-    doc.setFont(FONT_NAME, 'bold');
-    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
-    doc.text(initials, headerRightX, MARGIN + 14, { align: 'center'});
-    
-    yRight = MARGIN + CIRCLE_DIA + 20;
-
-    // --- RENDER SECTIONS ---
-    const renderSectionTitle = (title: string, x: number, y: number): number => {
-      doc.setFont(FONT_NAME, 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(COLOR_TEXT_DARK);
-      const titleY = y + 5;
-      doc.text(title.toUpperCase(), x, titleY);
-      const titleWidth = doc.getTextWidth(title);
-      doc.setDrawColor(COLOR_TEXT_DARK);
-      doc.setLineWidth(1.5);
-      doc.line(x, titleY + 4, x + titleWidth, titleY + 4);
-      return y + 25;
-    };
-    
-    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number): number => {
+    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number) => {
         let currentY = y;
         bullets.forEach(bullet => {
             if (!bullet) return;
             const textX = x + 15;
             const textMaxWidth = maxWidth - 15;
+
+            doc.setFontSize(9);
+            doc.setTextColor(COLOR_TEXT_MEDIUM);
+            const lines = doc.splitTextToSize(bullet, textMaxWidth);
+            const textHeight = doc.getTextDimensions(lines).h;
+            
+            currentY = checkPageBreak(currentY, textHeight);
             
             doc.setFontSize(16);
             doc.setTextColor(COLOR_PRIMARY);
-            
-            const lines = doc.splitTextToSize(bullet, textMaxWidth);
-            const textHeight = doc.getTextDimensions(lines).h;
-
-            if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
-                 doc.addPage();
-                 currentPage++;
-                 currentY = MARGIN;
-                 // Redraw title if needed, complex logic for now just reset y
-            }
-
             doc.text("•", x, currentY);
-            
+
             doc.setFontSize(9);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
             doc.text(lines, textX, currentY);
@@ -659,82 +602,140 @@ export default function MentorAiPage() {
         });
         return currentY;
     };
-
-    // --- LEFT COLUMN FIRST ---
-    if (summary) {
-        yLeft = renderSectionTitle('Summary', MARGIN, yLeft);
-        const height = renderWrappedText(summary, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 9 });
-        yLeft += (height * LINE_HEIGHT_RATIO) + 15;
-    }
     
-    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number): number => {
+    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number) => {
         let currentY = startY;
         entries.forEach(entry => {
             if (!entry.title && !entry.degree) return;
-
-            let entryHeight = 0;
-            const titleHeight = renderWrappedText(entry.title || entry.degree, 0, -999, colWidth, { fontSize: 11, fontStyle: 'bold' });
-            entryHeight += titleHeight;
-
-            const companyHeight = (entry.company || entry.institution) ? renderWrappedText(entry.company || entry.institution, 0, -999, colWidth, { fontSize: 10 }) : 0;
-            entryHeight += companyHeight + 2;
-
-            const dateLocHeight = entry.date ? renderWrappedText(entry.date, 0, -999, colWidth, { fontSize: 8 }) : 0;
-            entryHeight += dateLocHeight + 8;
             
-            let detailsHeight = 0;
-            if (entry.details && entry.details.length > 0) {
-              entry.details.forEach((d: string) => {
-                detailsHeight += renderWrappedText(d, 0, -999, colWidth - 15, { fontSize: 9 }) * LINE_HEIGHT_RATIO;
-              });
-            }
-            entryHeight += detailsHeight;
-            
-            if (currentY + entryHeight > PAGE_HEIGHT - MARGIN) {
-                doc.addPage();
-                currentPage++;
-                currentY = MARGIN;
-            }
-
-            let height = renderWrappedText(entry.title || entry.degree, colX, currentY, colWidth, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+            // Render
+            doc.setFont(FONT_NAME, 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(COLOR_TEXT_DARK);
+            let lines = doc.splitTextToSize(entry.title || entry.degree, colWidth);
+            let height = doc.getTextDimensions(lines).h;
+            currentY = checkPageBreak(currentY, height);
+            doc.text(lines, colX, currentY);
             currentY += height;
 
-            if(entry.company || entry.institution) {
-                height = renderWrappedText(entry.company || entry.institution, colX, currentY, colWidth, { fontSize: 10, color: COLOR_PRIMARY });
+            if (entry.company || entry.institution) {
+                doc.setFont(FONT_NAME, 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(COLOR_PRIMARY);
+                lines = doc.splitTextToSize(entry.company || entry.institution, colWidth);
+                height = doc.getTextDimensions(lines).h;
+                currentY = checkPageBreak(currentY, height);
+                doc.text(lines, colX, currentY);
                 currentY += height + 2;
             }
-            
-            if(entry.date) {
+
+            if (entry.date) {
                 let dateLocText = entry.date;
-                if(entry.location) dateLocText += ` | ${entry.location}`;
-                const dateLocHeight = renderWrappedText(dateLocText, colX, currentY, colWidth, { fontSize: 8 });
-                currentY += dateLocHeight + 8;
+                if (entry.location) dateLocText += ` | ${entry.location}`;
+                doc.setFontSize(8);
+                lines = doc.splitTextToSize(dateLocText, colWidth);
+                height = doc.getTextDimensions(lines).h;
+                currentY = checkPageBreak(currentY, height);
+                doc.text(lines, colX, currentY);
+                currentY += height + 8;
             }
-            
-            if(entry.details && entry.details.length > 0) {
-              currentY = renderBulletList(entry.details, colX, currentY, colWidth);
+
+            if (entry.details && entry.details.length > 0) {
+                currentY = renderBulletList(entry.details, colX, currentY, colWidth);
             }
-            currentY += 20;
+            currentY += 10;
         });
         return currentY;
-    }
+    };
+
+
+    // --- HEADER ---
+    doc.setFont(FONT_NAME, 'bold');
+    doc.setFontSize(32);
+    doc.setTextColor(COLOR_TEXT_DARK);
+    doc.text(personalInfo.name || '[Full Name]', MARGIN, yLeft);
+    yLeft += doc.getTextDimensions(personalInfo.name || '[Full Name]').h * 0.7;
+
+    doc.setFont(FONT_NAME, 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(COLOR_PRIMARY);
+    doc.text(personalInfo.title || '[Professional Title]', MARGIN, yLeft);
+    yLeft += 25;
     
+    const CIRCLE_DIA = 50;
+    const headerRightX = PAGE_WIDTH - MARGIN - (CIRCLE_DIA / 2);
+    doc.setFillColor(COLOR_PRIMARY);
+    doc.circle(headerRightX, MARGIN + 10, CIRCLE_DIA / 2, 'F');
+    doc.setFontSize(22);
+    doc.setTextColor('#FFFFFF');
+    doc.setFont(FONT_NAME, 'bold');
+    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
+    doc.text(initials, headerRightX, MARGIN + 14, { align: 'center'});
+    yRight = MARGIN + CIRCLE_DIA + 20;
+
+    // --- RENDER LEFT COLUMN ---
+    if (summary) {
+        yLeft = renderSectionTitle('Summary', MARGIN, yLeft);
+        doc.setFontSize(9);
+        doc.setTextColor(COLOR_TEXT_MEDIUM);
+        const lines = doc.splitTextToSize(summary, LEFT_COL_WIDTH);
+        const height = doc.getTextDimensions(lines).h;
+        yLeft = checkPageBreak(yLeft, height);
+        doc.text(lines, MARGIN, yLeft);
+        yLeft += height + 15;
+    }
     if (experience.length > 0) {
         yLeft = renderSectionTitle('Experience', MARGIN, yLeft);
         yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN);
     }
-     if (projects.length > 0) {
+    if (projects.length > 0) {
         yLeft = renderSectionTitle('Projects', MARGIN, yLeft);
         yLeft = renderEntries(projects, yLeft, LEFT_COL_WIDTH, MARGIN);
     }
-    
-    // --- RIGHT COLUMN ---
-    doc.setPage(1); // Reset to first page to start drawing right column
 
+    // --- RENDER RIGHT COLUMN ---
+    doc.setPage(1);
+    
+    // Contact
+    yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRight);
+    const contactItems = [
+        { label: 'Phone', value: personalInfo.phone },
+        { label: 'Email', value: personalInfo.email },
+        { label: 'LinkedIn', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
+        { label: 'Location', value: personalInfo.location }
+    ].filter(item => item.value);
+    
+    doc.setFontSize(9);
+    contactItems.forEach(item => {
+        let text = `${item.label}: ${item.value}`;
+        let lines = doc.splitTextToSize(text, RIGHT_COL_WIDTH);
+        let height = doc.getTextDimensions(lines).h;
+        yRight = checkPageBreak(yRight, height);
+        doc.setFont(FONT_NAME, 'bold');
+        doc.text(`${item.label}:`, RIGHT_COL_X, yRight);
+        
+        doc.setFont(FONT_NAME, 'normal');
+        let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(`${item.label}: `) - 5);
+        doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(`${item.label}: `) + 2, yRight);
+
+        yRight += height + 5;
+    });
+
+    if (education.length > 0) {
+        yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight);
+        yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
+    }
+    
     if (keyAchievements) {
         yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight);
         if (keyAchievements.title) {
-          const height = renderWrappedText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+          doc.setFont(FONT_NAME, 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(COLOR_TEXT_DARK);
+          let lines = doc.splitTextToSize(keyAchievements.title, RIGHT_COL_WIDTH);
+          let height = doc.getTextDimensions(lines).h;
+          yRight = checkPageBreak(yRight, height);
+          doc.text(lines, RIGHT_COL_X, yRight);
           yRight += height + 5;
         }
         if (keyAchievements.details && keyAchievements.details.length > 0) {
@@ -742,13 +743,12 @@ export default function MentorAiPage() {
         }
         yRight += 15;
     }
-    
+
     if (skills.length > 0) {
         yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight);
         let currentX = RIGHT_COL_X;
-        let currentY = yRight;
         const skillPadding = 8;
-        const skillVGap = 8;
+        const skillVGap = 15;
         const skillHGap = 6;
         doc.setFontSize(9); doc.setFont(FONT_NAME, 'normal');
 
@@ -757,28 +757,20 @@ export default function MentorAiPage() {
             const skillWidth = textWidth + skillPadding * 2;
             if (currentX + skillWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
                 currentX = RIGHT_COL_X;
-                currentY += 12 + skillVGap;
+                yRight += skillVGap;
             }
             
-            if (currentY + 20 > PAGE_HEIGHT - MARGIN) {
-                 doc.addPage();
-                 currentPage++;
-                 currentY = MARGIN;
-            }
+            yRight = checkPageBreak(yRight, skillVGap);
+
             doc.setDrawColor(COLOR_TEXT_MEDIUM);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
-            doc.roundedRect(currentX, currentY - 9, skillWidth, 12, 3, 3, 'S');
-            doc.text(skill, currentX + skillPadding, currentY);
+            doc.roundedRect(currentX, yRight - 9, skillWidth, 12, 3, 3, 'S');
+            doc.text(skill, currentX + skillPadding, yRight);
             currentX += skillWidth + skillHGap;
         });
-        yRight = currentY + 20;
+        yRight += 20;
     }
-
-    if (education.length > 0) {
-        yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight);
-        yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
-    }
-
+    
     doc.save('ai_mentor_resume.pdf');
     toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
   };
@@ -2093,3 +2085,4 @@ export default function MentorAiPage() {
 }
  
     
+
