@@ -9,7 +9,7 @@ import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview from '@/components/resume/ResumePreview';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -473,6 +473,9 @@ export default function MentorAiPage() {
                 if (!trimmedLine) continue;
                 
                 if (trimmedLine.startsWith('-')) {
+                    if (!Array.isArray(entry.details)) {
+                        entry.details = [];
+                    }
                     entry.details.push(trimmedLine.substring(1).trim());
                 } else {
                     const parts = trimmedLine.split(':');
@@ -480,6 +483,9 @@ export default function MentorAiPage() {
                         const key = parts[0].trim().toLowerCase();
                         const value = parts.slice(1).join(':').trim();
                         if (key === 'details') {
+                           if (!Array.isArray(entry.details)) {
+                               entry.details = [];
+                           }
                             const detailValue = value.trim().startsWith('-') ? value.trim().substring(1).trim() : value.trim();
                             if (detailValue) entry.details.push(detailValue);
                         } else {
@@ -2096,6 +2102,9 @@ export default function MentorAiPage() {
       </footer>
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Resume Preview</DialogTitle>
+          </DialogHeader>
           {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
         </DialogContent>
       </Dialog>
