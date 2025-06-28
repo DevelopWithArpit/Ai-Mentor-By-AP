@@ -461,41 +461,45 @@ export default function MentorAiPage() {
 
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent?.trim()) return [];
-        const entryBlocks = sectionContent.split(/\n(?=title:|degree:)/);
 
-        const entries = entryBlocks.map(block => {
-            if (!block.trim()) return null;
-            const entry: any = { details: [] };
-            const lines = block.trim().split('\n');
-            
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (!trimmedLine) continue;
-                
-                if (trimmedLine.startsWith('-')) {
-                    if (!Array.isArray(entry.details)) {
-                        entry.details = [];
-                    }
-                    entry.details.push(trimmedLine.substring(1).trim());
-                } else {
-                    const parts = trimmedLine.split(':');
-                    if (parts.length > 1) {
-                        const key = parts[0].trim().toLowerCase();
-                        const value = parts.slice(1).join(':').trim();
-                        if (key === 'details') {
-                           if (!Array.isArray(entry.details)) {
-                               entry.details = [];
-                           }
-                            const detailValue = value.trim().startsWith('-') ? value.trim().substring(1).trim() : value.trim();
-                            if (detailValue) entry.details.push(detailValue);
-                        } else {
-                           entry[key] = value;
-                        }
-                    }
+        const entries: any[] = [];
+        let currentEntry: any = null;
+        const lines = sectionContent.split('\n');
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+
+            const isNewEntry = trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:');
+
+            if (isNewEntry) {
+                // If there's a pending entry with some content, save it
+                if (currentEntry && (currentEntry.title || currentEntry.degree)) {
+                    entries.push(currentEntry);
+                }
+                // Start a new one
+                currentEntry = { details: [] };
+            }
+
+            // If we haven't started an entry yet, skip until we find a title/degree
+            if (!currentEntry) continue;
+
+            if (trimmedLine.startsWith('-')) {
+                currentEntry.details.push(trimmedLine.substring(1).trim());
+            } else {
+                const parts = trimmedLine.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+                    currentEntry[key] = value;
                 }
             }
-            return entry;
-        }).filter(e => e && (e.title || e.degree));
+        }
+
+        // Add the last processed entry if it exists
+        if (currentEntry && (currentEntry.title || currentEntry.degree)) {
+            entries.push(currentEntry);
+        }
 
         return entries;
     };
@@ -559,9 +563,9 @@ export default function MentorAiPage() {
     const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
     const RIGHT_COL_WIDTH = PAGE_WIDTH - RIGHT_COL_X - MARGIN;
     const FONT_NAME = 'Helvetica';
-    const COLOR_PRIMARY = '#1e90ff';
-    const COLOR_TEXT_DARK = '#000000';
-    const COLOR_TEXT_MEDIUM = '#555555';
+    const COLOR_PRIMARY_HEX = '#1e90ff';
+    const COLOR_TEXT_DARK_HEX = '#000000';
+    const COLOR_TEXT_MEDIUM_HEX = '#555555';
     const LINE_HEIGHT_RATIO = 1.4;
 
     let yLeft = MARGIN;
@@ -570,28 +574,38 @@ export default function MentorAiPage() {
     let currentPage = 1;
     const checkPageBreak = (currentY: number, neededHeight: number) => {
         if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
+            // Before adding a page, decide which column continues where.
+            // A simple strategy: reset both columns. A more complex one would track the longer column.
+            // For now, we'll assume we break to a new page and reset both yLeft and yRight.
+            // This is a simplification and might lead to large empty spaces.
             doc.addPage();
             currentPage++;
-            return MARGIN;
+            yLeft = MARGIN;
+            yRight = MARGIN;
+            return MARGIN; // Return the new starting Y
         }
         return currentY;
     };
-    
-    // --- RENDER HELPERS ---
-    const renderSectionTitle = (title: string, x: number, y: number) => {
-        const newY = checkPageBreak(y, 25);
+
+    const renderSectionTitle = (title: string, x: number, y: number, isLeftCol: boolean) => {
+        let newY = checkPageBreak(y, 25);
+        if (newY === MARGIN && y !== MARGIN) { // Page break happened
+             if(isLeftCol) yLeft = newY; else yRight = newY;
+        }
+        y = newY;
+        
         doc.setFont(FONT_NAME, 'bold');
         doc.setFontSize(14);
-        doc.setTextColor(COLOR_TEXT_DARK);
-        doc.text(title.toUpperCase(), x, newY);
+        doc.setTextColor(COLOR_TEXT_DARK_HEX);
+        doc.text(title.toUpperCase(), x, y);
         const titleWidth = doc.getTextWidth(title);
-        doc.setDrawColor(COLOR_TEXT_DARK);
+        doc.setDrawColor(COLOR_TEXT_DARK_HEX);
         doc.setLineWidth(1.5);
-        doc.line(x, newY + 4, x + titleWidth, newY + 4);
-        return newY + 25;
+        doc.line(x, y + 4, x + titleWidth, y + 4);
+        return y + 25;
     };
 
-    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number) => {
+    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number, isLeftCol: boolean) => {
         let currentY = y;
         bullets.forEach(bullet => {
             if (!bullet) return;
@@ -599,63 +613,100 @@ export default function MentorAiPage() {
             const textMaxWidth = maxWidth - 15;
 
             doc.setFontSize(9);
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
+            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
             const lines = doc.splitTextToSize(bullet, textMaxWidth);
-            const textHeight = doc.getTextDimensions(lines).h;
+            let textHeight = doc.getTextDimensions(lines).h;
             
-            currentY = checkPageBreak(currentY, textHeight);
+            let newY = checkPageBreak(currentY, textHeight);
+             if (newY === MARGIN && currentY !== MARGIN) { // Page break
+                if(isLeftCol) yLeft = newY; else yRight = newY;
+            }
+            currentY = newY;
             
             doc.setFontSize(16);
-            doc.setTextColor(COLOR_PRIMARY);
+            doc.setTextColor(COLOR_PRIMARY_HEX);
             doc.text("•", x, currentY);
 
             doc.setFontSize(9);
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
+            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
             doc.text(lines, textX, currentY);
-            currentY += textHeight * LINE_HEIGHT_RATIO;
+            currentY += (textHeight * LINE_HEIGHT_RATIO);
         });
         return currentY;
     };
     
-    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number) => {
+    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number, isLeftCol: boolean) => {
         let currentY = startY;
         entries.forEach(entry => {
             if (!entry.title && !entry.degree) return;
             
-            doc.setFont(FONT_NAME, 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(COLOR_TEXT_DARK);
-            let lines = doc.splitTextToSize(entry.title || entry.degree, colWidth);
-            let height = doc.getTextDimensions(lines).h;
-            currentY = checkPageBreak(currentY, height);
-            doc.text(lines, colX, currentY);
-            currentY += height;
+            let accumulatedHeight = 0;
+            const tempDoc = new jsPDF({ unit: "px", format: "a4" }); // Use a temporary doc for measurements
+
+            tempDoc.setFont(FONT_NAME, 'bold');
+            tempDoc.setFontSize(11);
+            let lines = tempDoc.splitTextToSize(entry.title || entry.degree, colWidth);
+            accumulatedHeight += tempDoc.getTextDimensions(lines).h;
 
             if (entry.company || entry.institution) {
-                doc.setFont(FONT_NAME, 'normal');
-                doc.setFontSize(10);
-                doc.setTextColor(COLOR_PRIMARY);
-                lines = doc.splitTextToSize(entry.company || entry.institution, colWidth);
-                height = doc.getTextDimensions(lines).h;
-                currentY = checkPageBreak(currentY, height);
-                doc.text(lines, colX, currentY);
-                currentY += height + 2;
+                tempDoc.setFont(FONT_NAME, 'normal');
+                tempDoc.setFontSize(10);
+                lines = tempDoc.splitTextToSize(entry.company || entry.institution, colWidth);
+                accumulatedHeight += tempDoc.getTextDimensions(lines).h + 2;
             }
 
             if (entry.date) {
                 let dateLocText = entry.date;
                 if (entry.location) dateLocText += ` | ${entry.location}`;
-                doc.setFontSize(8);
-                doc.setTextColor(COLOR_TEXT_MEDIUM);
-                lines = doc.splitTextToSize(dateLocText, colWidth);
-                height = doc.getTextDimensions(lines).h;
-                currentY = checkPageBreak(currentY, height);
-                doc.text(lines, colX, currentY);
-                currentY += height + 8;
+                tempDoc.setFontSize(8);
+                lines = tempDoc.splitTextToSize(dateLocText, colWidth);
+                accumulatedHeight += tempDoc.getTextDimensions(lines).h + 8;
             }
 
             if (entry.details && entry.details.length > 0) {
-                currentY = renderBulletList(entry.details, colX, currentY, colWidth);
+                 tempDoc.setFontSize(9);
+                 entry.details.forEach((detail: string) => {
+                     lines = tempDoc.splitTextToSize(detail, colWidth - 15);
+                     accumulatedHeight += (tempDoc.getTextDimensions(lines).h * LINE_HEIGHT_RATIO);
+                 });
+            }
+            accumulatedHeight += 10; // Bottom margin for entry
+
+            let newY = checkPageBreak(currentY, accumulatedHeight);
+            if (newY === MARGIN && currentY !== MARGIN) {
+                 if(isLeftCol) yLeft = newY; else yRight = newY;
+            }
+            currentY = newY;
+            
+            // Now render for real
+            doc.setFont(FONT_NAME, 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(COLOR_TEXT_DARK_HEX);
+            lines = doc.splitTextToSize(entry.title || entry.degree, colWidth);
+            doc.text(lines, colX, currentY);
+            currentY += doc.getTextDimensions(lines).h;
+
+            if (entry.company || entry.institution) {
+                doc.setFont(FONT_NAME, 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(COLOR_PRIMARY_HEX);
+                lines = doc.splitTextToSize(entry.company || entry.institution, colWidth);
+                doc.text(lines, colX, currentY);
+                currentY += doc.getTextDimensions(lines).h + 2;
+            }
+            
+            if (entry.date) {
+                let dateLocText = entry.date;
+                if (entry.location) dateLocText += ` | ${entry.location}`;
+                doc.setFontSize(8);
+                doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
+                lines = doc.splitTextToSize(dateLocText, colWidth);
+                doc.text(lines, colX, currentY);
+                currentY += doc.getTextDimensions(lines).h + 8;
+            }
+
+            if (entry.details && entry.details.length > 0) {
+                currentY = renderBulletList(entry.details, colX, currentY, colWidth, isLeftCol);
             }
             currentY += 10;
         });
@@ -665,87 +716,70 @@ export default function MentorAiPage() {
     // --- HEADER ---
     doc.setFont(FONT_NAME, 'bold');
     doc.setFontSize(32);
-    doc.setTextColor(COLOR_TEXT_DARK);
+    doc.setTextColor(COLOR_TEXT_DARK_HEX);
     doc.text(personalInfo.name || '[Full Name]', MARGIN, yLeft);
     yLeft += doc.getTextDimensions(personalInfo.name || '[Full Name]').h * 0.7;
 
     doc.setFont(FONT_NAME, 'normal');
     doc.setFontSize(12);
-    doc.setTextColor(COLOR_PRIMARY);
+    doc.setTextColor(COLOR_PRIMARY_HEX);
     doc.text(personalInfo.title || '[Professional Title]', MARGIN, yLeft);
     yLeft += 25;
     
     const CIRCLE_DIA = 50;
     const headerRightX = PAGE_WIDTH - MARGIN - (CIRCLE_DIA / 2);
-    doc.setFillColor(COLOR_PRIMARY);
+    doc.setFillColor(COLOR_PRIMARY_HEX);
     doc.circle(headerRightX, MARGIN + 10, CIRCLE_DIA / 2, 'F');
     doc.setFontSize(22);
     doc.setTextColor('#FFFFFF');
     doc.setFont(FONT_NAME, 'bold');
     const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
     doc.text(initials, headerRightX, MARGIN + 14, { align: 'center'});
-    yRight = MARGIN + CIRCLE_DIA + 20;
-
-    // --- RENDER LEFT COLUMN ---
-    if (summary) {
-        yLeft = renderSectionTitle('Summary', MARGIN, yLeft);
-        doc.setFontSize(9);
-        doc.setTextColor(COLOR_TEXT_MEDIUM);
-        const lines = doc.splitTextToSize(summary, LEFT_COL_WIDTH);
-        const height = doc.getTextDimensions(lines).h;
-        yLeft = checkPageBreak(yLeft, height);
-        doc.text(lines, MARGIN, yLeft);
-        yLeft += height + 15;
-    }
-    if (experience.length > 0) {
-        yLeft = renderSectionTitle('Experience', MARGIN, yLeft);
-        yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN);
-    }
-    if (projects.length > 0) {
-        yLeft = renderSectionTitle('Projects', MARGIN, yLeft);
-        yLeft = renderEntries(projects, yLeft, LEFT_COL_WIDTH, MARGIN);
-    }
-
-    // --- RENDER RIGHT COLUMN ---
-    doc.setPage(1);
     
-    yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRight);
+    // --- RENDER RIGHT COLUMN (SIDEBAR) FIRST to calculate its height ---
+    let yRightInitial = MARGIN + CIRCLE_DIA + 20;
+    
     const contactItems = [
         { label: 'Phone', value: personalInfo.phone },
         { label: 'Email', value: personalInfo.email },
         { label: 'LinkedIn', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
         { label: 'Location', value: personalInfo.location }
     ].filter(item => item.value);
-    
-    doc.setFontSize(9);
-    contactItems.forEach(item => {
-        let text = `${item.label}: ${item.value}`;
-        let lines = doc.splitTextToSize(text, RIGHT_COL_WIDTH);
-        let height = doc.getTextDimensions(lines).h;
-        yRight = checkPageBreak(yRight, height);
-        doc.setFont(FONT_NAME, 'bold');
-        doc.text(`${item.label}:`, RIGHT_COL_X, yRight);
-        
-        doc.setFont(FONT_NAME, 'normal');
-        doc.setTextColor(COLOR_TEXT_MEDIUM);
-        let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(`${item.label}: `) - 5);
-        doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(`${item.label}: `) + 2, yRight);
 
-        yRight += height + 5;
-    });
-    yRight += 15;
+    if (contactItems.length > 0) {
+        yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRightInitial, false);
+        doc.setFontSize(9);
+        contactItems.forEach(item => {
+            let text = `${item.label}: ${item.value}`;
+            let lines = doc.splitTextToSize(text, RIGHT_COL_WIDTH);
+            let height = doc.getTextDimensions(lines).h;
+            
+            yRight = checkPageBreak(yRight, height);
+
+            doc.setFont(FONT_NAME, 'bold');
+            doc.text(`${item.label}:`, RIGHT_COL_X, yRight);
+            
+            doc.setFont(FONT_NAME, 'normal');
+            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
+            let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(`${item.label}: `) - 5);
+            doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(`${item.label}: `) + 2, yRight);
+
+            yRight += height + 5;
+        });
+        yRight += 15;
+    }
 
     if (education.length > 0) {
-        yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight);
-        yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
+        yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight, false);
+        yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X, false);
     }
     
     if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-        yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight);
+        yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight, false);
         if (keyAchievements.title) {
           doc.setFont(FONT_NAME, 'bold');
           doc.setFontSize(10);
-          doc.setTextColor(COLOR_TEXT_DARK);
+          doc.setTextColor(COLOR_TEXT_DARK_HEX);
           let lines = doc.splitTextToSize(keyAchievements.title, RIGHT_COL_WIDTH);
           let height = doc.getTextDimensions(lines).h;
           yRight = checkPageBreak(yRight, height);
@@ -753,13 +787,13 @@ export default function MentorAiPage() {
           yRight += height + 5;
         }
         if (keyAchievements.details && keyAchievements.details.length > 0) {
-          yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+          yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, false);
         }
         yRight += 15;
     }
 
     if (skills.length > 0) {
-        yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight);
+        yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight, false);
         let currentX = RIGHT_COL_X;
         const skillPadding = 8;
         const skillVGap = 15;
@@ -769,20 +803,43 @@ export default function MentorAiPage() {
         skills.forEach(skill => {
             const textWidth = doc.getTextWidth(skill);
             const skillWidth = textWidth + skillPadding * 2;
+            
+            yRight = checkPageBreak(yRight, skillVGap);
+
             if (currentX + skillWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
                 currentX = RIGHT_COL_X;
                 yRight += skillVGap;
             }
             
-            yRight = checkPageBreak(yRight, skillVGap);
-
-            doc.setDrawColor(COLOR_TEXT_MEDIUM);
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
+            doc.setDrawColor(COLOR_TEXT_MEDIUM_HEX);
+            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
             doc.roundedRect(currentX, yRight - 9, skillWidth, 12, 3, 3, 'S');
             doc.text(skill, currentX + skillPadding, yRight);
             currentX += skillWidth + skillHGap;
         });
         yRight += 20;
+    }
+
+
+    // --- RENDER LEFT COLUMN ---
+    doc.setPage(1); // Go back to the first page to render the left column
+    if (summary) {
+        yLeft = renderSectionTitle('Summary', MARGIN, yLeft, true);
+        doc.setFontSize(9);
+        doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
+        const lines = doc.splitTextToSize(summary, LEFT_COL_WIDTH);
+        const height = doc.getTextDimensions(lines).h;
+        yLeft = checkPageBreak(yLeft, height);
+        doc.text(lines, MARGIN, yLeft);
+        yLeft += height + 15;
+    }
+    if (experience.length > 0) {
+        yLeft = renderSectionTitle('Experience', MARGIN, yLeft, true);
+        yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN, true);
+    }
+    if (projects.length > 0) {
+        yLeft = renderSectionTitle('Projects', MARGIN, yLeft, true);
+        yLeft = renderEntries(projects, yLeft, LEFT_COL_WIDTH, MARGIN, true);
     }
     
     doc.save('ai_mentor_resume.pdf');
@@ -2102,8 +2159,8 @@ export default function MentorAiPage() {
       </footer>
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Resume Preview</DialogTitle>
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="sr-only">Resume Preview</DialogTitle>
           </DialogHeader>
           {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
         </DialogContent>
