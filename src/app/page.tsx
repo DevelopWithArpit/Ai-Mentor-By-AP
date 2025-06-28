@@ -462,8 +462,6 @@ export default function MentorAiPage() {
     }
 
     const doc = new jsPDF({ unit: "px", format: "a4" });
-    doc.addFont('Helvetica', 'Helvetica', 'normal');
-    doc.addFont('Helvetica', 'Helvetica', 'bold');
 
     // --- PARSE STRUCTURED TEXT ---
     const sections: { [key: string]: string } = {};
