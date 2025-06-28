@@ -466,25 +466,26 @@ export default function MentorAiPage() {
     
     // --- Style & Spacing Definitions ---
     const FONT_FAMILY_SANS = "Helvetica"; 
-    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue hsl(227 76% 60%)
+    const ACCENT_COLOR_RGB: [number, number, number] = [65, 105, 225]; // Deep Sky Blue
     const NEUTRAL_TEXT_COLOR_RGB: [number, number, number] = [50, 50, 50]; // Dark Gray
-    const LIGHT_TEXT_COLOR_RGB: [number, number, number] = [100, 100, 100]; // Lighter Gray
     const DIVIDER_COLOR_RGB: [number, number, number] = [200, 200, 200];
 
     const SECTION_HEADER_SIZE = 14;
-    const LABEL_SIZE = 11;
-    const VALUE_SIZE = 11;
+    const LABEL_SIZE = 10;
+    const VALUE_SIZE = 10;
     const BODY_TEXT_SIZE = 10;
+    const LINE_SPACING_FACTOR = 1.4;
     
     const MARGIN = 40; // pt
     const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
-    const LINE_SPACING_FACTOR = 1.4;
     const SECTION_SPACING = 18;
-    const ITEM_SPACING = 12;
-    const LABEL_VALUE_SPACING = 5;
+    const ITEM_SPACING = 4; // Space between label and value
     const BULLET_INDENT = 15;
+    const SPACE_AFTER_SECTION_HEADER = 4;
+    const SPACE_AFTER_ITEM_BLOCK = 12;
 
     let yPos = MARGIN;
+    let inBulletList = false;
 
     const addNewPageIfNeeded = (neededHeight: number): boolean => {
       if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
@@ -496,33 +497,63 @@ export default function MentorAiPage() {
     };
 
     const drawDivider = (y: number, thickness = 0.5, color = DIVIDER_COLOR_RGB) => {
-        addNewPageIfNeeded(thickness + 4); 
+        addNewPageIfNeeded(thickness + SPACE_AFTER_SECTION_HEADER); 
         doc.setDrawColor(color[0], color[1], color[2]);
         doc.setLineWidth(thickness);
         doc.line(MARGIN, y, doc.internal.pageSize.getWidth() - MARGIN, y);
-        yPos += thickness + 4;
+        yPos += thickness + SPACE_AFTER_SECTION_HEADER;
     };
 
     const lines = text.split('\n');
-    let inExperienceBlock = false; // Flag to handle multi-line responsibilities
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i].trim();
-        if (!line) continue;
+        if (!line) {
+            inBulletList = false; // Reset bullet list on empty line
+            continue;
+        }
 
         // Check for Section Headers (e.g., "1. Personal Information:")
         if (line.match(/^\d+\. .*:$/)) {
-            yPos += (yPos > MARGIN ? SECTION_SPACING : 0); // Add space before new section
+            yPos += (yPos > MARGIN + 1 ? SECTION_SPACING : 0);
             doc.setFont(FONT_FAMILY_SANS, 'bold');
             doc.setFontSize(SECTION_HEADER_SIZE);
             doc.setTextColor(ACCENT_COLOR_RGB[0], ACCENT_COLOR_RGB[1], ACCENT_COLOR_RGB[2]);
             const headerLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-            const headerHeight = doc.getTextDimensions(headerLines).h * (LINE_SPACING_FACTOR - 0.2);
-            addNewPageIfNeeded(headerHeight);
+            const headerHeight = doc.getTextDimensions(headerLines).h;
+            addNewPageIfNeeded(headerHeight + 2);
             doc.text(headerLines, MARGIN, yPos);
             yPos += headerHeight;
-            drawDivider(yPos);
-            inExperienceBlock = line.includes("Experience");
+            drawDivider(yPos + 1);
+            inBulletList = false;
+            continue;
+        }
+
+        // Check for start of bullet list
+        if (line.endsWith("Achievements:") || line.endsWith("Skills:") || line.endsWith("Description:")) {
+            inBulletList = true;
+            doc.setFont(FONT_FAMILY_SANS, 'bold');
+            doc.setFontSize(LABEL_SIZE);
+            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+            const labelLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
+            const labelHeight = doc.getTextDimensions(labelLines).h * LINE_SPACING_FACTOR;
+            addNewPageIfNeeded(labelHeight);
+            doc.text(labelLines, MARGIN, yPos);
+            yPos += labelHeight;
+            continue;
+        }
+
+        // Handle Bullet Points
+        if (inBulletList && line.startsWith("[") && line.endsWith("]")) {
+            const content = `• ${line.substring(1, line.length - 1)}`;
+            doc.setFont(FONT_FAMILY_SANS, 'normal');
+            doc.setFontSize(BODY_TEXT_SIZE);
+            doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+            const contentLines = doc.splitTextToSize(content, MAX_TEXT_WIDTH - BULLET_INDENT);
+            const contentHeight = doc.getTextDimensions(contentLines).h * (LINE_SPACING_FACTOR - 0.1);
+            addNewPageIfNeeded(contentHeight);
+            doc.text(contentLines, MARGIN + BULLET_INDENT, yPos);
+            yPos += contentHeight;
             continue;
         }
 
@@ -532,16 +563,8 @@ export default function MentorAiPage() {
             const label = line.substring(0, splitIndex + 1);
             const value = line.substring(splitIndex + 1).trim();
 
-            if (label.trim() === "Responsibilities and Achievements:") {
-                doc.setFont(FONT_FAMILY_SANS, 'bold');
-                doc.setFontSize(LABEL_SIZE);
-                doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-                const labelLines = doc.splitTextToSize(label, MAX_TEXT_WIDTH);
-                const labelHeight = doc.getTextDimensions(labelLines).h * LINE_SPACING_FACTOR;
-                addNewPageIfNeeded(labelHeight);
-                doc.text(labelLines, MARGIN, yPos);
-                yPos += labelHeight;
-            } else if (value) {
+            if (value) {
+                inBulletList = false; // A labeled line resets bullet list mode
                 doc.setFont(FONT_FAMILY_SANS, 'bold');
                 doc.setFontSize(LABEL_SIZE);
                 doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
@@ -549,38 +572,33 @@ export default function MentorAiPage() {
                 
                 doc.setFont(FONT_FAMILY_SANS, 'normal');
                 doc.setFontSize(VALUE_SIZE);
-                const valueLines = doc.splitTextToSize(value, MAX_TEXT_WIDTH - labelWidth - LABEL_VALUE_SPACING);
+                doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
+                const valueLines = doc.splitTextToSize(value, MAX_TEXT_WIDTH - labelWidth - ITEM_SPACING);
                 const blockHeight = doc.getTextDimensions(valueLines).h * LINE_SPACING_FACTOR;
 
                 addNewPageIfNeeded(blockHeight);
-
+                
                 doc.setFont(FONT_FAMILY_SANS, 'bold');
                 doc.text(label, MARGIN, yPos);
                 
                 doc.setFont(FONT_FAMILY_SANS, 'normal');
-                doc.text(valueLines, MARGIN + labelWidth + LABEL_VALUE_SPACING, yPos);
+                doc.text(valueLines, MARGIN + labelWidth + ITEM_SPACING, yPos);
                 
                 yPos += blockHeight;
+
+                if (label.includes("End Date")) {
+                    yPos += SPACE_AFTER_ITEM_BLOCK;
+                }
             }
-            if (inExperienceBlock && label.includes("End Date")) {
-                 yPos += ITEM_SPACING / 2; // Add a small space before achievements
-            } else if (line.includes("Location:") || line.includes("End Date:")) {
-                yPos += ITEM_SPACING; // Space after a block of info (like after a full job or education entry)
-            }
-        } else { // Handle non-labeled lines (summaries, bullet points)
-            const isBullet = line.startsWith("[") && line.endsWith("]");
-            const content = isBullet ? `• ${line.substring(1, line.length - 1)}` : line;
-            const indent = isBullet ? BULLET_INDENT : 0;
-            
+        } else { // Handle non-labeled, non-bullet lines (e.g., summary)
+            inBulletList = false;
             doc.setFont(FONT_FAMILY_SANS, 'normal');
             doc.setFontSize(BODY_TEXT_SIZE);
             doc.setTextColor(NEUTRAL_TEXT_COLOR_RGB[0], NEUTRAL_TEXT_COLOR_RGB[1], NEUTRAL_TEXT_COLOR_RGB[2]);
-
-            const contentLines = doc.splitTextToSize(content, MAX_TEXT_WIDTH - indent);
+            const contentLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
             const contentHeight = doc.getTextDimensions(contentLines).h * LINE_SPACING_FACTOR;
-            
             addNewPageIfNeeded(contentHeight);
-            doc.text(contentLines, MARGIN + indent, yPos);
+            doc.text(contentLines, MARGIN, yPos);
             yPos += contentHeight;
         }
     }

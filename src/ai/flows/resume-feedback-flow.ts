@@ -35,7 +35,7 @@ const LinkedInProfileSuggestionsSchema = z.object({
 }).optional();
 
 const ResumeFeedbackOutputSchema = z.object({
-  overallAssessment: z.string().describe('A brief overall assessment of the original resume (if provided) or a statement indicating a new resume was created from provided details.'),
+  overallAssessment: z.string().describe('A brief overall assessment of the original resume (if provided) or a statement indicating a new resume was created from details.'),
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume, or general comments if a new resume was created.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume. Explain how these improve ATS chances.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
@@ -100,19 +100,12 @@ User's Details / Additional Information to Incorporate/Use for Creation:
 
 **Part 2: Final Resume (for \`modifiedResumeText\` field)**
 Generate a professional resume. Take the user's input (from uploaded document, pasted text, or additional details for creation) and improve/structure it.
-**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY and reflects the exact labeled format below.** This means:
-- Use standard, universally recognized section headings and labels as shown.
-- Avoid tables, columns, or complex graphical elements *in the text itself*.
-- Ensure dates are consistently formatted.
-- Use simple, clean, professional language. Ensure the resume is free of grammatical errors and typos.
-- Emphasize quantifiable achievements using specific numbers and metrics.
-- List experience and education in reverse chronological order.
+**Crucially, ensure the final text output is EXTREMELY ATS-FRIENDLY and reflects the exact labeled format below.**
 
-**IMPORTANT INSTRUCTION FOR 'EXPERIENCE' and 'PROJECTS' SECTIONS:**
-- If your analysis of the user's provided information indicates that the user has NO work experience, then you MUST OMIT the entire "3. Experience" section.
-- If the user has NO projects to list, then you MUST OMIT the entire "7. Projects" section.
-
-When creating a new resume (Scenario C) or if the uploaded document is unreadable, meticulously parse the 'additionalInformation' field to extract the user's details and populate them into the corresponding placeholders in the template. If a detail is not found, use a clear placeholder like "[Enter your...]" or "[Not Provided]".
+**IMPORTANT INSTRUCTIONS FOR FILLING THE TEMPLATE:**
+*   When creating a new resume, meticulously parse 'additionalInformation' to extract the user's details and populate them into the corresponding placeholders. If a detail is not found, use a clear placeholder like "[Enter your...]" or "[Not Provided]".
+*   For 'Responsibilities and Achievements', 'Key Achievements', and 'Skills', generate each point as a separate line formatted as a bullet point. Example: \`[List your key responsibilities and achievements in bullet points.]\`
+*   **Experience & Projects Sections:** If your analysis of the user's provided information indicates that the user has NO work experience, then you MUST OMIT the entire "3. Experience" section. Similarly, if the user has NO projects, you MUST OMIT the entire "7. Projects" section.
 
 **Resume Template to follow exactly:**
 
