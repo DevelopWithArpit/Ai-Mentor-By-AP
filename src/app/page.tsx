@@ -437,86 +437,77 @@ export default function MentorAiPage() {
   };
 
   const parseResumeData = (text: string) => {
-    const sections: { [key: string]: string[] } = {};
-    const sectionRegex = /SECTION: ([\s\S]*?)\n([\s\S]*?)\nEND_SECTION/g;
+    const sections: { [key: string]: string } = {};
+    const sectionRegex = /SECTION: ([\w_]+)\s*\n([\s\S]*?)\s*END_SECTION/g;
     let match;
+
     while ((match = sectionRegex.exec(text)) !== null) {
-      const sectionName = match[1].trim();
-      const sectionContent = match[2].trim();
-      sections[sectionName] = sectionContent.split('\n').filter(l => l.trim() !== '');
+        const sectionName = match[1].trim();
+        const sectionContent = match[2].trim();
+        sections[sectionName] = sectionContent;
     }
 
-    const parseSimpleSection = (lines: string[] | undefined) => {
-      if (!lines) return {};
-      const data: { [key: string]: any } = {};
-      lines.forEach(line => {
-        const parts = line.split(':');
-        if (parts.length > 1) {
-          const key = parts[0].trim();
-          const value = parts.slice(1).join(':').trim();
-          data[key] = value;
-        }
-      });
-      return data;
+    const parseSimpleSection = (content: string | undefined) => {
+        if (!content) return {};
+        const data: { [key: string]: any } = {};
+        const lines = content.split('\n');
+        lines.forEach(line => {
+            const parts = line.split(':');
+            if (parts.length > 1) {
+                const key = parts[0].trim();
+                const value = parts.slice(1).join(':').trim();
+                data[key] = value;
+            }
+        });
+        return data;
     };
 
-    const parseMultiEntrySection = (lines: string[] | undefined) => {
-      if (!lines || lines.length === 0) return [];
+    const parseMultiEntrySection = (sectionContent: string | undefined) => {
+        if (!sectionContent || sectionContent.trim() === '') return [];
 
-      const entries: any[] = [];
-      let currentEntry: any = null;
-
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        const isNewEntry = trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:');
-
-        if (isNewEntry) {
-          if (currentEntry) {
-            entries.push(currentEntry);
-          }
-          currentEntry = { details: [] }; // Initialize with details array
-        }
+        const entryChunks = sectionContent.split(/(?=^title:|^degree:)/m).filter(chunk => chunk.trim() !== '');
         
-        if (!currentEntry) continue; // Skip lines until a new entry starts
+        const entries: any[] = [];
 
-        if (trimmedLine.startsWith('-')) {
-          // This check is crucial.
-          if (!Array.isArray(currentEntry.details)) {
-            currentEntry.details = [];
-          }
-          currentEntry.details.push(trimmedLine.substring(1).trim());
-        } else {
-          const parts = trimmedLine.split(':');
-          if (parts.length > 1) {
-            const key = parts[0].trim().toLowerCase();
-            const value = parts.slice(1).join(':').trim();
-            // Prevent 'details:' line from overwriting the array
-            if (key !== 'details') {
-              currentEntry[key] = value;
+        for (const chunk of entryChunks) {
+            const currentEntry: any = { details: [] };
+            const lines = chunk.trim().split('\n');
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('-')) {
+                    currentEntry.details.push(trimmedLine.substring(1).trim());
+                } else {
+                    const parts = trimmedLine.split(':');
+                    if (parts.length > 1) {
+                        const key = parts[0].trim().toLowerCase();
+                        const value = parts.slice(1).join(':').trim();
+                        if (key !== 'details') {
+                            currentEntry[key] = value;
+                        }
+                    }
+                }
             }
-          }
+            if (currentEntry.title || currentEntry.degree) {
+               entries.push(currentEntry);
+            }
         }
-      }
-
-      if (currentEntry) {
-        entries.push(currentEntry); // Add the last entry
-      }
-
-      return entries;
+        return entries;
     };
 
     const personalInfo = parseSimpleSection(sections.PERSONAL_INFO);
-    const summary = sections.SUMMARY?.join('\n') || '';
+    const summary = sections.SUMMARY || '';
     
-    // The key achievements section is also a multi-entry, but we only expect one.
     const keyAchievementsEntries = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS);
     const keyAchievements = keyAchievementsEntries[0] || { details: [] };
 
     const experience = parseMultiEntrySection(sections.EXPERIENCE);
     const education = parseMultiEntrySection(sections.EDUCATION);
     const projects = parseMultiEntrySection(sections.PROJECTS);
-    const skillsStr = parseSimpleSection(sections.SKILLS)?.skills || '';
-    const skills = skillsStr ? skillsStr.split(',').map((s: string) => s.trim()) : [];
+    
+    const skillsSection = parseSimpleSection(sections.SKILLS);
+    const skillsStr = skillsSection?.skills || '';
+    const skills = skillsStr ? skillsStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
 
     return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
   }
@@ -567,7 +558,7 @@ export default function MentorAiPage() {
     const LEFT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.65;
     const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
     const RIGHT_COL_WIDTH = PAGE_WIDTH - RIGHT_COL_X - MARGIN;
-    const FONT_NAME = 'Helvetica';
+    const FONT_NAME = 'Helvetica'; // Standard font, no import needed
     const COLOR_PRIMARY_HEX = '#1e90ff';
     const COLOR_TEXT_DARK_HEX = '#000000';
     const COLOR_TEXT_MEDIUM_HEX = '#555555';
@@ -579,22 +570,18 @@ export default function MentorAiPage() {
     let currentPage = 1;
     const checkPageBreak = (currentY: number, neededHeight: number) => {
         if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
-            // Before adding a page, decide which column continues where.
-            // A simple strategy: reset both columns. A more complex one would track the longer column.
-            // For now, we'll assume we break to a new page and reset both yLeft and yRight.
-            // This is a simplification and might lead to large empty spaces.
             doc.addPage();
             currentPage++;
             yLeft = MARGIN;
             yRight = MARGIN;
-            return MARGIN; // Return the new starting Y
+            return MARGIN; 
         }
         return currentY;
     };
-
+    
     const renderSectionTitle = (title: string, x: number, y: number, isLeftCol: boolean) => {
         let newY = checkPageBreak(y, 25);
-        if (newY === MARGIN && y !== MARGIN) { // Page break happened
+        if (newY === MARGIN && y !== MARGIN) { 
              if(isLeftCol) yLeft = newY; else yRight = newY;
         }
         y = newY;
@@ -623,7 +610,7 @@ export default function MentorAiPage() {
             let textHeight = doc.getTextDimensions(lines).h;
             
             let newY = checkPageBreak(currentY, textHeight);
-             if (newY === MARGIN && currentY !== MARGIN) { // Page break
+             if (newY === MARGIN && currentY !== MARGIN) {
                 if(isLeftCol) yLeft = newY; else yRight = newY;
             }
             currentY = newY;
@@ -646,7 +633,7 @@ export default function MentorAiPage() {
             if (!entry.title && !entry.degree) return;
             
             let accumulatedHeight = 0;
-            const tempDoc = new jsPDF({ unit: "px", format: "a4" }); // Use a temporary doc for measurements
+            const tempDoc = new jsPDF({ unit: "px", format: "a4" });
 
             tempDoc.setFont(FONT_NAME, 'bold');
             tempDoc.setFontSize(11);
@@ -675,7 +662,7 @@ export default function MentorAiPage() {
                      accumulatedHeight += (tempDoc.getTextDimensions(lines).h * LINE_HEIGHT_RATIO);
                  });
             }
-            accumulatedHeight += 10; // Bottom margin for entry
+            accumulatedHeight += 10; 
 
             let newY = checkPageBreak(currentY, accumulatedHeight);
             if (newY === MARGIN && currentY !== MARGIN) {
@@ -683,7 +670,6 @@ export default function MentorAiPage() {
             }
             currentY = newY;
             
-            // Now render for real
             doc.setFont(FONT_NAME, 'bold');
             doc.setFontSize(11);
             doc.setTextColor(COLOR_TEXT_DARK_HEX);
@@ -741,33 +727,30 @@ export default function MentorAiPage() {
     const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
     doc.text(initials, headerRightX, MARGIN + 14, { align: 'center'});
     
-    // --- RENDER RIGHT COLUMN (SIDEBAR) FIRST to calculate its height ---
     let yRightInitial = MARGIN + CIRCLE_DIA + 20;
     
     const contactItems = [
-        { label: 'Phone', value: personalInfo.phone },
-        { label: 'Email', value: personalInfo.email },
-        { label: 'LinkedIn', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
-        { label: 'Location', value: personalInfo.location }
+        { label: 'Phone:', value: personalInfo.phone },
+        { label: 'Email:', value: personalInfo.email },
+        { label: 'LinkedIn:', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
+        { label: 'Location:', value: personalInfo.location }
     ].filter(item => item.value);
 
     if (contactItems.length > 0) {
         yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRightInitial, false);
         doc.setFontSize(9);
         contactItems.forEach(item => {
-            let text = `${item.label}: ${item.value}`;
-            let lines = doc.splitTextToSize(text, RIGHT_COL_WIDTH);
-            let height = doc.getTextDimensions(lines).h;
+            let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(item.label) - 5);
+            let height = doc.getTextDimensions(valueLines).h;
             
             yRight = checkPageBreak(yRight, height);
 
             doc.setFont(FONT_NAME, 'bold');
-            doc.text(`${item.label}:`, RIGHT_COL_X, yRight);
+            doc.text(item.label, RIGHT_COL_X, yRight);
             
             doc.setFont(FONT_NAME, 'normal');
             doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
-            let valueLines = doc.splitTextToSize(item.value, RIGHT_COL_WIDTH - doc.getTextWidth(`${item.label}: `) - 5);
-            doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(`${item.label}: `) + 2, yRight);
+            doc.text(valueLines, RIGHT_COL_X + doc.getTextWidth(item.label) + 2, yRight);
 
             yRight += height + 5;
         });
@@ -806,6 +789,7 @@ export default function MentorAiPage() {
         doc.setFontSize(9); doc.setFont(FONT_NAME, 'normal');
 
         skills.forEach(skill => {
+            if (!skill) return;
             const textWidth = doc.getTextWidth(skill);
             const skillWidth = textWidth + skillPadding * 2;
             
@@ -827,7 +811,7 @@ export default function MentorAiPage() {
 
 
     // --- RENDER LEFT COLUMN ---
-    doc.setPage(1); // Go back to the first page to render the left column
+    doc.setPage(1); 
     if (summary) {
         yLeft = renderSectionTitle('Summary', MARGIN, yLeft, true);
         doc.setFontSize(9);
@@ -2173,5 +2157,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-
-    
