@@ -489,12 +489,9 @@ export default function MentorAiPage() {
     
     const parseMultiEntrySection = (sectionContent: string) => {
         if (!sectionContent) return [];
-        
-        // Split the entire section content into chunks, each starting with a title or degree.
-        // The delimiter uses a positive lookahead `(?=...)` to keep the delimiter in the result.
         const entryChunks = sectionContent.split(/(?=title:|degree:)/).filter(chunk => chunk.trim() !== "");
 
-        const entries = entryChunks.map(chunk => {
+        return entryChunks.map(chunk => {
             const lines = chunk.trim().split('\n');
             const entry: any = { details: [] };
 
@@ -502,19 +499,26 @@ export default function MentorAiPage() {
                 const trimmedLine = line.trim();
                 if (trimmedLine.startsWith('-')) {
                     entry.details.push(trimmedLine.substring(1).trim());
-                } else {
-                    const parts = trimmedLine.split(':');
-                    if (parts.length > 1) {
-                        const key = parts[0].trim();
-                        const value = parts.slice(1).join(':').trim();
+                    return; 
+                }
+
+                const parts = trimmedLine.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+
+                    if (key === 'details') {
+                        if (value.startsWith('-')) { 
+                            entry.details.push(value.substring(1).trim());
+                        }
+                    } 
+                    else {
                         entry[key] = value;
                     }
                 }
             });
             return entry;
         });
-
-        return entries;
     };
 
     const personalInfo = sections.PERSONAL_INFO ? parseSection(sections.PERSONAL_INFO) : {};
@@ -542,10 +546,22 @@ export default function MentorAiPage() {
 
     let yLeft = MARGIN;
     let yRight = MARGIN;
+    let currentPage = 1;
 
-    const checkPageBreak = (currentY: number, neededHeight: number) => {
+    const checkPageBreak = (currentY: number, neededHeight: number, isLeftColumn: boolean) => {
         if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
-            return MARGIN; // Reset Y to top margin of new page
+            if (isLeftColumn) {
+                // If left column breaks, switch to drawing on the right column of the same page
+                if (yRight + neededHeight <= PAGE_HEIGHT - MARGIN) {
+                    return yRight; // Return Y position for right column
+                }
+            }
+            // If right column would also break, or if it was already the right column, add a new page.
+            doc.addPage();
+            currentPage++;
+            yLeft = MARGIN;
+            yRight = MARGIN;
+            return MARGIN; // Return top margin of new page
         }
         return currentY;
     };
@@ -625,11 +641,13 @@ export default function MentorAiPage() {
             doc.setTextColor(COLOR_PRIMARY);
             
             const lines = doc.splitTextToSize(bullet, textMaxWidth);
-            const textHeight = doc.getTextDimensions(lines).h * (LINE_HEIGHT_RATIO - 0.1);
+            const textHeight = doc.getTextDimensions(lines).h;
 
-            if (checkPageBreak(currentY, textHeight) === MARGIN) {
-                doc.addPage();
-                currentY = MARGIN;
+            if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
+                 doc.addPage();
+                 currentPage++;
+                 currentY = MARGIN;
+                 // Redraw title if needed, complex logic for now just reset y
             }
 
             doc.text("•", x, currentY);
@@ -637,38 +655,45 @@ export default function MentorAiPage() {
             doc.setFontSize(9);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
             doc.text(lines, textX, currentY);
-            currentY += textHeight;
+            currentY += textHeight * LINE_HEIGHT_RATIO;
         });
         return currentY;
     };
 
-    // --- LEFT COLUMN ---
+    // --- LEFT COLUMN FIRST ---
     if (summary) {
-        yLeft = checkPageBreak(yLeft, 30) === MARGIN ? (doc.addPage(), MARGIN) : yLeft;
         yLeft = renderSectionTitle('Summary', MARGIN, yLeft);
         const height = renderWrappedText(summary, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 9 });
         yLeft += (height * LINE_HEIGHT_RATIO) + 15;
     }
-
-    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number, isLeftCol: boolean) => {
+    
+    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number): number => {
         let currentY = startY;
         entries.forEach(entry => {
             if (!entry.title && !entry.degree) return;
 
-            let neededHeight = 30; // Approx height for an entry header
-            if (entry.details) neededHeight += entry.details.length * 15;
+            let entryHeight = 0;
+            const titleHeight = renderWrappedText(entry.title || entry.degree, 0, -999, colWidth, { fontSize: 11, fontStyle: 'bold' });
+            entryHeight += titleHeight;
 
-            if (checkPageBreak(currentY, neededHeight) === MARGIN) {
-                if (isLeftCol) { // If it's the left column, we need a new page.
-                     doc.addPage();
-                     currentY = MARGIN;
-                     yRight = MARGIN; // Reset right column as well
-                } else { // If right column breaks, maybe we can move to left col on new page
-                    // This logic is complex, for now just add page.
-                    doc.addPage();
-                    yLeft = MARGIN;
-                    currentY = MARGIN;
-                }
+            const companyHeight = (entry.company || entry.institution) ? renderWrappedText(entry.company || entry.institution, 0, -999, colWidth, { fontSize: 10 }) : 0;
+            entryHeight += companyHeight + 2;
+
+            const dateLocHeight = entry.date ? renderWrappedText(entry.date, 0, -999, colWidth, { fontSize: 8 }) : 0;
+            entryHeight += dateLocHeight + 8;
+            
+            let detailsHeight = 0;
+            if (entry.details && entry.details.length > 0) {
+              entry.details.forEach((d: string) => {
+                detailsHeight += renderWrappedText(d, 0, -999, colWidth - 15, { fontSize: 9 }) * LINE_HEIGHT_RATIO;
+              });
+            }
+            entryHeight += detailsHeight;
+            
+            if (currentY + entryHeight > PAGE_HEIGHT - MARGIN) {
+                doc.addPage();
+                currentPage++;
+                currentY = MARGIN;
             }
 
             let height = renderWrappedText(entry.title || entry.degree, colX, currentY, colWidth, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
@@ -695,27 +720,18 @@ export default function MentorAiPage() {
     }
     
     if (experience.length > 0) {
-        yLeft = checkPageBreak(yLeft, 30) === MARGIN ? (doc.addPage(), MARGIN) : yLeft;
         yLeft = renderSectionTitle('Experience', MARGIN, yLeft);
-        yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN, true);
+        yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN);
+    }
+     if (projects.length > 0) {
+        yLeft = renderSectionTitle('Projects', MARGIN, yLeft);
+        yLeft = renderEntries(projects, yLeft, LEFT_COL_WIDTH, MARGIN);
     }
     
-    if (education.length > 0) {
-        let yTarget = yLeft > yRight ? yRight : yLeft;
-        let colX = yLeft > yRight ? RIGHT_COL_X : MARGIN;
-        let colWidth = yLeft > yRight ? RIGHT_COL_WIDTH : LEFT_COL_WIDTH;
-        let isLeftCol = yLeft <= yRight;
-
-        yTarget = checkPageBreak(yTarget, 30) === MARGIN ? (doc.addPage(), MARGIN) : yTarget;
-        yTarget = renderSectionTitle('Education', colX, yTarget);
-        yTarget = renderEntries(education, yTarget, colWidth, colX, isLeftCol);
-
-        if (isLeftCol) yLeft = yTarget; else yRight = yTarget;
-    }
-
     // --- RIGHT COLUMN ---
+    doc.setPage(1); // Reset to first page to start drawing right column
+
     if (keyAchievements) {
-        yRight = checkPageBreak(yRight, 30) === MARGIN ? (doc.addPage(), yLeft=MARGIN, MARGIN) : yRight;
         yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight);
         if (keyAchievements.title) {
           const height = renderWrappedText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
@@ -728,7 +744,6 @@ export default function MentorAiPage() {
     }
     
     if (skills.length > 0) {
-        yRight = checkPageBreak(yRight, 30) === MARGIN ? (doc.addPage(), yLeft=MARGIN, MARGIN) : yRight;
         yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight);
         let currentX = RIGHT_COL_X;
         let currentY = yRight;
@@ -744,11 +759,11 @@ export default function MentorAiPage() {
                 currentX = RIGHT_COL_X;
                 currentY += 12 + skillVGap;
             }
-            if (checkPageBreak(currentY, 20) === MARGIN) {
+            
+            if (currentY + 20 > PAGE_HEIGHT - MARGIN) {
                  doc.addPage();
-                 yLeft = MARGIN;
+                 currentPage++;
                  currentY = MARGIN;
-                 yRight = MARGIN;
             }
             doc.setDrawColor(COLOR_TEXT_MEDIUM);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
@@ -759,18 +774,10 @@ export default function MentorAiPage() {
         yRight = currentY + 20;
     }
 
-    if (projects.length > 0) {
-        let yTarget = yLeft > yRight ? yRight : yLeft;
-        let colX = yLeft > yRight ? RIGHT_COL_X : MARGIN;
-        let colWidth = yLeft > yRight ? RIGHT_COL_WIDTH : LEFT_COL_WIDTH;
-        let isLeftCol = yLeft <= yRight;
-        
-        yTarget = checkPageBreak(yTarget, 30) === MARGIN ? (doc.addPage(), MARGIN) : yTarget;
-        yTarget = renderSectionTitle('Projects', colX, yTarget);
-        yTarget = renderEntries(projects, yTarget, colWidth, colX, isLeftCol);
-        if (isLeftCol) yLeft = yTarget; else yRight = yTarget;
+    if (education.length > 0) {
+        yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight);
+        yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
     }
-
 
     doc.save('ai_mentor_resume.pdf');
     toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
