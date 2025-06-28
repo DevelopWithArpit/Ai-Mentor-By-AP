@@ -473,6 +473,7 @@ export default function MentorAiPage() {
     }
 
     const parseSection = (sectionContent: string) => {
+        if (!sectionContent) return {};
         const lines = sectionContent.split('\n').filter(l => l.trim() !== '');
         const data: { [key: string]: any } = {};
         lines.forEach(line => {
@@ -486,44 +487,41 @@ export default function MentorAiPage() {
         return data;
     };
     
-    const parseMultiEntrySection = (sectionContent: string, titleKey: string) => {
-        const entryRegex = new RegExp(`^${titleKey}:`, 'm');
-        const entries = sectionContent.split(entryRegex).filter(s => s.trim() !== '');
-        return entries.map(entryText => {
-            const lines = (`${titleKey}:` + entryText).split('\n').filter(l => l.trim() !== '');
-            const data: { [key: string]: any } = { details: [] }; // Always initialize details as an array
-            
-            lines.forEach(line => {
-                // Check if it's a bullet point first
-                if (line.trim().startsWith('-')) {
-                    data.details.push(line.substring(1).trim());
-                    return; // continue to next line
-                }
+    const parseMultiEntrySection = (sectionContent: string) => {
+        if (!sectionContent) return [];
+        const entries: any[] = [];
+        let currentEntry: any = null;
+        const lines = sectionContent.split('\n');
 
-                // If not a bullet, try to parse as key:value
-                const parts = line.split(':');
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:')) {
+                if (currentEntry) entries.push(currentEntry);
+                currentEntry = { details: [] };
+            }
+            if (!currentEntry) return;
+
+            if (trimmedLine.startsWith('-')) {
+                currentEntry.details.push(trimmedLine.substring(1).trim());
+            } else {
+                const parts = trimmedLine.split(':');
                 if (parts.length > 1) {
                     const key = parts[0].trim();
                     const value = parts.slice(1).join(':').trim();
-
-                    // If the key is 'details', we just ignore it, 
-                    // because we handle details via bullet points.
-                    // This prevents overwriting the `details` array.
-                    if (key.toLowerCase() !== 'details') {
-                        data[key] = value;
-                    }
+                    currentEntry[key] = value;
                 }
-            });
-            return data;
+            }
         });
+        if (currentEntry) entries.push(currentEntry);
+        return entries;
     };
 
     const personalInfo = sections.PERSONAL_INFO ? parseSection(sections.PERSONAL_INFO) : {};
     const summary = sections.SUMMARY || '';
-    const keyAchievements = sections.KEY_ACHIEVEMENTS ? parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, 'title')[0] : null;
-    const experience = sections.EXPERIENCE ? parseMultiEntrySection(sections.EXPERIENCE, 'title') : [];
-    const education = sections.EDUCATION ? parseMultiEntrySection(sections.EDUCATION, 'degree') : [];
-    const projects = sections.PROJECTS ? parseMultiEntrySection(sections.PROJECTS, 'title') : [];
+    const keyAchievements = sections.KEY_ACHIEVEMENTS ? parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0] : null;
+    const experience = sections.EXPERIENCE ? parseMultiEntrySection(sections.EXPERIENCE) : [];
+    const education = sections.EDUCATION ? parseMultiEntrySection(sections.EDUCATION) : [];
+    const projects = sections.PROJECTS ? parseMultiEntrySection(sections.PROJECTS) : [];
     const skillsStr = sections.SKILLS ? (parseSection(sections.SKILLS).skills || '') : '';
     const skills = skillsStr ? skillsStr.split(',').map((s:string) => s.trim()) : [];
     
@@ -535,7 +533,7 @@ export default function MentorAiPage() {
     const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
     const RIGHT_COL_WIDTH = PAGE_WIDTH - RIGHT_COL_X - MARGIN;
     const FONT_NAME = 'Helvetica';
-    const COLOR_PRIMARY = '#1e90ff'; // DodgerBlue
+    const COLOR_PRIMARY = '#1e90ff';
     const COLOR_TEXT_DARK = '#000000';
     const COLOR_TEXT_MEDIUM = '#555555';
     const LINE_HEIGHT_RATIO = 1.4;
@@ -543,103 +541,80 @@ export default function MentorAiPage() {
     let yLeft = MARGIN;
     let yRight = MARGIN;
 
-    // --- HELPER FUNCTIONS ---
-    const renderWrappedText = (text: string, x: number, y: number, maxWidth: number, options: { fontSize: number, fontStyle?: 'normal' | 'bold', color?: string, lineHeight?: number, icon?: React.FC<{className?:string}>, iconText?: string }): number => {
+    const renderWrappedText = (text: string, x: number, y: number, maxWidth: number, options: { fontSize: number, fontStyle?: 'normal' | 'bold', color?: string }): number => {
       doc.setFont(FONT_NAME, options.fontStyle || 'normal');
       doc.setFontSize(options.fontSize);
       doc.setTextColor(options.color || COLOR_TEXT_MEDIUM);
-      let currentX = x;
-
-      if(options.icon && options.iconText) {
-        // This part needs a way to render Lucide icons to PDF, which is non-trivial.
-        // As a fallback, we'll use unicode characters or simple text.
-        let iconUnicode = '';
-        if(options.icon.displayName?.includes('Phone')) iconUnicode = '📞';
-        else if (options.icon.displayName?.includes('Mail')) iconUnicode = '✉️';
-        else if (options.icon.displayName?.includes('Linkedin')) iconUnicode = '🔗';
-        else if (options.icon.displayName?.includes('MapPin')) iconUnicode = '📍';
-        else if (options.icon.displayName?.includes('Calendar')) iconUnicode = '🗓️';
-        
-        const iconText = `${iconUnicode} ${options.iconText}`;
-        doc.text(iconText, currentX, y);
-        currentX += doc.getTextWidth(iconText) + 8;
-      } else {
-         const lines = doc.splitTextToSize(text, maxWidth);
-         doc.text(lines, x, y);
-         return doc.getTextDimensions(lines).h * (options.lineHeight || 1);
-      }
-      return 0; // for icon case
+      const lines = doc.splitTextToSize(text, maxWidth);
+      doc.text(lines, x, y);
+      return doc.getTextDimensions(lines).h;
     };
     
     // --- HEADER ---
-    doc.setFont(FONT_NAME, 'bold');
-    doc.setFontSize(32);
-    doc.setTextColor(COLOR_TEXT_DARK);
-    doc.text(personalInfo.name || '[Full Name]', MARGIN, yLeft);
-    yLeft += 20;
+    yLeft += renderWrappedText(personalInfo.name || '[Full Name]', MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 32, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+    yLeft += 5;
 
-    doc.setFont(FONT_NAME, 'normal');
-    doc.setFontSize(12);
-    doc.setTextColor(COLOR_PRIMARY);
-    doc.text(personalInfo.title || '[Professional Title]', MARGIN, yLeft);
+    yLeft += renderWrappedText(personalInfo.title || '[Professional Title]', MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 12, color: COLOR_PRIMARY });
     yLeft += 15;
 
-    // Contact info line
     let contactX = MARGIN;
     doc.setFontSize(9);
     doc.setTextColor(COLOR_TEXT_MEDIUM);
     const contactItems = [
-      { text: personalInfo.phone, icon: Phone},
-      { text: personalInfo.email, icon: AtSign },
-      { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin}`: '', icon: Linkedin },
-      { text: personalInfo.location, icon: MapPin }
+      { text: personalInfo.phone, icon: Phone, unicode: '📞' },
+      { text: personalInfo.email, icon: AtSign, unicode: '✉️' },
+      { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin}`: '', icon: Linkedin, unicode: '🔗' },
+      { text: personalInfo.location, icon: MapPin, unicode: '📍' }
     ].filter(item => item.text);
 
-    contactItems.forEach((item, index) => {
-      renderWrappedText('', contactX, yLeft, 0, { fontSize: 9, icon: item.icon, iconText: item.text });
-      contactX += doc.getTextWidth(item.text!) + 25;
+    contactItems.forEach((item) => {
+      const fullText = `${item.unicode} ${item.text}`;
+      doc.text(fullText, contactX, yLeft);
+      contactX += doc.getTextWidth(fullText) + 15;
     });
     yLeft += 20;
     
-    // Initials Circle
     const CIRCLE_DIA = 50;
     doc.setFillColor(COLOR_PRIMARY);
     doc.circle(PAGE_WIDTH - MARGIN - (CIRCLE_DIA/2), MARGIN + 5, CIRCLE_DIA/2, 'F');
     doc.setFontSize(22);
     doc.setTextColor('#FFFFFF');
     doc.setFont(FONT_NAME, 'bold');
-    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("");
+    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2);
     doc.text(initials, PAGE_WIDTH - MARGIN - (CIRCLE_DIA/2), MARGIN + 9, { align: 'center'});
     
-    yRight = MARGIN + CIRCLE_DIA + 15;
+    yRight = MARGIN + CIRCLE_DIA + 20;
 
     // --- RENDER SECTIONS ---
     const renderSectionTitle = (title: string, x: number, y: number): number => {
       doc.setFont(FONT_NAME, 'bold');
       doc.setFontSize(14);
       doc.setTextColor(COLOR_TEXT_DARK);
-      doc.text(title.toUpperCase(), x, y);
+      const titleY = y + 5;
+      doc.text(title.toUpperCase(), x, titleY);
       const titleWidth = doc.getTextWidth(title);
       doc.setDrawColor(COLOR_TEXT_DARK);
       doc.setLineWidth(1.5);
-      doc.line(x, y + 4, x + titleWidth, y + 4);
-      return y + 20;
+      doc.line(x, titleY + 4, x + titleWidth, titleY + 4);
+      return y + 25;
     };
     
     const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number): number => {
         let currentY = y;
         bullets.forEach(bullet => {
+            if (!bullet) return;
+            const textX = x + 15;
+            const textMaxWidth = maxWidth - 15;
+            
             doc.setFontSize(16);
             doc.setTextColor(COLOR_PRIMARY);
             doc.text("•", x, currentY);
             
             doc.setFontSize(9);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
-            const textX = x + 8;
-            const textMaxWidth = maxWidth - 8;
             const lines = doc.splitTextToSize(bullet, textMaxWidth);
             doc.text(lines, textX, currentY);
-            currentY += doc.getTextDimensions(lines).h * LINE_HEIGHT_RATIO;
+            currentY += (doc.getTextDimensions(lines).h * (LINE_HEIGHT_RATIO - 0.1));
         });
         return currentY;
     };
@@ -647,44 +622,62 @@ export default function MentorAiPage() {
     // --- LEFT COLUMN ---
     if (summary) {
         yLeft = renderSectionTitle('Summary', MARGIN, yLeft);
-        const height = renderWrappedText(summary, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 9, lineHeight: LINE_HEIGHT_RATIO });
-        yLeft += height + 15;
+        const height = renderWrappedText(summary, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 9 });
+        yLeft += (height * LINE_HEIGHT_RATIO) + 15;
     }
 
+    const renderEntries = (entries: any[], startY: number, colWidth: number, colX: number) => {
+        let currentY = startY;
+        entries.forEach(entry => {
+            if (!entry.title && !entry.degree) return;
+            let height = renderWrappedText(entry.title || entry.degree, colX, currentY, colWidth, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+            currentY += height;
+
+            if(entry.company || entry.institution) {
+                height = renderWrappedText(entry.company || entry.institution, colX, currentY, colWidth, { fontSize: 10, color: COLOR_PRIMARY });
+                currentY += height + 2;
+            }
+            
+            if(entry.date) {
+                let dateLocText = entry.date;
+                if(entry.location) dateLocText += ` | ${entry.location}`;
+                const dateLocHeight = renderWrappedText(dateLocText, colX, currentY, colWidth, { fontSize: 8 });
+                currentY += dateLocHeight + 8;
+            }
+            
+            if(entry.details && entry.details.length > 0) {
+              currentY = renderBulletList(entry.details, colX, currentY, colWidth);
+            }
+            currentY += 20;
+        });
+        return currentY;
+    }
+    
     if (experience.length > 0) {
         yLeft = renderSectionTitle('Experience', MARGIN, yLeft);
-        experience.forEach(exp => {
-            let height = renderWrappedText(exp.title, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
-            yLeft += height;
-            height = renderWrappedText(exp.company, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 10, color: COLOR_PRIMARY });
-            yLeft += height + 2;
-            
-            const dateLocHeight = renderWrappedText(`${exp.date} | ${exp.location}`, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 8 });
-            yLeft += dateLocHeight + 5;
-            
-            yLeft = renderBulletList(exp.details, MARGIN, yLeft, LEFT_COL_WIDTH);
-            yLeft += 15;
-        });
+        yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN);
     }
-
+    
     if (education.length > 0) {
-        yLeft = renderSectionTitle('Education', MARGIN, yLeft);
-        education.forEach(edu => {
-             let height = renderWrappedText(edu.degree, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 11, fontStyle: 'bold', color: COLOR_TEXT_DARK });
-             yLeft += height;
-             height = renderWrappedText(edu.institution, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 10, color: COLOR_PRIMARY });
-             yLeft += height + 2;
-             const dateLocHeight = renderWrappedText(`${edu.date} | ${edu.location}`, MARGIN, yLeft, LEFT_COL_WIDTH, { fontSize: 8 });
-             yLeft += dateLocHeight + 15;
-        });
+        if (yLeft > yRight + 50) { 
+            yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight);
+            yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
+        } else {
+            yLeft = renderSectionTitle('Education', MARGIN, yLeft);
+            yLeft = renderEntries(education, yLeft, LEFT_COL_WIDTH, MARGIN);
+        }
     }
 
     // --- RIGHT COLUMN ---
     if (keyAchievements) {
         yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight);
-        const height = renderWrappedText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
-        yRight += height + 5;
-        yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+        if (keyAchievements.title) {
+          const height = renderWrappedText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
+          yRight += height + 5;
+        }
+        if (keyAchievements.details && keyAchievements.details.length > 0) {
+          yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+        }
         yRight += 15;
     }
     
@@ -692,43 +685,36 @@ export default function MentorAiPage() {
         yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight);
         let currentX = RIGHT_COL_X;
         let currentY = yRight;
-        const skillPadding = 6;
-        const skillMargin = 5;
-        doc.setFontSize(9);
-        doc.setFont(FONT_NAME, 'normal');
+        const skillPadding = 8;
+        const skillVGap = 8;
+        const skillHGap = 6;
+        doc.setFontSize(9); doc.setFont(FONT_NAME, 'normal');
 
         skills.forEach(skill => {
             const textWidth = doc.getTextWidth(skill);
             const skillWidth = textWidth + skillPadding * 2;
             if (currentX + skillWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
                 currentX = RIGHT_COL_X;
-                currentY += 12 + skillMargin;
+                currentY += 12 + skillVGap;
             }
             doc.setDrawColor(COLOR_TEXT_MEDIUM);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
-            doc.roundedRect(currentX, currentY - 9, skillWidth, 12, 2, 2, 'S');
+            doc.roundedRect(currentX, currentY - 9, skillWidth, 12, 3, 3, 'S');
             doc.text(skill, currentX + skillPadding, currentY);
-            currentX += skillWidth + skillMargin;
+            currentX += skillWidth + skillHGap;
         });
-        yRight = currentY + 15;
+        yRight = currentY + 20;
     }
 
     if (projects.length > 0) {
         yRight = renderSectionTitle('Projects', RIGHT_COL_X, yRight);
-        projects.forEach(proj => {
-            let height = renderWrappedText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 10, fontStyle: 'bold', color: COLOR_TEXT_DARK });
-            yRight += height;
-            const dateHeight = renderWrappedText(proj.date, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, { fontSize: 8 });
-            yRight += dateHeight + 5;
-            yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-            yRight += 15;
-        });
+        yRight = renderEntries(projects, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X);
     }
 
 
     doc.save('ai_mentor_resume.pdf');
     toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
-};
+  };
 
 
   const handleResetResumeImprover = () => {
