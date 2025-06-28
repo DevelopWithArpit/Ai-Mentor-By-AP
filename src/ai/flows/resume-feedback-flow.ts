@@ -104,7 +104,7 @@ Generate a professional resume. Take the user's input (from uploaded document, p
 
 **IMPORTANT INSTRUCTIONS FOR FILLING THE TEMPLATE:**
 *   When creating a new resume, meticulously parse 'additionalInformation' to extract the user's details and populate them into the corresponding placeholders. If a detail is not found, use a clear placeholder like "[Enter your...]" or "[Not Provided]".
-*   For 'Responsibilities and Achievements', 'Key Achievements', and 'Skills', generate each point as a separate line formatted as a bullet point. Example: \`[List your key responsibilities and achievements in bullet points.]\`
+*   For 'Responsibilities and Achievements', 'Key Achievements', and 'Skills', generate each point as a separate line formatted as a bullet point. Example: '[List your key responsibilities and achievements in bullet points.]'
 *   **Experience & Projects Sections:** If your analysis of the user's provided information indicates that the user has NO work experience, then you MUST OMIT the entire "3. Experience" section. Similarly, if the user has NO projects, you MUST OMIT the entire "7. Projects" section.
 
 **Resume Template to follow exactly:**
