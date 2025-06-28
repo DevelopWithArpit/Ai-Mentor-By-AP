@@ -495,10 +495,15 @@ export default function MentorAiPage() {
 
         lines.forEach(line => {
             const trimmedLine = line.trim();
+            if (trimmedLine === '') return;
+
             if (trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:')) {
-                if (currentEntry) entries.push(currentEntry);
+                if (currentEntry) {
+                    entries.push(currentEntry);
+                }
                 currentEntry = { details: [] };
             }
+
             if (!currentEntry) return;
 
             if (trimmedLine.startsWith('-')) {
@@ -512,7 +517,9 @@ export default function MentorAiPage() {
                 }
             }
         });
-        if (currentEntry) entries.push(currentEntry);
+        if (currentEntry) {
+            entries.push(currentEntry);
+        }
         return entries;
     };
 
@@ -2024,3 +2031,4 @@ export default function MentorAiPage() {
     </div>
   );
 }
+ 
