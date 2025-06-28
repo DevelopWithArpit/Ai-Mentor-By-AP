@@ -507,7 +507,7 @@ export default function MentorAiPage() {
             }
             
             if (!currentEntry) {
-                continue;
+                 currentEntry = { details: [] };
             }
 
             if (trimmedLine.startsWith('-')) {
@@ -521,7 +521,7 @@ export default function MentorAiPage() {
                 }
             }
         }
-        if (currentEntry && (currentEntry.title || currentEntry.degree)) {
+        if (currentEntry && (currentEntry.title || currentEntry.degree || (currentEntry.details && currentEntry.details.length > 0))) {
             entries.push(currentEntry);
         }
         return entries;
@@ -2086,3 +2086,6 @@ export default function MentorAiPage() {
  
     
 
+
+
+    
