@@ -464,36 +464,47 @@ export default function MentorAiPage() {
 
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent || sectionContent.trim() === '') return [];
-
-        const entryChunks = sectionContent.split(/(?=^title:|^degree:)/m).filter(chunk => chunk.trim() !== '');
         
         const entries: any[] = [];
+        let currentEntry: any = null;
+        const lines = sectionContent.split('\n');
 
-        for (const chunk of entryChunks) {
-            const currentEntry: any = { details: [] };
-            const lines = chunk.trim().split('\n');
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            const isNewEntry = trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:');
 
-            for (const line of lines) {
-                const trimmedLine = line.trim();
-                if (trimmedLine.startsWith('-')) {
-                    currentEntry.details.push(trimmedLine.substring(1).trim());
-                } else {
-                    const parts = trimmedLine.split(':');
-                    if (parts.length > 1) {
-                        const key = parts[0].trim().toLowerCase();
-                        const value = parts.slice(1).join(':').trim();
-                        if (key !== 'details') {
-                            currentEntry[key] = value;
-                        }
+            if (isNewEntry) {
+                if (currentEntry) {
+                    entries.push(currentEntry);
+                }
+                currentEntry = { details: [] };
+            }
+
+            if (!currentEntry) {
+                continue; 
+            }
+
+            if (trimmedLine.startsWith('-')) {
+                currentEntry.details.push(trimmedLine.substring(1).trim());
+            } else {
+                const parts = trimmedLine.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+                    if (key) {
+                        currentEntry[key] = value;
                     }
                 }
             }
-            if (currentEntry.title || currentEntry.degree) {
-               entries.push(currentEntry);
-            }
         }
+
+        if (currentEntry && (currentEntry.title || currentEntry.degree)) {
+            entries.push(currentEntry);
+        }
+
         return entries;
     };
+
 
     const personalInfo = parseSimpleSection(sections.PERSONAL_INFO);
     const summary = sections.SUMMARY || '';
@@ -2149,7 +2160,7 @@ export default function MentorAiPage() {
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
           <DialogHeader className="p-4 border-b">
-            <DialogTitle className="sr-only">Resume Preview</DialogTitle>
+             <DialogTitle className="sr-only">Resume Preview</DialogTitle>
           </DialogHeader>
           {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
         </DialogContent>
