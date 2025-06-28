@@ -462,7 +462,7 @@ export default function MentorAiPage() {
     }
 
     const doc = new jsPDF({ unit: "px", format: "a4" });
-
+    
     // --- PARSE STRUCTURED TEXT ---
     const sections: { [key: string]: string } = {};
     const text = resumeFeedback.modifiedResumeText;
@@ -491,23 +491,26 @@ export default function MentorAiPage() {
         const entries = sectionContent.split(entryRegex).filter(s => s.trim() !== '');
         return entries.map(entryText => {
             const lines = (`${titleKey}:` + entryText).split('\n').filter(l => l.trim() !== '');
-            const data: { [key: string]: any } = { details: [] };
-            let isDetailsSection = false;
+            const data: { [key: string]: any } = { details: [] }; // Always initialize details as an array
+            
             lines.forEach(line => {
+                // Check if it's a bullet point first
                 if (line.trim().startsWith('-')) {
                     data.details.push(line.substring(1).trim());
-                    isDetailsSection = false;
-                } else {
-                    const parts = line.split(':');
-                    if (parts.length > 1 && !isDetailsSection) {
-                        const key = parts[0].trim();
-                        const value = parts.slice(1).join(':').trim();
+                    return; // continue to next line
+                }
+
+                // If not a bullet, try to parse as key:value
+                const parts = line.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim();
+                    const value = parts.slice(1).join(':').trim();
+
+                    // If the key is 'details', we just ignore it, 
+                    // because we handle details via bullet points.
+                    // This prevents overwriting the `details` array.
+                    if (key.toLowerCase() !== 'details') {
                         data[key] = value;
-                        if (key === 'details') {
-                            isDetailsSection = true;
-                            // in case details are on the same line
-                            if(value) data.details.push(value);
-                        }
                     }
                 }
             });
