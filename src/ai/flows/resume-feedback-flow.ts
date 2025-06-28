@@ -80,8 +80,9 @@ Generate the resume content in the EXACT format below. Use the specified delimit
 **IMPORTANT FORMATTING RULES:**
 *   Each section MUST start with 'SECTION: <NAME>' and end with 'END_SECTION'.
 *   Inside a section, use 'key: value' pairs.
+*   The 'details:' key for bullet points MUST be on its own line, followed by the hyphenated list items on subsequent lines.
 *   For lists (like bullet points in experience), start each item on a new line with a hyphen '-'.
-*   For skills, provide a single comma-separated list.
+*   For skills, provide a single comma-separated list for the 'skills' key.
 *   If a section (like 'EXPERIENCE' or 'PROJECTS') has no content, OMIT the entire section block (from 'SECTION:' to 'END_SECTION').
 *   When creating a new resume from details, meticulously parse 'additionalInformation' to fill all fields. If a detail isn't found, use a placeholder like '[Detail Not Provided]'.
 
@@ -173,3 +174,5 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    

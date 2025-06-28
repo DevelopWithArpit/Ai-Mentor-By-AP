@@ -437,80 +437,85 @@ export default function MentorAiPage() {
   };
 
   const parseResumeData = (text: string) => {
-    const sections: { [key: string]: string } = {};
+    const sections: { [key: string]: string[] } = {};
     const sectionRegex = /SECTION: ([\s\S]*?)\n([\s\S]*?)\nEND_SECTION/g;
     let match;
     while ((match = sectionRegex.exec(text)) !== null) {
-        sections[match[1].trim()] = match[2].trim();
+      const sectionName = match[1].trim();
+      const sectionContent = match[2].trim();
+      sections[sectionName] = sectionContent.split('\n').filter(l => l.trim() !== '');
     }
 
-    const parseSection = (sectionContent: string | undefined) => {
-        if (!sectionContent) return {};
-        const data: { [key: string]: any } = {};
-        const lines = sectionContent.split('\n').filter(l => l.trim() !== '');
-        lines.forEach(line => {
-            const parts = line.split(':');
-            if (parts.length > 1) {
-                const key = parts[0].trim();
-                const value = parts.slice(1).join(':').trim();
-                data[key] = value;
-            }
-        });
-        return data;
+    const parseSimpleSection = (lines: string[] | undefined) => {
+      if (!lines) return {};
+      const data: { [key: string]: any } = {};
+      lines.forEach(line => {
+        const parts = line.split(':');
+        if (parts.length > 1) {
+          const key = parts[0].trim();
+          const value = parts.slice(1).join(':').trim();
+          data[key] = value;
+        }
+      });
+      return data;
     };
 
-    const parseMultiEntrySection = (sectionContent: string | undefined) => {
-        if (!sectionContent?.trim()) return [];
+    const parseMultiEntrySection = (lines: string[] | undefined) => {
+      if (!lines || lines.length === 0) return [];
 
-        const entries: any[] = [];
-        let currentEntry: any = null;
-        const lines = sectionContent.split('\n');
+      const entries: any[] = [];
+      let currentEntry: any = null;
 
-        for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        const isNewEntry = trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:');
 
-            const isNewEntry = trimmedLine.startsWith('title:') || trimmedLine.startsWith('degree:');
-
-            if (isNewEntry) {
-                // If there's a pending entry with some content, save it
-                if (currentEntry && (currentEntry.title || currentEntry.degree)) {
-                    entries.push(currentEntry);
-                }
-                // Start a new one
-                currentEntry = { details: [] };
-            }
-
-            // If we haven't started an entry yet, skip until we find a title/degree
-            if (!currentEntry) continue;
-
-            if (trimmedLine.startsWith('-')) {
-                currentEntry.details.push(trimmedLine.substring(1).trim());
-            } else {
-                const parts = trimmedLine.split(':');
-                if (parts.length > 1) {
-                    const key = parts[0].trim().toLowerCase();
-                    const value = parts.slice(1).join(':').trim();
-                    currentEntry[key] = value;
-                }
-            }
-        }
-
-        // Add the last processed entry if it exists
-        if (currentEntry && (currentEntry.title || currentEntry.degree)) {
+        if (isNewEntry) {
+          if (currentEntry) {
             entries.push(currentEntry);
+          }
+          currentEntry = { details: [] }; // Initialize with details array
         }
+        
+        if (!currentEntry) continue; // Skip lines until a new entry starts
 
-        return entries;
+        if (trimmedLine.startsWith('-')) {
+          // This check is crucial.
+          if (!Array.isArray(currentEntry.details)) {
+            currentEntry.details = [];
+          }
+          currentEntry.details.push(trimmedLine.substring(1).trim());
+        } else {
+          const parts = trimmedLine.split(':');
+          if (parts.length > 1) {
+            const key = parts[0].trim().toLowerCase();
+            const value = parts.slice(1).join(':').trim();
+            // Prevent 'details:' line from overwriting the array
+            if (key !== 'details') {
+              currentEntry[key] = value;
+            }
+          }
+        }
+      }
+
+      if (currentEntry) {
+        entries.push(currentEntry); // Add the last entry
+      }
+
+      return entries;
     };
 
-    const personalInfo = parseSection(sections.PERSONAL_INFO);
-    const summary = sections.SUMMARY || '';
-    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0] || { details: [] };
+    const personalInfo = parseSimpleSection(sections.PERSONAL_INFO);
+    const summary = sections.SUMMARY?.join('\n') || '';
+    
+    // The key achievements section is also a multi-entry, but we only expect one.
+    const keyAchievementsEntries = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS);
+    const keyAchievements = keyAchievementsEntries[0] || { details: [] };
+
     const experience = parseMultiEntrySection(sections.EXPERIENCE);
     const education = parseMultiEntrySection(sections.EDUCATION);
     const projects = parseMultiEntrySection(sections.PROJECTS);
-    const skillsStr = parseSection(sections.SKILLS)?.skills || '';
+    const skillsStr = parseSimpleSection(sections.SKILLS)?.skills || '';
     const skills = skillsStr ? skillsStr.split(',').map((s: string) => s.trim()) : [];
 
     return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
@@ -2168,3 +2173,5 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
+    
