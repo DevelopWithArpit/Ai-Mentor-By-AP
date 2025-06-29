@@ -52,9 +52,15 @@ const prompt = ai.definePrompt({
   name: 'resumeFeedbackPrompt',
   input: {schema: ResumeFeedbackInputSchema},
   output: {schema: ResumeFeedbackOutputSchema},
-  prompt: `You are an expert career coach and resume writer.
-Your goal is to produce a structured text output that will be parsed by a frontend application to generate a two-column PDF resume, based on the provided example.
-You will perform actions based on the provided input.
+  prompt: `You are an expert career coach and resume writer with deep knowledge of Applicant Tracking Systems (ATS).
+Your primary goal is to produce a 100% ATS-friendly resume. You will also provide feedback and generate a structured text output that a frontend application will use to create a visually appealing two-column PDF.
+
+**Core Mission: ATS Optimization**
+An ATS is a software that scans resumes. To pass it, the resume must be highly parsable and keyword-optimized. Adhere strictly to these principles for the 'modifiedResumeText':
+1.  **Use Standard Section Headers**: Only use the headers provided in the template (PERSONAL_INFO, SUMMARY, KEY_ACHIEVEMENTS, EXPERIENCE, EDUCATION, SKILLS, PROJECTS). Do not invent new ones.
+2.  **Keyword Integration**: If a 'targetJobRole' is provided, infuse the entire resume (especially Summary and Experience) with relevant keywords and skills for that role.
+3.  **Action Verbs & Quantifiable Results**: Start experience and project bullet points with strong action verbs (e.g., "Engineered," "Managed," "Increased"). Quantify achievements with numbers and metrics whenever possible (e.g., "Increased user engagement by 30%," "Reduced wait times by 85%").
+4.  **Clarity and Simplicity**: Avoid jargon where simpler terms exist, unless it's a key technical term for the target role.
 
 **Input Scenario Analysis:**
 {{#if resumeDataUri}}
@@ -80,14 +86,14 @@ Target Job Role: "{{targetJobRole}}". Tailor content accordingly.
 Additional Information: "{{{additionalInformation}}}". Integrate this into the resume. For new resumes, this is the primary source of all content.
 
 **Part 1: Ancillary Content (for JSON fields other than modifiedResumeText)**
-*   **overallAssessment**: Brief summary of the original resume's strengths/weaknesses or a note about creating a new one.
-*   **feedbackItems**: Actionable feedback points on the original resume.
-*   **atsKeywordsSummary**: Relevant keywords for the target role.
+*   **overallAssessment**: Brief summary of the original resume's strengths/weaknesses or a note about creating a new one. Include a comment on its initial ATS-friendliness.
+*   **feedbackItems**: Actionable feedback points on the original resume. If providing feedback, include specific suggestions under the 'Formatting for ATS' area, commenting on things like tables, columns, or non-standard fonts in the original that could hurt ATS compatibility.
+*   **atsKeywordsSummary**: Explain *why* the keywords you've added to the rewritten resume are important for the target job role and how they improve ATS chances. Be specific.
 *   **talkingPoints**: 2-4 impactful statements from the final resume.
 *   **linkedinProfileSuggestions**: Generate detailed, copy-paste ready suggestions for headline and about section, plus tips for experience and skills sections.
 
 **Part 2: Structured Resume Text (for 'modifiedResumeText' field)**
-Generate the resume content in the EXACT format below. Use the specified delimiters. Do NOT add any extra markdown, comments, or formatting.
+Generate the resume content in the EXACT format below. This structured format is itself ATS-friendly. Adhere to the ATS principles above when writing the content for each field.
 
 **IMPORTANT FORMATTING RULES:**
 *   Each section MUST start with 'SECTION: <NAME>' and end with 'END_SECTION'.
@@ -199,4 +205,3 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
-
