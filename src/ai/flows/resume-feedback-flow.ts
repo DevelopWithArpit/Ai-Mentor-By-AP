@@ -53,7 +53,7 @@ const prompt = ai.definePrompt({
   input: {schema: ResumeFeedbackInputSchema},
   output: {schema: ResumeFeedbackOutputSchema},
   prompt: `You are an expert career coach and resume writer.
-Your goal is to produce a structured text output that will be parsed by a frontend application to generate a two-column PDF resume.
+Your goal is to produce a structured text output that will be parsed by a frontend application to generate a two-column PDF resume, based on the provided example.
 You will perform actions based on the provided input.
 
 **Input Scenario Analysis:**
@@ -62,7 +62,19 @@ Analyze the uploaded resume document: {{media url=resumeDataUri}}.
 {{else if resumeText}}
 Analyze the provided resume text: {{{resumeText}}}.
 {{else}}
-Create a new resume using the details provided.
+Create a new resume using the details provided. For this scenario, use the following example details to structure the new resume:
+Name: Arpit Pise
+Title: AI Engineer / Robotics Software Engineer
+Phone: 7276602831
+Email: arpitpise1@gmail.com
+LinkedIn: in/arpit-pise-20029a287
+Location: Nagpur, India
+Summary: As a B.Tech student specializing in Robotics and Artificial Intelligence, I am dedicated to crafting cutting-edge AI solutions. My expertise in Python, Java, and C++ complements my projects, notably leading the successful development of the AI Mentor platform. I am eager to apply my skills in an AI Engineer or Robotics Software Engineer role to contribute to advanced technological innovations.
+Experience: Technical Member at Priyadarshini College of Engineering (01/2023 - 01/1970, Nagpur, India) - Technical Member, College Committee. Collaborated in organizing 5+ technical events, resulting in 50% increase in participation. Implemented online registration system with PHP/MySQL, decreasing wait times by 85%. Developed and maintained college committee website using HTML/CSS/JS, leading to 30% increase in event visibility.
+Education: B.Tech in Robotics and AI from Priyadarshini College Of Engineering (08/2024 - 05/2028). HSC from ST. PAUL PUBLIC SCHOOL & JUNIOR COLLEGE (01/2021 - 05/2023). SSC from PURUSHOTTAM DAS BAGLA CONVENT (01/2019 - 05/2021).
+Key Achievements: AI Mentor by AP Platform Development - Led the development of the AI Mentor by AP platform, achieving a 30% increase in user engagement within the first month through personalized learning experiences.
+Skills: AWS, Azure, C/C++, CSS, Data Structures, Deep Learning, Django, Docker, Flask, GAMS, Git, HTML, Java, JavaScript, Keras, Linux, NLP, NumPy, Pandas, PHP, Python, PyTorch, Robotics, Scikit-Learn, TensorFlow, Gmail.
+Projects: AI Mentor by AP (05/2025 - 01/1970) - Personal Project. Spearheaded development of an AI-powered learning platform. Engineered AI-driven tools for resume, cover letter, etc. Integrated AI-powered image generation. Designed the platform with a user-centric approach.
 {{/if}}
 Target Job Role: "{{targetJobRole}}". Tailor content accordingly.
 Additional Information: "{{{additionalInformation}}}". Integrate this into the resume. For new resumes, this is the primary source of all content.
@@ -79,18 +91,17 @@ Generate the resume content in the EXACT format below. Use the specified delimit
 
 **IMPORTANT FORMATTING RULES:**
 *   Each section MUST start with 'SECTION: <NAME>' and end with 'END_SECTION'.
-*   Inside a section, use 'key: value' pairs.
-*   The 'details:' key for bullet points MUST be on its own line, followed by the hyphenated list items on subsequent lines.
-*   For lists (like bullet points in experience), start each item on a new line with a hyphen '-'.
+*   Inside a section, use 'key: value' pairs. For lists (like bullet points in experience), start each item on a new line with a hyphen '-'.
 *   For skills, provide a single comma-separated list for the 'skills' key.
 *   If a section (like 'EXPERIENCE' or 'PROJECTS') has no content, OMIT the entire section block (from 'SECTION:' to 'END_SECTION').
 *   When creating a new resume from details, meticulously parse 'additionalInformation' to fill all fields. If a detail isn't found, use a placeholder like '[Detail Not Provided]'.
+*   For multi-entry sections (Experience, Education, Projects), repeat the block of keys (title, company, etc.) for each separate entry.
 
 **Resume Structure Template:**
 
 SECTION: PERSONAL_INFO
 name: [Full Name]
-title: [Professional Title, e.g., AI Engineer / Robotics Software Engineer]
+title: [Professional Title]
 phone: [Phone Number]
 email: [Email Address]
 linkedin: [LinkedIn Profile URL, just the path, e.g., in/username-123]
@@ -102,41 +113,55 @@ SECTION: SUMMARY
 END_SECTION
 
 SECTION: KEY_ACHIEVEMENTS
-title: [Key achievement title, e.g., AI Mentor by AP Platform Development]
+title: [Key achievement title]
 details:
-- [Bullet point describing the achievement, e.g., Led the development of the AI Mentor by AP platform, achieving a 30% increase in user engagement.]
-- [Another bullet point if applicable.]
+- [Bullet point describing the achievement.]
 END_SECTION
 
 SECTION: EXPERIENCE
-title: [Job Title]
-company: [Company Name]
+title: [Job Title 1]
+company: [Company Name 1]
+date: [Start Date] - [End Date]
+location: [City, Country]
+context: [Optional extra context, e.g., 'College Committee']
+details:
+- [Responsibility or achievement as a bullet point.]
+- [Another bullet point.]
+title: [Job Title 2]
+company: [Company Name 2]
 date: [Start Date] - [End Date]
 location: [City, Country]
 details:
-- [Responsibility or achievement as a bullet point. Start with an action verb.]
-- [Another bullet point.]
+- [Responsibility or achievement as a bullet point.]
 END_SECTION
 
 SECTION: EDUCATION
-degree: [Degree Name, e.g., Bachelor of Technology in Robotics and Artificial Intelligence (B.Tech)]
-institution: [Institution Name]
+degree: [Degree Name 1, e.g., Bachelor of Technology]
+institution: [Institution Name 1]
 date: [Start Date] - [End Date]
 location: [City, Country]
-details:
-- [Optional bullet point for coursework, thesis, or honors.]
+degree: [Degree Name 2, e.g., HSC]
+institution: [Institution Name 2]
+date: [Start Date] - [End Date]
+location: [City, Country]
 END_SECTION
 
 SECTION: SKILLS
-skills: [Comma-separated list of all relevant skills, e.g., AWS, Azure, C/C++, CSS, Data Structures, Deep Learning, Django, Docker, Flask, Git, HTML, Java, JavaScript, Keras, Linux, NLP, NLTK, NumPy, Pandas, PHP, Python, PyTorch, Robotics, Scikit-Learn, TensorFlow]
+skills: [Comma-separated list of all relevant skills]
 END_SECTION
 
 SECTION: PROJECTS
-title: [Project Title]
+title: [Project Title 1]
 date: [Start Date] - [End Date]
+context: [Optional extra context, e.g., 'Personal Project']
 details:
 - [Project detail as a bullet point. Describe your contribution and the outcome.]
 - [Another bullet point.]
+title: [Project Title 2]
+date: [Start Date] - [End Date]
+context: [Optional extra context, e.g., 'Team Project']
+details:
+- [Project detail as a bullet point.]
 END_SECTION
 
 `,
@@ -175,4 +200,3 @@ const resumeFeedbackFlow = ai.defineFlow(
   }
 );
 
-    
