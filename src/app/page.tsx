@@ -467,13 +467,6 @@ export default function MentorAiPage() {
         const entries: any[] = [];
         let currentEntry: any = null;
 
-        const commitCurrentEntry = () => {
-            if (currentEntry && (currentEntry.title || currentEntry.degree || (currentEntry.details && currentEntry.details.length > 0))) {
-                entries.push(currentEntry);
-            }
-            currentEntry = null;
-        };
-
         const lines = sectionContent.split('\n');
 
         for (const line of lines) {
@@ -481,41 +474,44 @@ export default function MentorAiPage() {
             if (!trimmedLine) continue;
 
             const lowerLine = trimmedLine.toLowerCase();
+            const isNewEntryMarker = lowerLine.startsWith('title:') || lowerLine.startsWith('degree:');
 
-            // A new entry starts with 'title:' or 'degree:'
-            if (lowerLine.startsWith('title:') || lowerLine.startsWith('degree:')) {
-                commitCurrentEntry(); // Commit the previous entry before starting a new one
+            if (isNewEntryMarker) {
+                if (currentEntry) {
+                    entries.push(currentEntry);
+                }
                 currentEntry = { details: [] };
                 const parts = trimmedLine.split(':');
                 const key = parts[0].trim().toLowerCase();
                 const value = parts.slice(1).join(':').trim();
                 currentEntry[key] = value;
-            } else if (trimmedLine.startsWith('-')) {
-                // This is a bullet point for the current entry's details
-                if (currentEntry) {
-                    // Ensure 'details' is an array before pushing
+            } else if (currentEntry) {
+                if (trimmedLine.startsWith('-')) {
                     if (!Array.isArray(currentEntry.details)) {
                         currentEntry.details = [];
                     }
                     currentEntry.details.push(trimmedLine.substring(1).trim());
-                }
-            } else if (lowerLine.startsWith('details:')) {
-                // Ignore "details:" lines, as we handle bullets directly.
-                // This prevents overwriting the details array.
-                continue;
-            } else if (currentEntry) {
-                // This is another key-value pair for the current entry
-                const parts = trimmedLine.split(':');
-                if (parts.length > 1) {
+                } else if (lowerLine.startsWith('details:')) {
+                    continue;
+                } else if (trimmedLine.includes(':')) {
+                    const parts = trimmedLine.split(':');
                     const key = parts[0].trim().toLowerCase();
                     const value = parts.slice(1).join(':').trim();
                     currentEntry[key] = value;
                 }
             }
         }
-        commitCurrentEntry(); // Commit the very last entry
 
-        return entries;
+        if (currentEntry) {
+            entries.push(currentEntry);
+        }
+        
+        return entries.map(entry => {
+            if (entry.details && entry.details.length === 0) {
+                delete entry.details;
+            }
+            return entry;
+        });
     };
 
     const personalInfo = parseSimpleSection(sections.PERSONAL_INFO);
@@ -728,10 +724,10 @@ export default function MentorAiPage() {
     const renderRightColumn = (isDryRun: boolean) => {
         let y = MARGIN;
         const contactItems = [
-            { label: 'Phone', value: personalInfo.phone },
-            { label: 'Email', value: personalInfo.email },
-            { label: 'LinkedIn', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
-            { label: 'Location', value: personalInfo.location }
+            { label: 'Phone: ', value: personalInfo.phone },
+            { label: 'Email: ', value: personalInfo.email },
+            { label: 'LinkedIn: ', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
+            { label: 'Location: ', value: personalInfo.location }
         ].filter(item => item.value);
 
         if (contactItems.length > 0) {
@@ -739,7 +735,7 @@ export default function MentorAiPage() {
             doc.setFontSize(9);
             doc.setFont(FONT_NAME, 'normal');
             contactItems.forEach(item => {
-                const contactLine = `${item.label}: ${item.value}`;
+                const contactLine = `${item.label}${item.value}`;
                 let valueLines = doc.splitTextToSize(contactLine, RIGHT_COL_WIDTH);
                 let height = doc.getTextDimensions(valueLines).h;
                 y = checkAndAddPage(y, height);
