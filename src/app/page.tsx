@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Progress } from "@/components/ui/progress";
 import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye } from 'lucide-react';
 import {
   SidebarProvider,
@@ -437,72 +438,99 @@ export default function MentorAiPage() {
   };
 
   const parseResumeData = (text: string) => {
-    const sections: { [key: string]: string } = {};
-    const sectionRegex = /SECTION: ([\w_]+)\s*\n([\s\S]*?)\s*END_SECTION/g;
+    const sections: { [key: string]: string[] } = {
+        PERSONAL_INFO: [],
+        SUMMARY: [],
+        KEY_ACHIEVEMENTS: [],
+        EXPERIENCE: [],
+        EDUCATION: [],
+        SKILLS: [],
+        PROJECTS: [],
+    };
+
+    const sectionRegex = /SECTION: ([\w_]+)\s*([\s\S]*?)\s*END_SECTION/g;
     let match;
     while ((match = sectionRegex.exec(text)) !== null) {
-        sections[match[1].trim()] = match[2].trim();
+        const sectionName = match[1].trim();
+        const sectionContent = match[2].trim();
+        if (sections.hasOwnProperty(sectionName)) {
+            sections[sectionName] = sectionContent.split('\n').filter(line => line.trim() !== '');
+        }
     }
 
-    const parseSimpleSection = (content: string | undefined) => {
-        if (!content) return {};
-        const data: { [key: string]: any } = {};
-        content.split('\n').forEach(line => {
+    const parseKeyValueSection = (lines: string[]) => {
+        const data: { [key: string]: string } = {};
+        lines.forEach(line => {
             const parts = line.match(/^([\w\s]+):\s*(.*)$/);
             if (parts) {
-                const key = parts[1].trim().toLowerCase();
-                const value = parts[2].trim();
-                data[key] = value;
+                data[parts[1].trim().toLowerCase()] = parts[2].trim();
             }
         });
         return data;
     };
+    
+    const parseSummarySection = (lines: string[]) => lines.join('\n');
 
-    const parseMultiEntrySection = (content: string | undefined) => {
-        if (!content) return [];
+    const parseMultiEntrySection = (lines: string[]) => {
+        if (!lines || lines.length === 0) return [];
+        
         const entries: any[] = [];
-        const lines = content.split('\n');
         let currentEntry: any = null;
-
         const entryMarkers = ['title:', 'degree:'];
+
+        const commitEntry = () => {
+            if (currentEntry) {
+                entries.push(currentEntry);
+                currentEntry = null;
+            }
+        };
 
         for (const line of lines) {
             const trimmedLine = line.trim();
             if (!trimmedLine) continue;
 
             const isNewEntry = entryMarkers.some(marker => trimmedLine.toLowerCase().startsWith(marker));
-
+            
             if (isNewEntry) {
-                if (currentEntry) entries.push(currentEntry);
-                currentEntry = { details: [] };
+                commitEntry();
+                currentEntry = {};
             }
 
-            if (!currentEntry) continue;
+            if (currentEntry === null) {
+                // This can happen if the first line is not a marker.
+                // We'll create a default entry. This is a safeguard.
+                currentEntry = {};
+            }
 
             if (trimmedLine.startsWith('- ')) {
+                if (!currentEntry.details) {
+                    currentEntry.details = [];
+                }
                 currentEntry.details.push(trimmedLine.substring(2).trim());
             } else if (trimmedLine.toLowerCase().startsWith('details:')) {
-                // This line can be ignored as we handle '-' prefixed lines directly
+                if (!currentEntry.details) {
+                    currentEntry.details = [];
+                }
             } else {
                 const parts = trimmedLine.match(/^([\w\s]+):\s*(.*)$/);
                 if (parts) {
-                    const key = parts[1].trim().toLowerCase();
+                    const key = parts[1].trim().toLowerCase().replace(/\s+/g, '_');
                     const value = parts[2].trim();
                     currentEntry[key] = value;
                 }
             }
         }
-        if (currentEntry) entries.push(currentEntry);
+        commitEntry(); // Commit the last entry
         return entries;
     };
-    
-    const personalInfo = parseSimpleSection(sections.PERSONAL_INFO);
-    const summary = sections.SUMMARY || '';
+
+    const personalInfo = parseKeyValueSection(sections.PERSONAL_INFO);
+    const summary = parseSummarySection(sections.SUMMARY);
     const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0] || { details: [] };
     const experience = parseMultiEntrySection(sections.EXPERIENCE);
     const education = parseMultiEntrySection(sections.EDUCATION);
     const projects = parseMultiEntrySection(sections.PROJECTS);
-    const skillsStr = (parseSimpleSection(sections.SKILLS).skills as string) || '';
+    const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
     const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
@@ -548,23 +576,22 @@ export default function MentorAiPage() {
     const PAGE_WIDTH = doc.internal.pageSize.getWidth();
     const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
     const MARGIN = 40;
-    const COL_GAP = 30;
-    const LEFT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.6;
-    const RIGHT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.4;
+    const COL_GAP = 20;
+    const LEFT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.65;
+    const RIGHT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.35;
     const LEFT_COL_X = MARGIN;
     const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
 
     const FONT_SANS = "Helvetica";
-    const COLOR_PRIMARY = "#2563eb";
-    const COLOR_TEXT_DARK = "#1f2937";
-    const COLOR_TEXT_MEDIUM = "#4b5563";
-    const COLOR_TEXT_LIGHT = "#6b7280";
+    const COLOR_PRIMARY = "#2563eb"; // blue-600
+    const COLOR_TEXT_DARK = "#1f2937"; // gray-800
+    const COLOR_TEXT_MEDIUM = "#4b5563"; // gray-600
+    const COLOR_TEXT_LIGHT = "#6b7280"; // gray-500
     const LINE_HEIGHT_RATIO = 1.4;
 
     let yLeft = MARGIN;
     let yRight = MARGIN;
 
-    // --- PDF Generation Logic ---
     const addNewPage = () => {
         doc.addPage();
         yLeft = MARGIN;
@@ -573,16 +600,21 @@ export default function MentorAiPage() {
     
     // --- Header ---
     doc.setFont(FONT_SANS, 'bold');
-    doc.setFontSize(28);
+    doc.setFontSize(26);
     doc.setTextColor(COLOR_TEXT_DARK);
-    doc.text(personalInfo.name || '[Full Name]', MARGIN, yLeft);
-    yLeft += doc.getTextDimensions(personalInfo.name || '[Full Name]').h;
+    const nameLines = doc.splitTextToSize(personalInfo.name || '[Full Name]', LEFT_COL_WIDTH);
+    doc.text(nameLines, MARGIN, yLeft);
+    yLeft += doc.getTextDimensions(nameLines).h;
     
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(COLOR_PRIMARY);
-    doc.text(personalInfo.title || '[Professional Title]', MARGIN, yLeft);
-    yLeft += 5;
+    doc.setFont(FONT_SANS, 'normal');
+    const titleLines = doc.splitTextToSize(personalInfo.title || '[Professional Title]', LEFT_COL_WIDTH);
+    doc.text(titleLines, MARGIN, yLeft);
+    yLeft += doc.getTextDimensions(titleLines).h + 15;
+    const headerBottomY = yLeft;
 
+    // --- Right Column Header ---
     const contactInfo = [
         { icon: 'phone', text: personalInfo.phone },
         { icon: 'mail', text: personalInfo.email },
@@ -592,67 +624,59 @@ export default function MentorAiPage() {
 
     doc.setFontSize(8);
     doc.setTextColor(COLOR_TEXT_MEDIUM);
-    let contactX = MARGIN;
-    const contactY = yLeft + 5;
-    contactInfo.forEach((item, index) => {
-        const textWidth = doc.getTextWidth(item.text);
-        if (contactX + textWidth + 20 > PAGE_WIDTH - MARGIN) { // approx width for icon
-            contactX = MARGIN;
-            yLeft += 15;
-        }
-        doc.text(item.text, contactX, contactY);
-        contactX += textWidth + 15;
+    contactInfo.forEach(item => {
+        const textLines = doc.splitTextToSize(item.text, RIGHT_COL_WIDTH);
+        doc.text(textLines, RIGHT_COL_X, yRight, { align: 'left'});
+        yRight += doc.getTextDimensions(textLines).h + 4;
     });
 
-    const headerHeight = contactY + 15;
+    // Align Y positions after header
+    yLeft = Math.max(yLeft, yRight) + 10;
+    yRight = yLeft;
 
-    doc.setFillColor(COLOR_PRIMARY);
-    doc.circle(PAGE_WIDTH - MARGIN - 30, MARGIN + 30, 30, 'F');
-    doc.setFontSize(24);
-    doc.setTextColor("#ffffff");
-    doc.setFont(FONT_SANS, 'bold');
-    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
-    doc.text(initials, PAGE_WIDTH - MARGIN - 30, MARGIN + 38, { align: 'center' });
     doc.setDrawColor(COLOR_TEXT_LIGHT);
     doc.setLineWidth(0.5);
-    doc.line(MARGIN, headerHeight, PAGE_WIDTH - MARGIN, headerHeight);
+    doc.line(MARGIN, headerBottomY - 8, PAGE_WIDTH - MARGIN, headerBottomY - 8);
 
-    yLeft = headerHeight + 20;
-    yRight = headerHeight + 20;
-    
     // --- Section Rendering Helpers ---
-    const renderSectionTitle = (title: string, x: number, y: number, colWidth: number) => {
+    const renderSectionTitle = (title: string, x: number, y: number, isLeftCol: boolean) => {
         const titleHeight = 25;
-        if (y + titleHeight > PAGE_HEIGHT - MARGIN) {
-            addNewPage();
-            y = MARGIN;
+        let currentY = y;
+        if (currentY + titleHeight > PAGE_HEIGHT - MARGIN) {
+            if (isLeftCol) { // If left column overflows, we need a new page
+                 addNewPage();
+                 currentY = yLeft; // yLeft is already MARGIN
+                 yRight = yLeft; // Reset right column as well
+            } else { // if right column overflows, it can just continue where left col left off on next page
+                currentY = yLeft; // Continue where left col is
+            }
         }
         doc.setFont(FONT_SANS, 'bold');
-        doc.setFontSize(14);
-        doc.setTextColor(COLOR_TEXT_DARK);
-        doc.text(title.toUpperCase(), x, y);
+        doc.setFontSize(12);
+        doc.setTextColor(COLOR_PRIMARY);
+        doc.text(title.toUpperCase(), x, currentY);
         doc.setDrawColor(COLOR_TEXT_DARK);
         doc.setLineWidth(1.5);
-        doc.line(x, y + 4, x + doc.getTextWidth(title), y + 4);
-        return y + titleHeight;
+        doc.line(x, currentY + 2, x + doc.getTextWidth(title), currentY + 2);
+        return currentY + titleHeight;
     };
-
-    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number) => {
+    
+    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number, isLeftCol: boolean) => {
         let currentY = y;
         bullets.forEach(bullet => {
             if (!bullet) return;
-            const textX = x + 10;
-            const textMaxWidth = maxWidth - 10;
+            const textX = x + 12;
+            const textMaxWidth = maxWidth - 12;
             
             doc.setFontSize(9);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
             const lines = doc.splitTextToSize(bullet, textMaxWidth);
-            let textHeight = doc.getTextDimensions(lines).h * LINE_HEIGHT_RATIO;
-            
+            const textHeight = doc.getTextDimensions(lines).h;
+
             if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
-                addNewPage();
-                currentY = MARGIN;
-                // Redraw section titles if a section splits
+                if (isLeftCol) { addNewPage(); currentY = yLeft; yRight = yLeft; }
+                else { currentY = yLeft; } // Let right col wrap based on left
+                 // Here you might want to re-render the section title on the new page
             }
             
             doc.setFontSize(14);
@@ -662,28 +686,65 @@ export default function MentorAiPage() {
             doc.setFontSize(9);
             doc.setTextColor(COLOR_TEXT_MEDIUM);
             doc.text(lines, textX, currentY);
-            currentY += textHeight;
+            currentY += textHeight + 2;
         });
         return currentY;
     };
-    
-    // --- Render Right Column First ---
-    if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-        yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-        doc.setFont(FONT_SANS, 'bold'); doc.setFontSize(10); doc.setTextColor(COLOR_TEXT_DARK);
-        const titleLines = doc.splitTextToSize(keyAchievements.title, RIGHT_COL_WIDTH);
-        doc.text(titleLines, RIGHT_COL_X, yRight);
-        yRight += doc.getTextDimensions(titleLines).h + 5;
-        yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-        yRight += 15;
+
+    const renderText = (text: string, x: number, y: number, maxWidth: number, isLeftCol: boolean, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
+        let currentY = y;
+        doc.setFontSize(size);
+        doc.setTextColor(color[0], color[1], color[2]);
+        doc.setFont(FONT_SANS, style);
+
+        const lines = doc.splitTextToSize(text, maxWidth);
+        const textHeight = doc.getTextDimensions(lines).h;
+        if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
+            if (isLeftCol) { addNewPage(); currentY = yLeft; yRight = yLeft; }
+             else { currentY = yLeft; }
+        }
+        doc.text(lines, x, currentY);
+        return currentY + textHeight;
+    };
+
+
+    // --- Render Left Column (Main Content) ---
+    if(summary) {
+        yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft, true);
+        yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, true) + 15;
     }
+    if(experience.length > 0) {
+        yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft, true);
+        experience.forEach(job => {
+            let tempY = yLeft;
+            tempY = renderText(job.title, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 10, COLOR_TEXT_DARK, 'bold');
+            tempY = renderText(job.company, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 9, COLOR_PRIMARY, 'bold');
+            tempY = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 8, COLOR_TEXT_LIGHT);
+            tempY += 4;
+            tempY = renderBulletList(job.details, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true);
+            yLeft = tempY + 10;
+        });
+    }
+
+    // --- Render Right Column (Sidebar) ---
+    if (education.length > 0) {
+        yRight = renderSectionTitle('EDUCATION', RIGHT_COL_X, yRight, false);
+        education.forEach(edu => {
+            let tempY = yRight;
+            tempY = renderText(edu.degree, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 10, COLOR_TEXT_DARK, 'bold');
+            tempY = renderText(edu.institution, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 9, COLOR_PRIMARY, 'normal');
+            tempY = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT);
+            yRight = tempY + 10;
+        });
+    }
+
     if (skills.length > 0) {
-        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight, false);
         let currentX = RIGHT_COL_X;
         let currentY = yRight;
-        const tagPaddingX = 8;
-        const tagPaddingY = 4;
-        const tagMargin = 5;
+        const tagPaddingX = 6;
+        const tagPaddingY = 3;
+        const tagMargin = 4;
         doc.setFontSize(8);
         skills.forEach(skill => {
             const textWidth = doc.getTextWidth(skill);
@@ -693,82 +754,28 @@ export default function MentorAiPage() {
                 currentY += 12 + tagMargin;
             }
             if (currentY > PAGE_HEIGHT - MARGIN) {
-                addNewPage();
-                currentY = yRight = renderSectionTitle('SKILLS (CONTINUED)', RIGHT_COL_X, MARGIN, RIGHT_COL_WIDTH);
-                currentX = RIGHT_COL_X;
+                 addNewPage(); // Should not happen for right col but safeguard
+                 currentY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN, false);
+                 currentX = RIGHT_COL_X;
             }
-            doc.setFillColor("#e5e7eb");
+            doc.setFillColor("#e5e7eb"); // gray-200
             doc.roundedRect(currentX, currentY - 8, tagWidth, 12, 3, 3, 'F');
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
-            doc.text(skill, currentX + tagPaddingX, currentY);
+            doc.setTextColor(COLOR_TEXT_MEDIUM[0], COLOR_TEXT_MEDIUM[1], COLOR_TEXT_MEDIUM[2]);
+            doc.text(skill, currentX + tagPaddingX, currentY - 1);
             currentX += tagWidth + tagMargin;
         });
         yRight = currentY + 15;
     }
-     if (projects.length > 0) {
-        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+    
+    if (projects.length > 0) {
+        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight, false);
         projects.forEach(proj => {
-            doc.setFont(FONT_SANS, 'bold'); doc.setFontSize(10); doc.setTextColor(COLOR_TEXT_DARK);
-            let lines = doc.splitTextToSize(proj.title, RIGHT_COL_WIDTH);
-            doc.text(lines, RIGHT_COL_X, yRight);
-            yRight += doc.getTextDimensions(lines).h;
-            doc.setFontSize(8); doc.setTextColor(COLOR_TEXT_LIGHT);
-            let dateText = `${proj.date || ''} ${proj.context ? ' - ' + proj.context : ''}`
-            doc.text(dateText.trim(), RIGHT_COL_X, yRight);
-            yRight += doc.getTextDimensions(dateText).h + 5;
-            yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-            yRight += 10;
-        });
-    }
-
-    // --- Render Left Column ---
-    if(summary) {
-        yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-        doc.setFontSize(9);
-        doc.setTextColor(COLOR_TEXT_MEDIUM);
-        const lines = doc.splitTextToSize(summary, LEFT_COL_WIDTH);
-        doc.text(lines, LEFT_COL_X, yLeft);
-        yLeft += doc.getTextDimensions(lines).h * LINE_HEIGHT_RATIO + 15;
-    }
-    if(experience.length > 0) {
-        yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-        experience.forEach(job => {
-            doc.setFont(FONT_SANS, 'bold'); doc.setFontSize(10); doc.setTextColor(COLOR_TEXT_DARK);
-            let lines = doc.splitTextToSize(job.title, LEFT_COL_WIDTH);
-            doc.text(lines, LEFT_COL_X, yLeft);
-            yLeft += doc.getTextDimensions(lines).h;
-            
-            doc.setFont(FONT_SANS, 'normal'); doc.setFontSize(9); doc.setTextColor(COLOR_PRIMARY);
-            lines = doc.splitTextToSize(job.company, LEFT_COL_WIDTH);
-            doc.text(lines, LEFT_COL_X, yLeft);
-            yLeft += doc.getTextDimensions(lines).h;
-
-            doc.setFontSize(8); doc.setTextColor(COLOR_TEXT_LIGHT);
-            let dateText = `${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`
-            doc.text(dateText.trim(), LEFT_COL_X, yLeft);
-            yLeft += doc.getTextDimensions(dateText).h + 5;
-            
-            yLeft = renderBulletList(job.details, LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-            yLeft += 10;
-        });
-    }
-    if(education.length > 0) {
-        yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-         education.forEach(edu => {
-            doc.setFont(FONT_SANS, 'bold'); doc.setFontSize(10); doc.setTextColor(COLOR_TEXT_DARK);
-            let lines = doc.splitTextToSize(edu.degree, LEFT_COL_WIDTH);
-            doc.text(lines, LEFT_COL_X, yLeft);
-            yLeft += doc.getTextDimensions(lines).h;
-            
-            doc.setFont(FONT_SANS, 'normal'); doc.setFontSize(9); doc.setTextColor(COLOR_PRIMARY);
-            lines = doc.splitTextToSize(edu.institution, LEFT_COL_WIDTH);
-            doc.text(lines, LEFT_COL_X, yLeft);
-            yLeft += doc.getTextDimensions(lines).h;
-
-            doc.setFontSize(8); doc.setTextColor(COLOR_TEXT_LIGHT);
-            let dateText = `${edu.date || ''} | ${edu.location || ''}`
-            doc.text(dateText.trim(), LEFT_COL_X, yLeft);
-            yLeft += doc.getTextDimensions(dateText).h + 8;
+            let tempY = yRight;
+            tempY = renderText(proj.title, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 10, COLOR_TEXT_DARK, 'bold');
+            tempY = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT);
+            tempY += 4;
+            tempY = renderBulletList(proj.details, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false);
+            yRight = tempY + 10;
         });
     }
 
@@ -1513,6 +1520,39 @@ export default function MentorAiPage() {
                         
                         {resumeFeedback && (
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto space-y-6">
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {resumeFeedback.originalAtsScore && (
+                                        <Card className="bg-background/50">
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-base font-semibold text-muted-foreground">Original ATS Score</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-2xl text-primary">{resumeFeedback.originalAtsScore.score}<span className="text-sm font-normal text-muted-foreground">/100</span></span>
+                                                    <Progress value={resumeFeedback.originalAtsScore.score} className="w-full h-2" />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">{resumeFeedback.originalAtsScore.explanation}</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                    {resumeFeedback.improvedAtsScore && (
+                                        <Card className={`bg-background/50 ${!resumeFeedback.originalAtsScore ? 'md:col-span-2' : ''}`}>
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-base font-semibold text-green-600 dark:text-green-500">Improved ATS Score</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-2xl text-green-600 dark:text-green-500">{resumeFeedback.improvedAtsScore.score}<span className="text-sm font-normal text-muted-foreground">/100</span></span>
+                                                    <Progress value={resumeFeedback.improvedAtsScore.score} indicatorClassName="bg-green-500" className="w-full h-2" />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-2">{resumeFeedback.improvedAtsScore.explanation}</p>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </div>
+
+
                                 <div>
                                     <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
                                         <h4 className="font-semibold text-foreground">{resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? "Message:" : "AI-Generated/Modified Resume:"}</h4>
@@ -2098,4 +2138,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-

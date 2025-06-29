@@ -27,6 +27,11 @@ const FeedbackItemSchema = z.object({
     importance: z.enum(["high", "medium", "low"]).optional().describe("The perceived importance of addressing this feedback."),
 });
 
+const AtsScoreSchema = z.object({
+    score: z.number().min(0).max(100).describe("The ATS score from 0 to 100."),
+    explanation: z.string().describe("A brief explanation for the score, highlighting strengths and weaknesses from an ATS perspective.")
+});
+
 const LinkedInProfileSuggestionsSchema = z.object({
   suggestedHeadline: z.string().optional().describe("A suggested, impactful LinkedIn headline (around 120-220 characters) based on the rewritten/created resume and target job role. It should be concise, keyword-rich, and nearly ready for copy-paste."),
   suggestedAboutSection: z.string().optional().describe("A draft for the LinkedIn 'About' section (summary), written in a professional yet engaging tone (ideally 2-4 paragraphs), based on the rewritten/created resume. It should highlight key skills, experiences, and career aspirations. This should be comprehensive and suitable for immediate use/copy-paste."),
@@ -36,6 +41,8 @@ const LinkedInProfileSuggestionsSchema = z.object({
 
 const ResumeFeedbackOutputSchema = z.object({
   overallAssessment: z.string().describe('A brief overall assessment of the original resume (if provided) or a statement indicating a new resume was created from details.'),
+  originalAtsScore: AtsScoreSchema.optional().describe("The calculated ATS score for the user's original resume. This is omitted if no original resume was provided."),
+  improvedAtsScore: AtsScoreSchema.describe("The calculated ATS score for the AI-generated/improved resume."),
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume, or general comments if a new resume was created.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume. Explain how these improve ATS chances.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
@@ -85,14 +92,18 @@ Projects: AI Mentor by AP (05/2025 - 01/1970) - Personal Project. Spearheaded de
 Target Job Role: "{{targetJobRole}}". Tailor content accordingly.
 Additional Information: "{{{additionalInformation}}}". Integrate this into the resume. For new resumes, this is the primary source of all content.
 
-**Part 1: Ancillary Content (for JSON fields other than modifiedResumeText)**
+**Part 1: ATS Scoring**
+*   **originalAtsScore**: If a resume was provided by the user, you MUST analyze it and assign an ATS score from 0 to 100. Provide a brief 'explanation' for this score, focusing on keyword relevance for the target role, parsable format, use of action verbs, and quantifiable results. If the user is creating a new resume from scratch (no original resume provided), you MUST omit the 'originalAtsScore' field entirely from your output.
+*   **improvedAtsScore**: You MUST analyze the resume you just generated/rewrote ('modifiedResumeText'). Assign it an ATS score from 0 to 100. Provide a brief 'explanation' detailing why this version scores higher, highlighting the specific ATS optimizations you implemented (e.g., "Score increased due to the addition of keywords like 'Agile' and 'Scrum', and by quantifying achievements in the experience section.").
+
+**Part 2: Ancillary Content**
 *   **overallAssessment**: Brief summary of the original resume's strengths/weaknesses or a note about creating a new one. Include a comment on its initial ATS-friendliness.
 *   **feedbackItems**: Actionable feedback points on the original resume. If providing feedback, include specific suggestions under the 'Formatting for ATS' area, commenting on things like tables, columns, or non-standard fonts in the original that could hurt ATS compatibility.
 *   **atsKeywordsSummary**: Explain *why* the keywords you've added to the rewritten resume are important for the target job role and how they improve ATS chances. Be specific.
 *   **talkingPoints**: 2-4 impactful statements from the final resume.
 *   **linkedinProfileSuggestions**: Generate detailed, copy-paste ready suggestions for headline and about section, plus tips for experience and skills sections.
 
-**Part 2: Structured Resume Text (for 'modifiedResumeText' field)**
+**Part 3: Structured Resume Text (for 'modifiedResumeText' field)**
 Generate the resume content in the EXACT format below. This structured format is itself ATS-friendly. Adhere to the ATS principles above when writing the content for each field.
 
 **IMPORTANT FORMATTING RULES:**
@@ -189,6 +200,10 @@ const resumeFeedbackFlow = ai.defineFlow(
                 suggestion: "Please upload a resume, paste resume text, or provide comprehensive details in the 'Additional Information' field for the AI to create your resume.",
                 importance: "high"
             }],
+            improvedAtsScore: {
+                score: 0,
+                explanation: "Could not generate a resume due to insufficient input details."
+            },
             modifiedResumeText: "SECTION: ERROR\nmessage: Insufficient details provided. To improve an existing resume, please upload it or paste its text. To create a new resume, provide comprehensive information in the 'Additional Information' field (experience, education, skills, projects, contact info).\nEND_SECTION",
             atsKeywordsSummary: "Not applicable.",
             talkingPoints: [],
