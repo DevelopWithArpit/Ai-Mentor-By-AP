@@ -441,7 +441,7 @@ export default function MentorAiPage() {
     const parseResumeData = (text: string) => {
         const sections: { [key: string]: string[] } = {
             PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
-            EXPERIENCE: [], EDUCATION: [], SKILLS: [], PROJECTS: [],
+            EXPERIENCE: [], EDUCATION: [], PROJECTS: [],
         };
         const sectionKeys = Object.keys(sections);
         let currentSection: string | null = null;
@@ -597,11 +597,6 @@ export default function MentorAiPage() {
         const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
         const FONT_SANS = "Helvetica";
 
-        const hexToRgb = (hex: string): [number, number, number] => {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
-        };
-
         const COLOR_PRIMARY_VAL = [37, 99, 235];
         const COLOR_TEXT_DARK_VAL = [31, 41, 55];
         const COLOR_TEXT_MEDIUM_VAL = [75, 85, 99];
@@ -611,7 +606,6 @@ export default function MentorAiPage() {
         const COLOR_TEXT_MEDIUM = COLOR_TEXT_MEDIUM_VAL as [number, number, number];
         const COLOR_TEXT_LIGHT = COLOR_TEXT_LIGHT_VAL as [number, number, number];
         
-        let y = MARGIN;
         let yLeft = MARGIN;
         let yRight = MARGIN;
 
@@ -621,7 +615,7 @@ export default function MentorAiPage() {
         yLeft += doc.getTextDimensions(personalInfo.name || '[Full Name]').h;
         doc.setFont(FONT_SANS, 'normal').setFontSize(11).setTextColor(...COLOR_PRIMARY);
         doc.text(personalInfo.title || '[Professional Title]', LEFT_COL_X, yLeft);
-        yLeft += doc.getTextDimensions(personalInfo.title || '[Professional Title]').h;
+        yLeft += doc.getTextDimensions(personalInfo.title || '[Professional Title]').h + 4;
 
         const contactInfo = [
             { text: personalInfo.phone },
@@ -638,24 +632,26 @@ export default function MentorAiPage() {
             yRight += doc.getTextDimensions(textLines).h + 4;
         });
 
-        yLeft = yRight = Math.max(yLeft, yRight) + 15;
-        doc.setDrawColor(...COLOR_TEXT_LIGHT).setLineWidth(0.5);
+        const initialY = Math.max(yLeft, yRight) + 15;
+        yLeft = initialY;
+        yRight = initialY;
+        doc.setDrawColor(229, 231, 235).setLineWidth(0.5);
         doc.line(MARGIN, yLeft - 8, PAGE_WIDTH - MARGIN, yLeft - 8);
 
-        const addPageIfNeeded = () => {
-            if (yLeft > PAGE_HEIGHT - MARGIN || yRight > PAGE_HEIGHT - MARGIN) {
-                const overflowLeft = yLeft - (PAGE_HEIGHT - MARGIN);
-                const overflowRight = yRight - (PAGE_HEIGHT - MARGIN);
-
-                if (overflowLeft > 0 || overflowRight > 0) {
-                   doc.addPage();
-                   yLeft = MARGIN;
-                   yRight = MARGIN;
-                }
-            }
+        const checkPageBreak = (col: 'left' | 'right', neededHeight: number) => {
+          const currentY = col === 'left' ? yLeft : yRight;
+          if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
+            return true;
+          }
+          return false;
         };
 
-        const renderSectionTitle = (title: string, x: number, y: number): number => {
+        const renderSectionTitle = (title: string, col: 'left' | 'right'): number => {
+            let x = col === 'left' ? LEFT_COL_X : RIGHT_COL_X;
+            let y = col === 'left' ? yLeft : yRight;
+            if (checkPageBreak(col, 30)) { // 30 is approx height for title
+              y = MARGIN;
+            }
             doc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
             doc.text(title.toUpperCase(), x, y);
             doc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
@@ -664,22 +660,43 @@ export default function MentorAiPage() {
             return y + 25;
         };
 
-        const renderText = (text: string, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal'): number => {
+        const renderText = (text: string, col: 'left' | 'right', width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal'): number => {
+            let x = col === 'left' ? LEFT_COL_X : RIGHT_COL_X;
+            let y = col === 'left' ? yLeft : yRight;
+
             doc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
             const lines = doc.splitTextToSize(text, width);
             const height = doc.getTextDimensions(lines).h;
-            addPageIfNeeded(); // Simplified check, might need improvement
+
+            if (checkPageBreak(col, height)) {
+              if (col === 'left' && yRight > MARGIN) { // Left column overflow, move right col content to next page
+                doc.addPage();
+                yLeft = MARGIN;
+                yRight = MARGIN;
+              } else if (col === 'right' && yLeft > MARGIN) {
+                doc.addPage();
+                yLeft = MARGIN;
+                yRight = MARGIN;
+              }
+              y = MARGIN;
+            }
             doc.text(lines, x, y);
             return y + height;
         };
         
-        const renderBulletList = (details: string[] | undefined, x: number, y: number, width: number): number => {
-            if (!details) return y;
-            let currentY = y;
+        const renderBulletList = (details: string[] | undefined, col: 'left' | 'right', width: number): number => {
+            if (!details) return col === 'left' ? yLeft : yRight;
+            let currentY = col === 'left' ? yLeft : yRight;
+            const x = col === 'left' ? LEFT_COL_X : RIGHT_COL_X;
+
             details.forEach(bullet => {
                 const bulletLines = doc.splitTextToSize(bullet, width - 12);
                 const bulletHeight = doc.getTextDimensions(bulletLines).h;
-                if(currentY + bulletHeight > PAGE_HEIGHT - MARGIN) { doc.addPage(); currentY = MARGIN; }
+                 if (currentY + bulletHeight > PAGE_HEIGHT - MARGIN) { 
+                    if (col === 'left') yLeft = PAGE_HEIGHT; // Force left overflow
+                    else yRight = PAGE_HEIGHT; // Force right overflow
+                    return; // Stop rendering this list
+                 }
                 doc.setFontSize(14).setTextColor(...COLOR_PRIMARY);
                 doc.text("•", x, currentY);
                 doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM);
@@ -689,73 +706,87 @@ export default function MentorAiPage() {
             return currentY;
         };
 
-        // --- Left Column ---
-        if (summary) {
-            yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft);
-            yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH) + 15;
-        }
-
-        if (experience && experience.length > 0) {
-            yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft);
-            experience.forEach(job => {
-                yLeft = renderText(job.title, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                yLeft = renderText(job.company, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
-                yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-                yLeft += 4;
-                yLeft = renderBulletList(job.details, LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+        const renderColumnContent = (col: 'left' | 'right') => {
+          if (col === 'left') {
+            if (summary) {
+              yLeft = renderSectionTitle('SUMMARY', 'left');
+              yLeft = renderText(summary, 'left', LEFT_COL_WIDTH) + 15;
+            }
+            if (experience && experience.length > 0) {
+              yLeft = renderSectionTitle('EXPERIENCE', 'left');
+              experience.forEach(job => {
+                  const jobBlockHeight = (job.details?.length || 0) * 15 + 40;
+                  if(checkPageBreak('left', jobBlockHeight)) { doc.addPage(); yLeft = MARGIN; yRight = MARGIN; yLeft = renderSectionTitle('EXPERIENCE (CONT.)', 'left');}
+                  yLeft = renderText(job.title, 'left', LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                  yLeft = renderText(job.company, 'left', LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
+                  yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), 'left', LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                  yLeft += 4;
+                  yLeft = renderBulletList(job.details, 'left', LEFT_COL_WIDTH);
+                  yLeft += 10;
+              });
+            }
+            if (education && education.length > 0) {
+              yLeft = renderSectionTitle('EDUCATION', 'left');
+              education.forEach(edu => {
+                const eduBlockHeight = 45;
+                if(checkPageBreak('left', eduBlockHeight)) { doc.addPage(); yLeft = MARGIN; yRight = MARGIN; yLeft = renderSectionTitle('EDUCATION (CONT.)', 'left'); }
+                yLeft = renderText(edu.degree, 'left', LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                yLeft = renderText(edu.institution, 'left', LEFT_COL_WIDTH, 9, COLOR_PRIMARY);
+                yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), 'left', LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
                 yLeft += 10;
-            });
-        }
-
-        if (education && education.length > 0) {
-            yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft);
-            education.forEach(edu => {
-                yLeft = renderText(edu.degree, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                yLeft = renderText(edu.institution, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY);
-                yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-                yLeft += 10;
-            });
-        }
-        
-        // --- Right Column ---
-        if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-            yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight);
-            yRight = renderText(keyAchievements.title || '', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-            yRight += 4;
-            yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-            yRight += 15;
-        }
-        
-        if (skills && skills.length > 0) {
-            yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight);
-            let currentX = RIGHT_COL_X;
-            let currentLineY = yRight;
-            skills.forEach(skill => {
-                const tagWidth = doc.setFontSize(8).getTextWidth(skill) + 12;
-                if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
-                    currentX = RIGHT_COL_X;
-                    currentLineY += 16;
-                }
-                 if(currentLineY + 12 > PAGE_HEIGHT - MARGIN) { doc.addPage(); currentLineY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN); currentX = RIGHT_COL_X; }
-                doc.setFillColor(229, 231, 235);
-                doc.roundedRect(currentX, currentLineY - 8, tagWidth, 12, 3, 3, 'F');
-                doc.setTextColor(...COLOR_TEXT_MEDIUM);
-                doc.text(skill, currentX + 6, currentLineY - 1);
-                currentX += tagWidth + 4;
-            });
-            yRight = currentLineY + 15;
-        }
-        
-        if (projects && projects.length > 0) {
-            yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight);
-            projects.forEach(proj => {
-                yRight = renderText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+              });
+            }
+          } else { // Right Column
+            if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
+                yRight = renderSectionTitle('KEY ACHIEVEMENTS', 'right');
+                yRight = renderText(keyAchievements.title || '', 'right', RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
                 yRight += 4;
-                yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-                yRight += 10;
-            });
+                yRight = renderBulletList(keyAchievements.details, 'right', RIGHT_COL_WIDTH);
+                yRight += 15;
+            }
+            if (skills && skills.length > 0) {
+                yRight = renderSectionTitle('SKILLS', 'right');
+                let currentX = RIGHT_COL_X;
+                let currentLineY = yRight;
+                skills.forEach(skill => {
+                    const tagWidth = doc.setFontSize(8).getTextWidth(skill) + 12;
+                    if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) { currentX = RIGHT_COL_X; currentLineY += 16; }
+                    if(checkPageBreak('right', 16)) { yRight = PAGE_HEIGHT; return; }
+                    doc.setFillColor(229, 231, 235);
+                    doc.roundedRect(currentX, currentLineY - 8, tagWidth, 12, 3, 3, 'F');
+                    doc.setTextColor(...COLOR_TEXT_MEDIUM);
+                    doc.text(skill, currentX + 6, currentLineY - 1);
+                    currentX += tagWidth + 4;
+                });
+                yRight = currentLineY + 15;
+            }
+            if (projects && projects.length > 0) {
+              yRight = renderSectionTitle('PROJECTS', 'right');
+              projects.forEach(proj => {
+                  const projBlockHeight = (proj.details?.length || 0) * 15 + 30;
+                  if(checkPageBreak('right', projBlockHeight)) { yRight = PAGE_HEIGHT; return; }
+                  yRight = renderText(proj.title, 'right', RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                  yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), 'right', RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                  yRight += 4;
+                  yRight = renderBulletList(proj.details, 'right', RIGHT_COL_WIDTH);
+                  yRight += 10;
+              });
+            }
+          }
+        };
+
+        renderColumnContent('left');
+        yLeft = MARGIN; // Reset for next page if any
+        renderColumnContent('right');
+        
+        while (yLeft >= PAGE_HEIGHT - MARGIN || yRight >= PAGE_HEIGHT - MARGIN) {
+          doc.addPage();
+          yLeft = MARGIN;
+          yRight = MARGIN;
+          renderColumnContent('left');
+          renderColumnContent('right');
         }
+
 
         doc.save('ai_mentor_resume.pdf');
         toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
@@ -1100,18 +1131,18 @@ export default function MentorAiPage() {
   };
 
   const handleGenerateLinkedInVisuals = async () => {
-    if (!linkedInFullName.trim() || !linkedInProfessionalTitle.trim()) {
-      toast({ title: "Input Required", description: "Please enter your Full Name and Professional Title.", variant: "destructive" });
+    if (!linkedInResumeContent.trim()) {
+      toast({ title: "Input Required", description: "Please paste your resume content to generate visuals.", variant: "destructive" });
       return;
     }
     setIsGeneratingLinkedInVisuals(true);
     setGeneratedLinkedInVisuals(null);
     try {
       const result = await generateLinkedInVisuals({
-        fullName: linkedInFullName,
-        professionalTitle: linkedInProfessionalTitle,
+        fullName: linkedInFullName || undefined,
+        professionalTitle: linkedInProfessionalTitle || undefined,
         stylePreference: linkedInVisualStyle,
-        resumeContent: linkedInResumeContent || undefined,
+        resumeContent: linkedInResumeContent,
       });
       setGeneratedLinkedInVisuals(result);
       toast({ title: "LinkedIn Visuals Generated!", description: "AI has created suggestions for your profile picture and cover image." });
@@ -1701,19 +1732,19 @@ export default function MentorAiPage() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <Input 
-                        placeholder="Your Full Name (e.g., Jane Doe)" 
+                        placeholder="Your Full Name (Optional, helps AI)" 
                         value={linkedInFullName} 
                         onChange={(e) => setLinkedInFullName(e.target.value)} 
                         disabled={isGeneratingLinkedInVisuals} 
                     />
                     <Input 
-                        placeholder="Your Professional Title (e.g., AI Engineer)" 
+                        placeholder="Your Professional Title (Optional, helps AI)" 
                         value={linkedInProfessionalTitle} 
                         onChange={(e) => setLinkedInProfessionalTitle(e.target.value)} 
                         disabled={isGeneratingLinkedInVisuals} 
                     />
                     <Textarea
-                        placeholder="Paste your resume text here (optional, for a portfolio-style cover photo)..."
+                        placeholder="Paste your full resume text here to generate visuals..."
                         value={linkedInResumeContent}
                         onChange={(e) => setLinkedInResumeContent(e.target.value)}
                         disabled={isGeneratingLinkedInVisuals}
@@ -1734,9 +1765,9 @@ export default function MentorAiPage() {
                     </div>
                      <p className="text-xs text-muted-foreground p-2 bg-muted/30 rounded-md border border-dashed">
                         <Info className="inline h-4 w-4 mr-1 text-primary"/>
-                        AI will generate an abstract profile picture (not a face) and a cover image themed on your resume or title.
+                        AI will generate an abstract profile picture (not a face) and a cover image themed on your resume.
                     </p>
-                    <Button onClick={handleGenerateLinkedInVisuals} disabled={isGeneratingLinkedInVisuals || !linkedInFullName.trim() || !linkedInProfessionalTitle.trim()} className="w-full sm:w-auto">
+                    <Button onClick={handleGenerateLinkedInVisuals} disabled={isGeneratingLinkedInVisuals || !linkedInResumeContent.trim()} className="w-full sm:w-auto">
                         {isGeneratingLinkedInVisuals && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Visuals
                     </Button>
 
