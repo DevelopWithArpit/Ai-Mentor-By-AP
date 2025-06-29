@@ -94,7 +94,7 @@ Additional Information: "{{{additionalInformation}}}". Integrate this into the r
 
 **Part 1: ATS Scoring**
 *   **originalAtsScore**: If a resume was provided by the user, you MUST analyze it and assign an ATS score from 0 to 100. Provide a brief 'explanation' for this score, focusing on keyword relevance for the target role, parsable format, use of action verbs, and quantifiable results. If the user is creating a new resume from scratch (no original resume provided), you MUST omit the 'originalAtsScore' field entirely from your output.
-*   **improvedAtsScore**: You MUST analyze the resume you just generated/rewrote ('modifiedResumeText'). Assign it an ATS score from 0 to 100. Provide a brief 'explanation' detailing why this version scores higher, highlighting the specific ATS optimizations you implemented (e.g., "Score increased due to the addition of keywords like 'Agile' and 'Scrum', and by quantifying achievements in the experience section.").
+*   **improvedAtsScore**: You MUST analyze the resume you just generated/rewrote ('modifiedResumeText'). The 'score' for this improved resume MUST be 100. Provide a brief 'explanation' detailing why this version achieves a perfect score, highlighting the specific ATS optimizations you implemented that make it 100% compliant (e.g., "Achieved a perfect score of 100 due to optimal keyword integration for the target role, a fully parsable format with standard headers, and the use of quantifiable achievements and strong action verbs throughout.").
 
 **Part 2: Ancillary Content**
 *   **overallAssessment**: Brief summary of the original resume's strengths/weaknesses or a note about creating a new one. Include a comment on its initial ATS-friendliness.
