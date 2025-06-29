@@ -24,7 +24,7 @@ export type GenerateDiagramOutput = z.infer<typeof GenerateDiagramOutputSchema>;
 // Core logic for generating a diagram
 async function generateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
   const {media} = await ai.generate({
-    model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: Use this specific model for image generation
+    model: 'googleai/gemini-2.0-flash-preview-image-generation', // IMPORTANT: Use this specific model for image generation
     prompt: `You are an AI assistant that creates technical diagrams and engineering graphics. Generate an image based on the following description. Aim for clarity and accuracy typical of engineering drawings or schematics where appropriate: ${input.prompt}`,
     config: {
       responseModalities: ['TEXT', 'IMAGE'], // Must include TEXT and IMAGE

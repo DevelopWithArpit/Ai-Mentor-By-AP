@@ -35,7 +35,7 @@ const watermarkRemoverFlow = ai.defineFlow(
   async (input) => {
     try {
       const {media} = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp', // This model supports image in/out
+        model: 'googleai/gemini-2.0-flash-preview-image-generation', // This model supports image in/out
         prompt: [
           {media: {url: input.imageDataUri}},
           // The text prompt guides the model on what to do with the image.

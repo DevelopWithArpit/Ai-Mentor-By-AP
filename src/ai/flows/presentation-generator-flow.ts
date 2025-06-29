@@ -85,7 +85,7 @@ const generatePresentationOutlineFlow = ai.defineFlow(
           
           console.log(`Generating image for slide: ${slideTextData.title} with prompt: ${imageGenPrompt}`);
           const {media} = await ai.generate({
-            model: 'googleai/gemini-2.0-flash-exp',
+            model: 'googleai/gemini-2.0-flash-preview-image-generation',
             prompt: imageGenPrompt,
             config: {
               responseModalities: ['TEXT', 'IMAGE'],
@@ -118,4 +118,3 @@ const generatePresentationOutlineFlow = ai.defineFlow(
 export async function generatePresentationOutline(input: GeneratePresentationInput): Promise<GeneratePresentationOutput> {
   return generatePresentationOutlineFlow(input);
 }
-

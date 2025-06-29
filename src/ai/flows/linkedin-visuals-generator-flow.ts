@@ -53,7 +53,7 @@ const generateLinkedInVisualsFlow = ai.defineFlow(
     try {
       console.log(`Generating LinkedIn Profile Picture with prompt: ${profilePicPrompt}`);
       const {media: profileMedia} = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp',
+        model: 'googleai/gemini-2.0-flash-preview-image-generation',
         prompt: profilePicPrompt,
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       });
@@ -70,7 +70,7 @@ const generateLinkedInVisualsFlow = ai.defineFlow(
     try {
       console.log(`Generating LinkedIn Cover Image with prompt: ${coverImagePrompt}`);
       const {media: coverMedia} = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp',
+        model: 'googleai/gemini-2.0-flash-preview-image-generation',
         prompt: coverImagePrompt,
         config: { responseModalities: ['TEXT', 'IMAGE'] },
       });

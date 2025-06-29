@@ -24,7 +24,7 @@ export type GenerateImageOutput = z.infer<typeof GenerateImageOutputSchema>;
 // Core logic for generating an image
 async function generateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
   const {media} = await ai.generate({
-    model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: Use this specific model for image generation
+    model: 'googleai/gemini-2.0-flash-preview-image-generation', // IMPORTANT: Use this specific model for image generation
     prompt: input.prompt,
     config: {
       responseModalities: ['TEXT', 'IMAGE'], // Must include TEXT and IMAGE

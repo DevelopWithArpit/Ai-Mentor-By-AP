@@ -36,7 +36,7 @@ const manipulateImageTextFlow = ai.defineFlow(
   async (input) => {
     try {
       const {media, text: modelTextResponse} = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp', 
+        model: 'googleai/gemini-2.0-flash-preview-image-generation', 
         prompt: [
           {media: {url: input.imageDataUri}},
           {text: `Instruction for image text manipulation: ${input.instruction}. Analyze the provided image. Identify text relevant to the instruction. Modify the text in the image according to this instruction. For example, if asked to change text 'A' to 'B', find 'A' in the image and replace it with 'B', attempting to match the original style and context. If asked to remove text, remove it and fill the background cohesively. Preserve overall image quality. If the instruction cannot be reasonably applied (e.g., text not found, instruction unclear for image content), explain why in a brief text response instead of returning a modified image.`},
