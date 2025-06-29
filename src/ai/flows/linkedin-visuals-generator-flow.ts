@@ -14,6 +14,7 @@ import {z}from 'genkit';
 const GenerateLinkedInVisualsInputSchema = z.object({
   fullName: z.string().describe("The user's full name, to potentially inspire stylized initials or abstract designs for the profile picture."),
   professionalTitle: z.string().describe("The user's professional title or field (e.g., 'Software Engineer', 'UX Designer', 'Marketing Specialist'). This will heavily influence the theme of the cover image."),
+  resumeContent: z.string().optional().describe("The user's resume content (text). If provided, this will be used to generate a portfolio-style cover image, taking precedence over the professional title."),
   stylePreference: z.enum(["professional-minimalist", "creative-abstract", "modern-tech", "elegant-corporate", "vibrant-energetic"]).optional().default("professional-minimalist").describe("The desired visual style for the generated images."),
 });
 export type GenerateLinkedInVisualsInput = z.infer<typeof GenerateLinkedInVisualsInputSchema>;
@@ -42,7 +43,12 @@ const generateLinkedInVisualsFlow = ai.defineFlow(
 
     const profilePicPrompt = `Generate a professional LinkedIn profile picture. Style: ${input.stylePreference}. Theme it subtly around the name "${input.fullName}" and title "${input.professionalTitle}". Consider an abstract design, a professional geometric pattern, elegant stylized initials based on "${input.fullName}", or a subtle visual metaphor for the profession. ABSOLUTELY DO NOT generate a realistic human face or any likeness of a person. The image should be square and suitable for a small circular crop common in profile pictures.`;
     
-    const coverImagePrompt = `Generate a professional LinkedIn cover image (banner). The image should be themed around the professional title: "${input.professionalTitle}". Style: ${input.stylePreference}. It should be visually appealing as a background banner, approximately 1584 x 396 pixels aspect ratio (landscape), but focus on creating a good composition rather than exact pixel dimensions. Examples: for a software engineer, perhaps abstract code patterns, a clean tech-themed background, or a subtle network graphic; for a designer, an artistic composition or color palette; for a marketing specialist, a dynamic graphic representing growth or communication. The image should be relatively subtle so as not to overpower the profile content.`;
+    let coverImagePrompt: string;
+    if (input.resumeContent && input.resumeContent.trim().length > 50) { // Check for meaningful resume content
+        coverImagePrompt = `Generate a professional LinkedIn cover image (banner) that acts as a visual portfolio based on the following resume content: "${input.resumeContent}". The image should artistically and abstractly represent the key skills, projects, and experiences mentioned. For example, if the resume mentions software development, data science, and cloud computing, the image could be an abstract collage of code snippets, charts, and network diagrams. The style should be: "${input.stylePreference}". It must be visually appealing as a background banner (approximately 1584x396 pixels aspect ratio, landscape) and subtle enough not to overpower profile content. Do not include any readable text in the image.`;
+    } else {
+        coverImagePrompt = `Generate a professional LinkedIn cover image (banner). The image should be themed around the professional title: "${input.professionalTitle}". Style: ${input.stylePreference}. It should be visually appealing as a background banner, approximately 1584 x 396 pixels aspect ratio (landscape), but focus on creating a good composition rather than exact pixel dimensions. Examples: for a software engineer, perhaps abstract code patterns, a clean tech-themed background, or a subtle network graphic; for a designer, an artistic composition or color palette; for a marketing specialist, a dynamic graphic representing growth or communication. The image should be relatively subtle so as not to overpower the profile content.`;
+    }
 
     try {
       console.log(`Generating LinkedIn Profile Picture with prompt: ${profilePicPrompt}`);

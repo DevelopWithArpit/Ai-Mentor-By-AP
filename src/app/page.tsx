@@ -201,6 +201,7 @@ export default function MentorAiPage() {
   // LinkedIn Visuals Generator States
   const [linkedInFullName, setLinkedInFullName] = useState<string>('');
   const [linkedInProfessionalTitle, setLinkedInProfessionalTitle] = useState<string>('');
+  const [linkedInResumeContent, setLinkedInResumeContent] = useState<string>('');
   const [linkedInVisualStyle, setLinkedInVisualStyle] = useState<GenerateLinkedInVisualsInput['stylePreference']>('professional-minimalist');
   const [generatedLinkedInVisuals, setGeneratedLinkedInVisuals] = useState<GenerateLinkedInVisualsOutput | null>(null);
   const [isGeneratingLinkedInVisuals, setIsGeneratingLinkedInVisuals] = useState<boolean>(false);
@@ -437,98 +438,116 @@ export default function MentorAiPage() {
     finally { setIsGeneratingInterviewQuestions(false); }
   };
 
-  const parseResumeData = (text: string) => {
-    const sections: { [key: string]: string[] } = {
-      PERSONAL_INFO: [],
-      SUMMARY: [],
-      KEY_ACHIEVEMENTS: [],
-      EXPERIENCE: [],
-      EDUCATION: [],
-      SKILLS: [],
-      PROJECTS: [],
-    };
-    
-    const lines = text.split('\n');
-    let currentSection: string | null = null;
+    const parseResumeData = (text: string) => {
+        const sections: { [key: string]: string[] } = {
+            PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
+            EXPERIENCE: [], EDUCATION: [], SKILLS: [], PROJECTS: [],
+        };
+        const sectionKeys = Object.keys(sections);
+        let currentSection: string | null = null;
+        let currentLines: string[] = [];
 
-    for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine.startsWith('SECTION:')) {
-            currentSection = trimmedLine.substring(8).trim();
-            continue;
-        }
-        if (trimmedLine === 'END_SECTION') {
-            currentSection = null;
-            continue;
-        }
-        if (currentSection && sections.hasOwnProperty(currentSection)) {
-            sections[currentSection].push(line);
-        }
-    }
-
-    const parseKeyValueSection = (lines: string[]) => {
-        const data: { [key: string]: string } = {};
-        lines.forEach(line => {
-            const parts = line.match(/^([\w\s]+):\s*(.*)$/);
-            if (parts) {
-                data[parts[1].trim().toLowerCase().replace(/\s+/g, '_')] = parts[2].trim();
+        const flushToSection = (sectionName: string, lines: string[]) => {
+            if (sections.hasOwnProperty(sectionName)) {
+                sections[sectionName].push(...lines);
             }
-        });
-        return data;
-    };
-    
-    const parseSummarySection = (lines: string[]) => lines.join('\n').trim();
+        };
 
-    const parseMultiEntrySection = (lines: string[], markers: string[]) => {
-        if (!lines || lines.length === 0) return [];
-        
-        const entries: any[] = [];
-        let currentEntry: any = {};
-        
-        lines.forEach(line => {
+        for (const line of text.split('\n')) {
             const trimmedLine = line.trim();
-            const isNewEntry = markers.some(marker => line.startsWith(marker + ':'));
-            
-            if (isNewEntry && Object.keys(currentEntry).length > 0) {
-                entries.push(currentEntry);
-                currentEntry = {};
-            }
-
-            if (trimmedLine.startsWith('- ')) {
-                if (!currentEntry.details) currentEntry.details = [];
-                currentEntry.details.push(trimmedLine.substring(2).trim());
-            } else if (trimmedLine.toLowerCase().startsWith('details:')) {
-                // This line itself doesn't have content, it's a marker for the following bullet points
-                if (!currentEntry.details) currentEntry.details = [];
-            }
-            else {
-                const parts = line.match(/^([\w\s]+):\s*(.*)$/);
-                if (parts) {
-                    const key = parts[1].trim().toLowerCase().replace(/\s+/g, '_');
-                    const value = parts[2].trim();
-                    currentEntry[key] = value;
+            let isSectionHeader = false;
+            for (const key of sectionKeys) {
+                if (trimmedLine === `SECTION: ${key}`) {
+                    if (currentSection && currentLines.length > 0) {
+                        flushToSection(currentSection, currentLines);
+                    }
+                    currentSection = key;
+                    currentLines = [];
+                    isSectionHeader = true;
+                    break;
                 }
             }
-        });
 
-        if (Object.keys(currentEntry).length > 0) {
-            entries.push(currentEntry);
+            if (isSectionHeader) continue;
+
+            if (trimmedLine === 'END_SECTION') {
+                if (currentSection && currentLines.length > 0) {
+                    flushToSection(currentSection, currentLines);
+                }
+                currentSection = null;
+                currentLines = [];
+                continue;
+            }
+
+            if (currentSection) {
+                currentLines.push(line);
+            }
         }
+
+        if (currentSection && currentLines.length > 0) {
+            flushToSection(currentSection, currentLines);
+        }
+
+        const parseKeyValueSection = (lines: string[]) => {
+            const data: { [key: string]: string } = {};
+            lines.forEach(line => {
+                const parts = line.match(/^([\w\s]+):\s*(.*)$/);
+                if (parts) {
+                    data[parts[1].trim().toLowerCase().replace(/\s+/g, '_')] = parts[2].trim();
+                }
+            });
+            return data;
+        };
+
+        const parseMultiEntrySection = (lines: string[], markers: string[]) => {
+            if (!lines || lines.length === 0) return [];
+            const entries: any[] = [];
+            let currentEntry: any = {};
+
+            const flushEntry = () => {
+                if (Object.keys(currentEntry).length > 0) {
+                    entries.push(currentEntry);
+                    currentEntry = {};
+                }
+            };
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                const isNewEntry = markers.some(marker => line.startsWith(marker + ':'));
+
+                if (isNewEntry) {
+                    flushEntry();
+                }
+
+                if (trimmedLine.startsWith('- ')) {
+                    if (!currentEntry.details) currentEntry.details = [];
+                    currentEntry.details.push(trimmedLine.substring(2).trim());
+                } else if (trimmedLine.toLowerCase() === 'details:') {
+                    if (!currentEntry.details) currentEntry.details = [];
+                } else {
+                    const parts = line.match(/^([\w\s]+):\s*(.*)$/);
+                    if (parts) {
+                        const key = parts[1].trim().toLowerCase().replace(/\s+/g, '_');
+                        const value = parts[2].trim();
+                        currentEntry[key] = value;
+                    }
+                }
+            }
+            flushEntry();
+            return entries;
+        };
         
-        return entries;
+        const personalInfo = parseKeyValueSection(sections.PERSONAL_INFO);
+        const summary = sections.SUMMARY.join('\n').trim();
+        const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title'])[0] || { details: [] };
+        const experience = parseMultiEntrySection(sections.EXPERIENCE, ['title']);
+        const education = parseMultiEntrySection(sections.EDUCATION, ['degree']);
+        const projects = parseMultiEntrySection(sections.PROJECTS, ['title']);
+        const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
+        const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+        return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
     };
-
-    const personalInfo = parseKeyValueSection(sections.PERSONAL_INFO);
-    const summary = parseSummarySection(sections.SUMMARY);
-    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title'])[0] || { details: [] };
-    const experience = parseMultiEntrySection(sections.EXPERIENCE, ['title']);
-    const education = parseMultiEntrySection(sections.EDUCATION, ['degree']);
-    const projects = parseMultiEntrySection(sections.PROJECTS, ['title']);
-    const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
-    const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
-
-    return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
-  };
 
 
   const handleGetResumeFeedback = async () => {
@@ -560,254 +579,187 @@ export default function MentorAiPage() {
     finally { setIsGeneratingResumeFeedback(false); }
   };
 
-  const handleDownloadResumePdf = () => {
-    if (!parsedResumeData) {
-        toast({ title: "Error", description: "No resume data to generate PDF. Please generate feedback first.", variant: "destructive" });
-        return;
-    }
-    const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = parsedResumeData;
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const handleDownloadResumePdf = () => {
+        if (!parsedResumeData) {
+            toast({ title: "Error", description: "No resume data to generate PDF. Please generate feedback first.", variant: "destructive" });
+            return;
+        }
+        const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = parsedResumeData;
+        const doc = new jsPDF({ unit: "pt", format: "letter" });
 
-    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
-    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
-    const MARGIN = 40;
-    const COL_GAP = 20;
-    const LEFT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.65;
-    const RIGHT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.35;
-    const LEFT_COL_X = MARGIN;
-    const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
-    const FONT_SANS = "Helvetica";
+        const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+        const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+        const MARGIN = 40;
+        const COL_GAP = 20;
+        const LEFT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.65;
+        const RIGHT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.35;
+        const LEFT_COL_X = MARGIN;
+        const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
+        const FONT_SANS = "Helvetica";
 
-    const hexToRgb = (hex: string): [number, number, number] => {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
-    };
-    
-    const COLOR_PRIMARY = hexToRgb("#2563eb");
-    const COLOR_TEXT_DARK = hexToRgb("#1f2937");
-    const COLOR_TEXT_MEDIUM = hexToRgb("#4b5563");
-    const COLOR_TEXT_LIGHT = hexToRgb("#6b7280");
+        const hexToRgb = (hex: string): [number, number, number] => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
+        };
 
-    let y = MARGIN;
+        const COLOR_PRIMARY_VAL = [37, 99, 235];
+        const COLOR_TEXT_DARK_VAL = [31, 41, 55];
+        const COLOR_TEXT_MEDIUM_VAL = [75, 85, 99];
+        const COLOR_TEXT_LIGHT_VAL = [107, 114, 128];
+        const COLOR_PRIMARY = COLOR_PRIMARY_VAL as [number, number, number];
+        const COLOR_TEXT_DARK = COLOR_TEXT_DARK_VAL as [number, number, number];
+        const COLOR_TEXT_MEDIUM = COLOR_TEXT_MEDIUM_VAL as [number, number, number];
+        const COLOR_TEXT_LIGHT = COLOR_TEXT_LIGHT_VAL as [number, number, number];
+        
+        let y = MARGIN;
+        let yLeft = MARGIN;
+        let yRight = MARGIN;
 
-    // --- Header ---
-    doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK);
-    const nameLines = doc.splitTextToSize(personalInfo.name || '[Full Name]', LEFT_COL_WIDTH);
-    doc.text(nameLines, MARGIN, y);
-    y += doc.getTextDimensions(nameLines).h;
-    
-    doc.setFont(FONT_SANS, 'normal').setFontSize(11).setTextColor(...COLOR_PRIMARY);
-    const titleLines = doc.splitTextToSize(personalInfo.title || '[Professional Title]', LEFT_COL_WIDTH);
-    doc.text(titleLines, MARGIN, y);
-    y += doc.getTextDimensions(titleLines).h;
-    
-    let contactY = MARGIN;
-    const contactInfo = [
-        { text: personalInfo.phone },
-        { text: personalInfo.email },
-        { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-        { text: personalInfo.location }
-    ].filter(item => item.text);
+        // --- Header ---
+        doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK);
+        doc.text(personalInfo.name || '[Full Name]', LEFT_COL_X, yLeft);
+        yLeft += doc.getTextDimensions(personalInfo.name || '[Full Name]').h;
+        doc.setFont(FONT_SANS, 'normal').setFontSize(11).setTextColor(...COLOR_PRIMARY);
+        doc.text(personalInfo.title || '[Professional Title]', LEFT_COL_X, yLeft);
+        yLeft += doc.getTextDimensions(personalInfo.title || '[Professional Title]').h;
 
-    doc.setFontSize(8).setTextColor(...COLOR_TEXT_MEDIUM);
-    contactInfo.forEach(item => {
-        if (!item.text) return;
-        const textLines = doc.splitTextToSize(item.text, RIGHT_COL_WIDTH);
-        doc.text(textLines, RIGHT_COL_X, contactY, { align: 'left'});
-        contactY += doc.getTextDimensions(textLines).h + 4;
-    });
+        const contactInfo = [
+            { text: personalInfo.phone },
+            { text: personalInfo.email },
+            { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
+            { text: personalInfo.location }
+        ].filter(item => item.text);
 
-    y = Math.max(y, contactY) + 15;
-    doc.setDrawColor(...COLOR_TEXT_LIGHT).setLineWidth(0.5);
-    doc.line(MARGIN, y - 8, PAGE_WIDTH - MARGIN, y - 8);
+        doc.setFontSize(8).setTextColor(...COLOR_TEXT_MEDIUM);
+        contactInfo.forEach(item => {
+            if (!item.text) return;
+            const textLines = doc.splitTextToSize(item.text, RIGHT_COL_WIDTH);
+            doc.text(textLines, RIGHT_COL_X, yRight, { align: 'left'});
+            yRight += doc.getTextDimensions(textLines).h + 4;
+        });
 
-    // --- Main Content ---
-    let yLeft = y;
-    let yRight = y;
-    let page = 1;
+        yLeft = yRight = Math.max(yLeft, yRight) + 15;
+        doc.setDrawColor(...COLOR_TEXT_LIGHT).setLineWidth(0.5);
+        doc.line(MARGIN, yLeft - 8, PAGE_WIDTH - MARGIN, yLeft - 8);
 
-    const addPage = () => {
-        doc.addPage();
-        page++;
-        yLeft = MARGIN;
-        yRight = MARGIN;
-    };
-    
-    const calculateHeight = (calculator: () => void): number => {
-        const startY = doc.internal.pageSize.height; // A virtual high value
-        let height = 0;
-        const originalY = y;
-        doc.internal.write('q'); // Save context
-        doc.internal.pageSize.height = Infinity; // Temporarily disable page breaks
-        y = startY;
-        calculator();
-        height = y - startY;
-        y = originalY;
-        doc.internal.pageSize.height = PAGE_HEIGHT; // Restore page breaks
-        doc.internal.write('Q'); // Restore context
-        return height;
-    };
-    
-    // --- Render Left Column ---
-    const renderLeftColumn = () => {
-        // Summary
-        if (summary) {
-            const height = calculateHeight(() => {
-                y = 0;
-                y += 25; // Title height
-                y += doc.setFontSize(9).getTextDimensions(doc.splitTextToSize(summary, LEFT_COL_WIDTH)).h + 15;
+        const addPageIfNeeded = () => {
+            if (yLeft > PAGE_HEIGHT - MARGIN || yRight > PAGE_HEIGHT - MARGIN) {
+                const overflowLeft = yLeft - (PAGE_HEIGHT - MARGIN);
+                const overflowRight = yRight - (PAGE_HEIGHT - MARGIN);
+
+                if (overflowLeft > 0 || overflowRight > 0) {
+                   doc.addPage();
+                   yLeft = MARGIN;
+                   yRight = MARGIN;
+                }
+            }
+        };
+
+        const renderSectionTitle = (title: string, x: number, y: number): number => {
+            doc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
+            doc.text(title.toUpperCase(), x, y);
+            doc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
+            const titleWidth = doc.getTextWidth(title);
+            doc.line(x, y + 2, x + titleWidth, y + 2);
+            return y + 25;
+        };
+
+        const renderText = (text: string, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal'): number => {
+            doc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
+            const lines = doc.splitTextToSize(text, width);
+            const height = doc.getTextDimensions(lines).h;
+            addPageIfNeeded(); // Simplified check, might need improvement
+            doc.text(lines, x, y);
+            return y + height;
+        };
+        
+        const renderBulletList = (details: string[] | undefined, x: number, y: number, width: number): number => {
+            if (!details) return y;
+            let currentY = y;
+            details.forEach(bullet => {
+                const bulletLines = doc.splitTextToSize(bullet, width - 12);
+                const bulletHeight = doc.getTextDimensions(bulletLines).h;
+                if(currentY + bulletHeight > PAGE_HEIGHT - MARGIN) { doc.addPage(); currentY = MARGIN; }
+                doc.setFontSize(14).setTextColor(...COLOR_PRIMARY);
+                doc.text("•", x, currentY);
+                doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM);
+                doc.text(bulletLines, x + 12, currentY);
+                currentY += bulletHeight + 2;
             });
-            if (yLeft + height > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
-            yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+            return currentY;
+        };
+
+        // --- Left Column ---
+        if (summary) {
+            yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft);
             yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH) + 15;
         }
 
-        // Experience
         if (experience && experience.length > 0) {
-            if (yLeft + 30 > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
-            yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-            experience.forEach(job => renderJob(job));
+            yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft);
+            experience.forEach(job => {
+                yLeft = renderText(job.title, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                yLeft = renderText(job.company, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
+                yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                yLeft += 4;
+                yLeft = renderBulletList(job.details, LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+                yLeft += 10;
+            });
+        }
+
+        if (education && education.length > 0) {
+            yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft);
+            education.forEach(edu => {
+                yLeft = renderText(edu.degree, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                yLeft = renderText(edu.institution, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY);
+                yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                yLeft += 10;
+            });
         }
         
-        // Education
-        if (education && education.length > 0) {
-            if (yLeft + 30 > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
-            yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-            education.forEach(edu => renderEducation(edu));
-        }
-    };
-    
-    const renderSectionTitle = (title: string, x: number, y: number, width: number): number => {
-      doc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
-      doc.text(title.toUpperCase(), x, y);
-      doc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
-      doc.line(x, y + 2, x + doc.getTextWidth(title), y + 2);
-      return y + 25;
-    };
-
-    const renderText = (text: string | null | undefined, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal'): number => {
-      if (!text) return y;
-      doc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
-      const lines = doc.splitTextToSize(text, width);
-      const height = doc.getTextDimensions(lines).h;
-      if (y + height > PAGE_HEIGHT - MARGIN && y > MARGIN) { // check if y is not already at top
-        addPage();
-        y = MARGIN;
-      }
-      doc.text(lines, x, y);
-      return y + height;
-    };
-    
-    const renderJob = (job: any) => {
-      let tempY = yLeft;
-      const titleHeight = doc.setFontSize(10).getTextDimensions(doc.splitTextToSize(job.title || '', LEFT_COL_WIDTH)).h;
-      const companyHeight = doc.setFontSize(9).getTextDimensions(doc.splitTextToSize(job.company || '', LEFT_COL_WIDTH)).h;
-      const metaHeight = doc.setFontSize(8).getTextDimensions(doc.splitTextToSize(`${job.date || ''}`, LEFT_COL_WIDTH)).h;
-      let bulletsHeight = 0;
-      job.details?.forEach((d: string) => bulletsHeight += doc.setFontSize(9).getTextDimensions(doc.splitTextToSize(d, LEFT_COL_WIDTH - 12)).h + 2);
-      const totalHeight = titleHeight + companyHeight + metaHeight + 4 + bulletsHeight + 10;
-      if (yLeft + totalHeight > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
-
-      yLeft = renderText(job.title, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-      yLeft = renderText(job.company, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
-      yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-      yLeft += 4;
-      job.details?.forEach((bullet: string) => {
-        const bulletLines = doc.setFontSize(9).splitTextToSize(bullet, LEFT_COL_WIDTH - 12);
-        const bulletHeight = doc.getTextDimensions(bulletLines).h;
-        if (yLeft + bulletHeight > PAGE_HEIGHT - MARGIN) { addPage(); yLeft = MARGIN; }
-        doc.setFontSize(14).setTextColor(...COLOR_PRIMARY); doc.text("•", LEFT_COL_X, yLeft);
-        doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM); doc.text(bulletLines, LEFT_COL_X + 12, yLeft);
-        yLeft += bulletHeight + 2;
-      });
-      yLeft += 10;
-    };
-    
-    const renderEducation = (edu: any) => {
-        const totalHeight = 40; // Approx height
-        if (yLeft + totalHeight > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
-        yLeft = renderText(edu.degree, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-        yLeft = renderText(edu.institution, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY);
-        yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-        yLeft += 10;
-    };
-
-    renderLeftColumn();
-
-    // --- Render Right Column ---
-    const originalLeftPageCount = page;
-    const finalYLeft = yLeft;
-    page = 1;
-    doc.setPage(1);
-
-    const renderRightColumn = () => {
-      // Key Achievements
-      if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-        if (yRight + 60 > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
-        yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-        yRight = renderText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-        yRight += 4;
-        keyAchievements.details?.forEach((bullet: string) => {
-            const bulletLines = doc.setFontSize(9).splitTextToSize(bullet, RIGHT_COL_WIDTH - 12);
-            const bulletHeight = doc.getTextDimensions(bulletLines).h;
-            if (yRight + bulletHeight > PAGE_HEIGHT - MARGIN) { addPage(); yRight = MARGIN; }
-            doc.setFontSize(14).setTextColor(...COLOR_PRIMARY); doc.text("•", RIGHT_COL_X, yRight);
-            doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM); doc.text(bulletLines, RIGHT_COL_X + 12, yRight);
-            yRight += bulletHeight + 2;
-        });
-        yRight += 15;
-      }
-      
-      // Skills
-      if (skills && skills.length > 0) {
-        if (yRight + 30 > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
-        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-        let currentX = RIGHT_COL_X; let currentLineY = yRight;
-        skills.forEach(skill => {
-            const tagWidth = doc.setFontSize(8).getTextWidth(skill) + 12;
-            if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) { currentX = RIGHT_COL_X; currentLineY += 16; }
-            if (currentLineY + 12 > PAGE_HEIGHT - MARGIN) { addPage(); currentLineY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN, RIGHT_COL_WIDTH); currentX = RIGHT_COL_X; }
-            doc.setFillColor(229, 231, 235); doc.roundedRect(currentX, currentLineY - 8, tagWidth, 12, 3, 3, 'F');
-            doc.setTextColor(...COLOR_TEXT_MEDIUM); doc.text(skill, currentX + 6, currentLineY - 1);
-            currentX += tagWidth + 4;
-        });
-        yRight = currentLineY + 15;
-      }
-      
-      // Projects
-      if (projects && projects.length > 0) {
-        if (yRight + 30 > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
-        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-        projects.forEach(proj => {
-            const totalHeight = 50 + (proj.details?.length || 0) * 15; // Approx height
-            if (yRight + totalHeight > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
-            yRight = renderText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-            yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+        // --- Right Column ---
+        if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
+            yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight);
+            yRight = renderText(keyAchievements.title || '', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
             yRight += 4;
-            proj.details?.forEach((bullet: string) => {
-                const bulletLines = doc.setFontSize(9).splitTextToSize(bullet, RIGHT_COL_WIDTH - 12);
-                const bulletHeight = doc.getTextDimensions(bulletLines).h;
-                if (yRight + bulletHeight > PAGE_HEIGHT - MARGIN) { addPage(); yRight = MARGIN; }
-                doc.setFontSize(14).setTextColor(...COLOR_PRIMARY); doc.text("•", RIGHT_COL_X, yRight);
-                doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM); doc.text(bulletLines, RIGHT_COL_X + 12, yRight);
-                yRight += bulletHeight + 2;
+            yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+            yRight += 15;
+        }
+        
+        if (skills && skills.length > 0) {
+            yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight);
+            let currentX = RIGHT_COL_X;
+            let currentLineY = yRight;
+            skills.forEach(skill => {
+                const tagWidth = doc.setFontSize(8).getTextWidth(skill) + 12;
+                if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
+                    currentX = RIGHT_COL_X;
+                    currentLineY += 16;
+                }
+                 if(currentLineY + 12 > PAGE_HEIGHT - MARGIN) { doc.addPage(); currentLineY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN); currentX = RIGHT_COL_X; }
+                doc.setFillColor(229, 231, 235);
+                doc.roundedRect(currentX, currentLineY - 8, tagWidth, 12, 3, 3, 'F');
+                doc.setTextColor(...COLOR_TEXT_MEDIUM);
+                doc.text(skill, currentX + 6, currentLineY - 1);
+                currentX += tagWidth + 4;
             });
-            yRight += 10;
-        });
-      }
-    };
-    
-    renderRightColumn();
-    
-    // Ensure total pages match if right column was shorter
-    const finalPageCount = Math.max(originalLeftPageCount, page);
-    while (doc.internal.pages.length < finalPageCount) {
-        doc.addPage();
-    }
+            yRight = currentLineY + 15;
+        }
+        
+        if (projects && projects.length > 0) {
+            yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight);
+            projects.forEach(proj => {
+                yRight = renderText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                yRight += 4;
+                yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+                yRight += 10;
+            });
+        }
 
-    doc.save('ai_mentor_resume.pdf');
-    toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
-  };
+        doc.save('ai_mentor_resume.pdf');
+        toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
+    };
 
 
   const handleResetResumeImprover = () => {
@@ -1159,6 +1111,7 @@ export default function MentorAiPage() {
         fullName: linkedInFullName,
         professionalTitle: linkedInProfessionalTitle,
         stylePreference: linkedInVisualStyle,
+        resumeContent: linkedInResumeContent || undefined,
       });
       setGeneratedLinkedInVisuals(result);
       toast({ title: "LinkedIn Visuals Generated!", description: "AI has created suggestions for your profile picture and cover image." });
@@ -1743,7 +1696,7 @@ export default function MentorAiPage() {
                   <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare2 className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
                     <CardDescription>
-                      Generate AI suggestions for your LinkedIn profile picture and cover image. Profile pictures will be abstract/stylized (not realistic faces).
+                      Generate AI suggestions for your LinkedIn profile picture and a portfolio-style cover image based on your resume.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -1758,6 +1711,13 @@ export default function MentorAiPage() {
                         value={linkedInProfessionalTitle} 
                         onChange={(e) => setLinkedInProfessionalTitle(e.target.value)} 
                         disabled={isGeneratingLinkedInVisuals} 
+                    />
+                    <Textarea
+                        placeholder="Paste your resume text here (optional, for a portfolio-style cover photo)..."
+                        value={linkedInResumeContent}
+                        onChange={(e) => setLinkedInResumeContent(e.target.value)}
+                        disabled={isGeneratingLinkedInVisuals}
+                        className="min-h-[150px]"
                     />
                     <div>
                         <Label htmlFor="linkedin-visual-style">Visual Style Preference</Label>
@@ -1774,7 +1734,7 @@ export default function MentorAiPage() {
                     </div>
                      <p className="text-xs text-muted-foreground p-2 bg-muted/30 rounded-md border border-dashed">
                         <Info className="inline h-4 w-4 mr-1 text-primary"/>
-                        AI will generate abstract or stylized profile pictures (e.g., initials, patterns) and themed cover images. No realistic human faces will be generated for profile pictures.
+                        AI will generate an abstract profile picture (not a face) and a cover image themed on your resume or title.
                     </p>
                     <Button onClick={handleGenerateLinkedInVisuals} disabled={isGeneratingLinkedInVisuals || !linkedInFullName.trim() || !linkedInProfessionalTitle.trim()} className="w-full sm:w-auto">
                         {isGeneratingLinkedInVisuals && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Visuals
