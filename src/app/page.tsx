@@ -461,35 +461,49 @@ export default function MentorAiPage() {
         return data;
     };
     
-    // New, more robust parser for multi-entry sections
+    // Rewritten, robust parser for multi-entry sections
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent || sectionContent.trim() === '') return [];
 
-        const entryBlocks = sectionContent.split(/\n(?=title:|degree:)/).filter(block => block.trim() !== '');
+        const entries: any[] = [];
+        let currentEntry: any = null;
 
-        const entries = entryBlocks.map(block => {
-            const entry: any = { details: [] };
-            const lines = block.trim().split('\n');
+        sectionContent.split('\n').forEach(line => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) return;
 
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                if (trimmedLine.startsWith('-')) {
-                    entry.details.push(trimmedLine.substring(1).trim());
-                } else {
-                    const parts = trimmedLine.split(':');
-                    if (parts.length > 1) {
-                        const key = parts[0].trim().toLowerCase();
-                        const value = parts.slice(1).join(':').trim();
-                        if (key) {
-                            entry[key] = value;
-                        }
+            // Check for a line that starts a new entry (e.g., "title:" or "degree:")
+            if (trimmedLine.match(/^(title|degree):/i)) {
+                if (currentEntry) {
+                    entries.push(currentEntry);
+                }
+                currentEntry = { details: [] };
+            }
+
+            if (!currentEntry) {
+                 // Handles case where first line might not be title/degree but belongs to first entry
+                currentEntry = { details: [] };
+            }
+
+            if (trimmedLine.startsWith('-')) {
+                currentEntry.details.push(trimmedLine.substring(1).trim());
+            } else {
+                const parts = trimmedLine.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+                    if (key) {
+                        currentEntry[key] = value;
                     }
                 }
-            });
-            return entry;
+            }
         });
 
-        return entries.filter(e => e.title || e.degree); // Ensure only valid entries are returned
+        if (currentEntry) {
+            entries.push(currentEntry);
+        }
+
+        return entries.filter(e => e.title || e.degree || (e.details && e.details.length > 0));
     };
 
 
@@ -570,8 +584,8 @@ export default function MentorAiPage() {
         if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
             doc.addPage();
             currentPage++;
-            yLeft = MARGIN;
-            yRight = MARGIN;
+            // Reset yLeft and yRight for the new page
+            // This is a simplified reset; a more complex layout might need to know which column to reset to
             return MARGIN; 
         }
         return currentY;
@@ -580,6 +594,7 @@ export default function MentorAiPage() {
     const renderSectionTitle = (title: string, x: number, y: number, isLeftCol: boolean) => {
         let newY = checkPageBreak(y, 25);
         if (newY === MARGIN && y !== MARGIN) { 
+             // If a new page was added, we need to update the main y cursor for that column
              if(isLeftCol) yLeft = newY; else yRight = newY;
         }
         y = newY;
@@ -609,6 +624,7 @@ export default function MentorAiPage() {
             
             let newY = checkPageBreak(currentY, textHeight);
              if (newY === MARGIN && currentY !== MARGIN) {
+                // If a new page was added, update the main column cursor
                 if(isLeftCol) yLeft = newY; else yRight = newY;
             }
             currentY = newY;
@@ -664,6 +680,7 @@ export default function MentorAiPage() {
 
             let newY = checkPageBreak(currentY, accumulatedHeight);
             if (newY === MARGIN && currentY !== MARGIN) {
+                 // A new page was added, update main cursor
                  if(isLeftCol) yLeft = newY; else yRight = newY;
             }
             currentY = newY;
@@ -701,7 +718,68 @@ export default function MentorAiPage() {
         });
         return currentY;
     };
+    
+    const renderRightColumn = () => {
+        let y = MARGIN;
+        const contactItems = [
+            { label: 'Phone', value: personalInfo.phone },
+            { label: 'Email', value: personalInfo.email },
+            { label: 'LinkedIn', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
+            { label: 'Location', value: personalInfo.location }
+        ].filter(item => item.value);
 
+        if (contactItems.length > 0) {
+            y = renderSectionTitle('CONTACT', RIGHT_COL_X, y, false);
+            doc.setFontSize(9);
+            doc.setFont(FONT_NAME, 'normal');
+            contactItems.forEach(item => {
+                const contactLine = `${item.label}: ${item.value}`;
+                let valueLines = doc.splitTextToSize(contactLine, RIGHT_COL_WIDTH);
+                let height = doc.getTextDimensions(valueLines).h;
+                y = checkPageBreak(y, height);
+                doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
+                doc.text(valueLines, RIGHT_COL_X, y);
+                y += height + 5;
+            });
+            y += 15;
+        }
+
+        if (education.length > 0) {
+            y = renderSectionTitle('EDUCATION', RIGHT_COL_X, y, false);
+            y = renderEntries(education, y, RIGHT_COL_WIDTH, RIGHT_COL_X, false);
+        }
+
+        if (skills.length > 0) {
+            y = renderSectionTitle('SKILLS', RIGHT_COL_X, y, false);
+            const skillsText = skills.join(', ');
+            doc.setFontSize(9);
+            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
+            let lines = doc.splitTextToSize(skillsText, RIGHT_COL_WIDTH);
+            let height = doc.getTextDimensions(lines).h;
+            y = checkPageBreak(y, height);
+            doc.text(lines, RIGHT_COL_X, y);
+            y += height + 15;
+        }
+        
+         if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
+            y = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, y, false);
+            if (keyAchievements.title) {
+              doc.setFont(FONT_NAME, 'bold');
+              doc.setFontSize(10);
+              doc.setTextColor(COLOR_TEXT_DARK_HEX);
+              let lines = doc.splitTextToSize(keyAchievements.title, RIGHT_COL_WIDTH);
+              let height = doc.getTextDimensions(lines).h;
+              y = checkPageBreak(y, height);
+              doc.text(lines, RIGHT_COL_X, y);
+              y += height + 5;
+            }
+            if (keyAchievements.details && keyAchievements.details.length > 0) {
+              y = renderBulletList(keyAchievements.details, RIGHT_COL_X, y, RIGHT_COL_WIDTH, false);
+            }
+            y += 15;
+        }
+    }
+    
     // --- HEADER ---
     doc.setFont(FONT_NAME, 'bold');
     doc.setFontSize(32);
@@ -714,102 +792,10 @@ export default function MentorAiPage() {
     doc.setTextColor(COLOR_PRIMARY_HEX);
     doc.text(personalInfo.title || '[Professional Title]', MARGIN, yLeft);
     yLeft += 25;
-    
-    const CIRCLE_DIA = 50;
-    const headerRightX = PAGE_WIDTH - MARGIN - (CIRCLE_DIA / 2);
-    doc.setFillColor(COLOR_PRIMARY_HEX);
-    doc.circle(headerRightX, MARGIN + 10, CIRCLE_DIA / 2, 'F');
-    doc.setFontSize(22);
-    doc.setTextColor('#FFFFFF');
-    doc.setFont(FONT_NAME, 'bold');
-    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
-    doc.text(initials, headerRightX, MARGIN + 14, { align: 'center'});
-    
-    let yRightInitial = MARGIN + CIRCLE_DIA + 20;
-    
-    const contactItems = [
-        { label: 'Phone:', value: personalInfo.phone },
-        { label: 'Email:', value: personalInfo.email },
-        { label: 'LinkedIn:', value: personalInfo.linkedin ? `linkedin.com/${personalInfo.linkedin}` : '' },
-        { label: 'Location:', value: personalInfo.location }
-    ].filter(item => item.value);
-
-    if (contactItems.length > 0) {
-        yRight = renderSectionTitle('Contact', RIGHT_COL_X, yRightInitial, false);
-        doc.setFontSize(9);
-        doc.setFont(FONT_NAME, 'normal');
-        contactItems.forEach(item => {
-            const contactLine = `${item.label} ${item.value}`;
-            let valueLines = doc.splitTextToSize(contactLine, RIGHT_COL_WIDTH);
-            let height = doc.getTextDimensions(valueLines).h;
-            
-            yRight = checkPageBreak(yRight, height);
-
-            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
-            doc.text(valueLines, RIGHT_COL_X, yRight);
-
-            yRight += height + 5;
-        });
-        yRight += 15;
-    }
-
-    if (education.length > 0) {
-        yRight = renderSectionTitle('Education', RIGHT_COL_X, yRight, false);
-        yRight = renderEntries(education, yRight, RIGHT_COL_WIDTH, RIGHT_COL_X, false);
-    }
-    
-    if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-        yRight = renderSectionTitle('Key Achievements', RIGHT_COL_X, yRight, false);
-        if (keyAchievements.title) {
-          doc.setFont(FONT_NAME, 'bold');
-          doc.setFontSize(10);
-          doc.setTextColor(COLOR_TEXT_DARK_HEX);
-          let lines = doc.splitTextToSize(keyAchievements.title, RIGHT_COL_WIDTH);
-          let height = doc.getTextDimensions(lines).h;
-          yRight = checkPageBreak(yRight, height);
-          doc.text(lines, RIGHT_COL_X, yRight);
-          yRight += height + 5;
-        }
-        if (keyAchievements.details && keyAchievements.details.length > 0) {
-          yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, false);
-        }
-        yRight += 15;
-    }
-
-    if (skills.length > 0) {
-        yRight = renderSectionTitle('Skills', RIGHT_COL_X, yRight, false);
-        let currentX = RIGHT_COL_X;
-        const skillPadding = 8;
-        const skillVGap = 15;
-        const skillHGap = 6;
-        doc.setFontSize(9); doc.setFont(FONT_NAME, 'normal');
-
-        skills.forEach(skill => {
-            if (!skill) return;
-            const textWidth = doc.getTextWidth(skill);
-            const skillWidth = textWidth + skillPadding * 2;
-            
-            yRight = checkPageBreak(yRight, skillVGap);
-
-            if (currentX + skillWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
-                currentX = RIGHT_COL_X;
-                yRight += skillVGap;
-            }
-            
-            doc.setDrawColor(COLOR_TEXT_MEDIUM_HEX);
-            doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
-            doc.roundedRect(currentX, yRight - 9, skillWidth, 12, 3, 3, 'S');
-            doc.text(skill, currentX + skillPadding, yRight);
-            currentX += skillWidth + skillHGap;
-        });
-        yRight += 20;
-    }
-
 
     // --- RENDER LEFT COLUMN ---
-    doc.setPage(1); 
     if (summary) {
-        yLeft = renderSectionTitle('Summary', MARGIN, yLeft, true);
+        yLeft = renderSectionTitle('SUMMARY', MARGIN, yLeft, true);
         doc.setFontSize(9);
         doc.setTextColor(COLOR_TEXT_MEDIUM_HEX);
         const lines = doc.splitTextToSize(summary, LEFT_COL_WIDTH);
@@ -819,13 +805,16 @@ export default function MentorAiPage() {
         yLeft += height + 15;
     }
     if (experience.length > 0) {
-        yLeft = renderSectionTitle('Experience', MARGIN, yLeft, true);
+        yLeft = renderSectionTitle('EXPERIENCE', MARGIN, yLeft, true);
         yLeft = renderEntries(experience, yLeft, LEFT_COL_WIDTH, MARGIN, true);
     }
     if (projects.length > 0) {
-        yLeft = renderSectionTitle('Projects', MARGIN, yLeft, true);
+        yLeft = renderSectionTitle('PROJECTS', MARGIN, yLeft, true);
         yLeft = renderEntries(projects, yLeft, LEFT_COL_WIDTH, MARGIN, true);
     }
+
+    // Now render the right column
+    renderRightColumn();
     
     doc.save('ai_mentor_resume.pdf');
     toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
@@ -2153,5 +2142,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-
-    
