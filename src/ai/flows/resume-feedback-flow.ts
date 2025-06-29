@@ -90,7 +90,7 @@ Skills: AWS, Azure, C/C++, CSS, Data Structures, Deep Learning, Django, Docker, 
 Projects: AI Mentor by AP (05/2025 - 01/1970) - Personal Project. Spearheaded development of an AI-powered learning platform. Engineered AI-driven tools for resume, cover letter, etc. Integrated AI-powered image generation. Designed the platform with a user-centric approach.
 {{/if}}
 Target Job Role: "{{targetJobRole}}". Tailor content accordingly.
-Additional Information: "{{{additionalInformation}}}". Integrate this into the resume. For new resumes, this is the primary source of all content.
+Additional Information: "{{{additionalInformation}}}". You MUST integrate this information into the final resume. If an existing resume (from text or a file) is provided, intelligently merge these additional details into it. This might involve adding new skills, projects, or updating experience bullet points. If you are creating a new resume from scratch, this field is your primary source of content. This is a mandatory instruction.
 
 **Part 1: ATS Scoring**
 *   **originalAtsScore**: If a resume was provided by the user, you MUST analyze it and assign an ATS score from 0 to 100. Provide a brief 'explanation' for this score, focusing on keyword relevance for the target role, parsable format, use of action verbs, and quantifiable results. If the user is creating a new resume from scratch (no original resume provided), you MUST omit the 'originalAtsScore' field entirely from your output.
