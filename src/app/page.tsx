@@ -585,7 +585,6 @@ export default function MentorAiPage() {
     const COLOR_TEXT_DARK = "#1f2937"; // gray-800
     const COLOR_TEXT_MEDIUM = "#4b5563"; // gray-600
     const COLOR_TEXT_LIGHT = "#6b7280"; // gray-500
-    const LINE_HEIGHT_RATIO = 1.4;
 
     let yLeft = MARGIN;
     let yRight = MARGIN;
@@ -629,26 +628,24 @@ export default function MentorAiPage() {
     });
 
     // Align Y positions after header
-    yLeft = Math.max(yLeft, yRight) + 10;
+    yLeft = Math.max(yLeft, yRight);
     yRight = yLeft;
-
+    
     doc.setDrawColor(COLOR_TEXT_LIGHT);
     doc.setLineWidth(0.5);
     doc.line(MARGIN, headerBottomY - 8, PAGE_WIDTH - MARGIN, headerBottomY - 8);
 
-    // --- Section Rendering Helpers ---
-    const renderSectionTitle = (title: string, x: number, y: number, isLeftCol: boolean) => {
-        const titleHeight = 25;
-        let currentY = y;
-        if (currentY + titleHeight > PAGE_HEIGHT - MARGIN) {
-            if (isLeftCol) { 
-                 addNewPage();
-                 currentY = yLeft; 
-                 yRight = yLeft; 
-            } else { 
-                currentY = yLeft; 
-            }
+    const checkPageBreak = (currentY: number, requiredHeight: number) => {
+        if (currentY + requiredHeight > PAGE_HEIGHT - MARGIN) {
+            addNewPage();
+            return MARGIN;
         }
+        return currentY;
+    };
+
+    // --- Section Rendering Helpers ---
+    const renderSectionTitle = (title: string, x: number, y: number) => {
+        let currentY = checkPageBreak(y, 30);
         doc.setFont(FONT_SANS, 'bold');
         doc.setFontSize(12);
         doc.setTextColor(COLOR_PRIMARY);
@@ -656,25 +653,22 @@ export default function MentorAiPage() {
         doc.setDrawColor(COLOR_TEXT_DARK);
         doc.setLineWidth(1.5);
         doc.line(x, currentY + 2, x + doc.getTextWidth(title), currentY + 2);
-        return currentY + titleHeight;
+        return currentY + 25;
     };
     
-    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number, isLeftCol: boolean) => {
+    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number) => {
         let currentY = y;
+        if (!bullets) return currentY;
         bullets.forEach(bullet => {
             if (!bullet) return;
             const textX = x + 12;
             const textMaxWidth = maxWidth - 12;
             
             doc.setFontSize(9);
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
             const lines = doc.splitTextToSize(bullet, textMaxWidth);
             const textHeight = doc.getTextDimensions(lines).h;
 
-            if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
-                if (isLeftCol) { addNewPage(); currentY = yLeft; yRight = yLeft; }
-                else { currentY = yLeft; } 
-            }
+            currentY = checkPageBreak(currentY, textHeight);
             
             doc.setFontSize(14);
             doc.setTextColor(COLOR_PRIMARY);
@@ -688,92 +682,103 @@ export default function MentorAiPage() {
         return currentY;
     };
 
-    const renderText = (text: string | null | undefined, x: number, y: number, maxWidth: number, isLeftCol: boolean, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
+    const renderText = (text: string | null | undefined, x: number, y: number, maxWidth: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
         if (!text) return y;
         let currentY = y;
         doc.setFontSize(size);
-        doc.setTextColor(color[0], color[1], color[2]);
+        doc.setTextColor(color);
         doc.setFont(FONT_SANS, style);
 
         const lines = doc.splitTextToSize(text, maxWidth);
         const textHeight = doc.getTextDimensions(lines).h;
-        if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
-            if (isLeftCol) { addNewPage(); currentY = yLeft; yRight = yLeft; }
-             else { currentY = yLeft; }
-        }
+        
+        currentY = checkPageBreak(currentY, textHeight);
+        
         doc.text(lines, x, currentY);
         return currentY + textHeight;
     };
 
-
     // --- Render Left Column (Main Content) ---
+    yLeft += 15;
+    yRight += 15;
+    
     if(summary) {
-        yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft, true);
-        yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, true, 9, COLOR_TEXT_MEDIUM, 'normal') + 15;
+        yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft);
+        yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_TEXT_MEDIUM, 'normal') + 15;
     }
-    if(experience.length > 0) {
-        yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft, true);
+    if(experience && experience.length > 0) {
+        yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft);
         experience.forEach(job => {
-            let tempY = yLeft;
-            tempY = renderText(job.title, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 10, COLOR_TEXT_DARK, 'bold');
-            tempY = renderText(job.company, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 9, COLOR_PRIMARY, 'bold');
-            tempY = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 8, COLOR_TEXT_LIGHT, 'normal');
-            tempY += 4;
-            tempY = renderBulletList(job.details, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true);
-            yLeft = tempY + 10;
+            yLeft = checkPageBreak(yLeft, 60); // Approx height for a job header
+            yLeft = renderText(job.title, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+            yLeft = renderText(job.company, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
+            yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT, 'normal');
+            yLeft += 4;
+            yLeft = renderBulletList(job.details, LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+            yLeft += 10;
         });
     }
+     if (education && education.length > 0) {
+        yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft);
+        education.forEach(edu => {
+            yLeft = checkPageBreak(yLeft, 40);
+            yLeft = renderText(edu.degree, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+            yLeft = renderText(edu.institution, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'normal');
+            yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT, 'normal');
+            yLeft += 10;
+        });
+    }
+
 
     // --- Render Right Column (Sidebar) ---
-    if (education.length > 0) {
-        yRight = renderSectionTitle('EDUCATION', RIGHT_COL_X, yRight, false);
-        education.forEach(edu => {
-            let tempY = yRight;
-            tempY = renderText(edu.degree, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 10, COLOR_TEXT_DARK, 'bold');
-            tempY = renderText(edu.institution, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 9, COLOR_PRIMARY, 'normal');
-            tempY = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT, 'normal');
-            yRight = tempY + 10;
-        });
+    if (keyAchievements && (keyAchievements.title || (keyAchievements.details && keyAchievements.details.length > 0))) {
+        yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight);
+        yRight = renderText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+        yRight += 4;
+        yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+        yRight += 15;
     }
-
-    if (skills.length > 0) {
-        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight, false);
+    
+    if (skills && skills.length > 0) {
+        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight);
         let currentX = RIGHT_COL_X;
         let currentY = yRight;
         const tagPaddingX = 6;
-        const tagPaddingY = 3;
         const tagMargin = 4;
         doc.setFontSize(8);
         skills.forEach(skill => {
             const textWidth = doc.getTextWidth(skill);
             const tagWidth = textWidth + tagPaddingX * 2;
-            if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
+
+            if (currentX !== RIGHT_COL_X && currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
                 currentX = RIGHT_COL_X;
                 currentY += 12 + tagMargin;
             }
-            if (currentY > PAGE_HEIGHT - MARGIN) {
-                 addNewPage(); 
-                 currentY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN, false);
-                 currentX = RIGHT_COL_X;
+            
+            currentY = checkPageBreak(currentY, 12 + tagMargin);
+            if (currentY === MARGIN) { // if new page was added
+                yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN);
+                currentY = yRight;
             }
+
             doc.setFillColor("#e5e7eb"); // gray-200
             doc.roundedRect(currentX, currentY - 8, tagWidth, 12, 3, 3, 'F');
-            doc.setTextColor(COLOR_TEXT_MEDIUM[0], COLOR_TEXT_MEDIUM[1], COLOR_TEXT_MEDIUM[2]);
+            doc.setTextColor(COLOR_TEXT_MEDIUM);
             doc.text(skill, currentX + tagPaddingX, currentY - 1);
             currentX += tagWidth + tagMargin;
         });
         yRight = currentY + 15;
     }
     
-    if (projects.length > 0) {
-        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight, false);
+    if (projects && projects.length > 0) {
+        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight);
         projects.forEach(proj => {
-            let tempY = yRight;
-            tempY = renderText(proj.title, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 10, COLOR_TEXT_DARK, 'bold');
-            tempY = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT, 'normal');
-            tempY += 4;
-            tempY = renderBulletList(proj.details, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false);
-            yRight = tempY + 10;
+            yRight = checkPageBreak(yRight, 50); // Approx height for a project header
+            yRight = renderText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+            yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT, 'normal');
+            yRight += 4;
+            yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+            yRight += 10;
         });
     }
 
@@ -2136,5 +2141,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-
-    
