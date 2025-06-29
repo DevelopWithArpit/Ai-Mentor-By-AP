@@ -453,7 +453,7 @@ export default function MentorAiPage() {
         content.split('\n').forEach(line => {
             const parts = line.split(':');
             if (parts.length > 1) {
-                const key = parts[0].trim();
+                const key = parts[0].trim().toLowerCase();
                 const value = parts.slice(1).join(':').trim();
                 data[key] = value;
             }
@@ -461,53 +461,59 @@ export default function MentorAiPage() {
         return data;
     };
     
-    // A more robust parser for sections that can contain multiple entries.
     const parseMultiEntrySection = (sectionContent: string | undefined) => {
         if (!sectionContent || sectionContent.trim() === '') return [];
 
         const entries: any[] = [];
-        // Each entry (e.g., a job or degree) is assumed to start with 'title:' or 'degree:'.
-        // We split the content into blocks based on these keywords.
-        const entryBlocks = sectionContent.split(/\n(?=^(title|degree):)/im);
+        let currentEntry: any = null;
 
-        entryBlocks.forEach(block => {
-            if (!block.trim()) return;
-
-            const entry: any = { details: [] };
-            const lines = block.trim().split('\n');
-
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                if (!trimmedLine) return;
-
-                if (trimmedLine.startsWith('-')) {
-                    // This is a bullet point for the details list.
-                    entry.details.push(trimmedLine.substring(1).trim());
-                } else if (trimmedLine.toLowerCase().startsWith('details:')) {
-                    // This handles lines like "details: - First bullet".
-                    const detailContent = trimmedLine.substring('details:'.length).trim();
-                    if (detailContent.startsWith('-')) {
-                        entry.details.push(detailContent.substring(1).trim());
-                    }
-                    // If the line is just "details:", subsequent lines starting with "-" will be handled above.
-                } else {
-                    // This is a regular key-value pair.
-                    const parts = trimmedLine.split(':');
-                    if (parts.length > 1) {
-                        const key = parts[0].trim().toLowerCase();
-                        const value = parts.slice(1).join(':').trim();
-                        if (key) {
-                            entry[key] = value;
-                        }
-                    }
-                }
-            });
-
-            // Add the parsed entry to our list if it contains meaningful data.
-            if (entry.title || entry.degree || entry.details.length > 0) {
-                entries.push(entry);
+        const commitCurrentEntry = () => {
+            if (currentEntry && (currentEntry.title || currentEntry.degree || (currentEntry.details && currentEntry.details.length > 0))) {
+                entries.push(currentEntry);
             }
-        });
+            currentEntry = null;
+        };
+
+        const lines = sectionContent.split('\n');
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+
+            const lowerLine = trimmedLine.toLowerCase();
+
+            // A new entry starts with 'title:' or 'degree:'
+            if (lowerLine.startsWith('title:') || lowerLine.startsWith('degree:')) {
+                commitCurrentEntry(); // Commit the previous entry before starting a new one
+                currentEntry = { details: [] };
+                const parts = trimmedLine.split(':');
+                const key = parts[0].trim().toLowerCase();
+                const value = parts.slice(1).join(':').trim();
+                currentEntry[key] = value;
+            } else if (trimmedLine.startsWith('-')) {
+                // This is a bullet point for the current entry's details
+                if (currentEntry) {
+                    // Ensure 'details' is an array before pushing
+                    if (!Array.isArray(currentEntry.details)) {
+                        currentEntry.details = [];
+                    }
+                    currentEntry.details.push(trimmedLine.substring(1).trim());
+                }
+            } else if (lowerLine.startsWith('details:')) {
+                // Ignore "details:" lines, as we handle bullets directly.
+                // This prevents overwriting the details array.
+                continue;
+            } else if (currentEntry) {
+                // This is another key-value pair for the current entry
+                const parts = trimmedLine.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+                    currentEntry[key] = value;
+                }
+            }
+        }
+        commitCurrentEntry(); // Commit the very last entry
 
         return entries;
     };
