@@ -439,22 +439,30 @@ export default function MentorAiPage() {
 
   const parseResumeData = (text: string) => {
     const sections: { [key: string]: string[] } = {
-        PERSONAL_INFO: [],
-        SUMMARY: [],
-        KEY_ACHIEVEMENTS: [],
-        EXPERIENCE: [],
-        EDUCATION: [],
-        SKILLS: [],
-        PROJECTS: [],
+      PERSONAL_INFO: [],
+      SUMMARY: [],
+      KEY_ACHIEVEMENTS: [],
+      EXPERIENCE: [],
+      EDUCATION: [],
+      SKILLS: [],
+      PROJECTS: [],
     };
+    
+    const lines = text.split('\n');
+    let currentSection: string | null = null;
 
-    const sectionRegex = /SECTION: ([\w_]+)\s*([\s\S]*?)\s*END_SECTION/g;
-    let match;
-    while ((match = sectionRegex.exec(text)) !== null) {
-        const sectionName = match[1].trim();
-        const sectionContent = match[2].trim();
-        if (sections.hasOwnProperty(sectionName)) {
-            sections[sectionName] = sectionContent.split('\n').filter(line => line.trim() !== '');
+    for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('SECTION:')) {
+            currentSection = trimmedLine.substring(8).trim();
+            continue;
+        }
+        if (trimmedLine === 'END_SECTION') {
+            currentSection = null;
+            continue;
+        }
+        if (currentSection && sections.hasOwnProperty(currentSection)) {
+            sections[currentSection].push(line);
         }
     }
 
@@ -463,70 +471,59 @@ export default function MentorAiPage() {
         lines.forEach(line => {
             const parts = line.match(/^([\w\s]+):\s*(.*)$/);
             if (parts) {
-                data[parts[1].trim().toLowerCase()] = parts[2].trim();
+                data[parts[1].trim().toLowerCase().replace(/\s+/g, '_')] = parts[2].trim();
             }
         });
         return data;
     };
     
-    const parseSummarySection = (lines: string[]) => lines.join('\n');
+    const parseSummarySection = (lines: string[]) => lines.join('\n').trim();
 
     const parseMultiEntrySection = (lines: string[], markers: string[]) => {
         if (!lines || lines.length === 0) return [];
         
         const entries: any[] = [];
-        let currentEntry: any = null;
-
-        const commitEntry = () => {
-            if (currentEntry) {
-                entries.push(currentEntry);
-                currentEntry = null;
-            }
-        };
-
-        for (const line of lines) {
+        let currentEntry: any = {};
+        
+        lines.forEach(line => {
             const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-
-            const isNewEntry = markers.some(marker => trimmedLine.toLowerCase().startsWith(marker));
+            const isNewEntry = markers.some(marker => line.startsWith(marker + ':'));
             
-            if (isNewEntry) {
-                commitEntry();
-                currentEntry = {};
-            }
-
-            if (currentEntry === null) {
+            if (isNewEntry && Object.keys(currentEntry).length > 0) {
+                entries.push(currentEntry);
                 currentEntry = {};
             }
 
             if (trimmedLine.startsWith('- ')) {
-                if (!currentEntry.details) {
-                    currentEntry.details = [];
-                }
+                if (!currentEntry.details) currentEntry.details = [];
                 currentEntry.details.push(trimmedLine.substring(2).trim());
             } else if (trimmedLine.toLowerCase().startsWith('details:')) {
-                if (!currentEntry.details) {
-                    currentEntry.details = [];
-                }
-            } else {
-                const parts = trimmedLine.match(/^([\w\s]+):\s*(.*)$/);
+                // This line itself doesn't have content, it's a marker for the following bullet points
+                if (!currentEntry.details) currentEntry.details = [];
+            }
+            else {
+                const parts = line.match(/^([\w\s]+):\s*(.*)$/);
                 if (parts) {
                     const key = parts[1].trim().toLowerCase().replace(/\s+/g, '_');
                     const value = parts[2].trim();
                     currentEntry[key] = value;
                 }
             }
+        });
+
+        if (Object.keys(currentEntry).length > 0) {
+            entries.push(currentEntry);
         }
-        commitEntry();
+        
         return entries;
     };
 
     const personalInfo = parseKeyValueSection(sections.PERSONAL_INFO);
     const summary = parseSummarySection(sections.SUMMARY);
-    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title:'])[0] || { details: [] };
-    const experience = parseMultiEntrySection(sections.EXPERIENCE, ['title:']);
-    const education = parseMultiEntrySection(sections.EDUCATION, ['degree:']);
-    const projects = parseMultiEntrySection(sections.PROJECTS, ['title:']);
+    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title'])[0] || { details: [] };
+    const experience = parseMultiEntrySection(sections.EXPERIENCE, ['title']);
+    const education = parseMultiEntrySection(sections.EDUCATION, ['degree']);
+    const projects = parseMultiEntrySection(sections.PROJECTS, ['title']);
     const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
     const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
 
@@ -579,207 +576,233 @@ export default function MentorAiPage() {
     const RIGHT_COL_WIDTH = (PAGE_WIDTH - MARGIN * 2 - COL_GAP) * 0.35;
     const LEFT_COL_X = MARGIN;
     const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
-
     const FONT_SANS = "Helvetica";
-    const COLOR_PRIMARY = "#2563eb"; // blue-600
-    const COLOR_TEXT_DARK = "#1f2937"; // gray-800
-    const COLOR_TEXT_MEDIUM = "#4b5563"; // gray-600
-    const COLOR_TEXT_LIGHT = "#6b7280"; // gray-500
 
-    let yLeft = MARGIN;
-    let yRight = MARGIN;
+    const hexToRgb = (hex: string): [number, number, number] => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
+    };
+    
+    const COLOR_PRIMARY = hexToRgb("#2563eb");
+    const COLOR_TEXT_DARK = hexToRgb("#1f2937");
+    const COLOR_TEXT_MEDIUM = hexToRgb("#4b5563");
+    const COLOR_TEXT_LIGHT = hexToRgb("#6b7280");
 
-    const addNewPage = () => {
+    let y = MARGIN;
+
+    // --- Header ---
+    doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK);
+    const nameLines = doc.splitTextToSize(personalInfo.name || '[Full Name]', LEFT_COL_WIDTH);
+    doc.text(nameLines, MARGIN, y);
+    y += doc.getTextDimensions(nameLines).h;
+    
+    doc.setFont(FONT_SANS, 'normal').setFontSize(11).setTextColor(...COLOR_PRIMARY);
+    const titleLines = doc.splitTextToSize(personalInfo.title || '[Professional Title]', LEFT_COL_WIDTH);
+    doc.text(titleLines, MARGIN, y);
+    y += doc.getTextDimensions(titleLines).h;
+    
+    let contactY = MARGIN;
+    const contactInfo = [
+        { text: personalInfo.phone },
+        { text: personalInfo.email },
+        { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
+        { text: personalInfo.location }
+    ].filter(item => item.text);
+
+    doc.setFontSize(8).setTextColor(...COLOR_TEXT_MEDIUM);
+    contactInfo.forEach(item => {
+        if (!item.text) return;
+        const textLines = doc.splitTextToSize(item.text, RIGHT_COL_WIDTH);
+        doc.text(textLines, RIGHT_COL_X, contactY, { align: 'left'});
+        contactY += doc.getTextDimensions(textLines).h + 4;
+    });
+
+    y = Math.max(y, contactY) + 15;
+    doc.setDrawColor(...COLOR_TEXT_LIGHT).setLineWidth(0.5);
+    doc.line(MARGIN, y - 8, PAGE_WIDTH - MARGIN, y - 8);
+
+    // --- Main Content ---
+    let yLeft = y;
+    let yRight = y;
+    let page = 1;
+
+    const addPage = () => {
         doc.addPage();
+        page++;
         yLeft = MARGIN;
         yRight = MARGIN;
     };
     
-    // --- Header ---
-    doc.setFont(FONT_SANS, 'bold');
-    doc.setFontSize(26);
-    doc.setTextColor(COLOR_TEXT_DARK);
-    const nameLines = doc.splitTextToSize(personalInfo.name || '[Full Name]', LEFT_COL_WIDTH);
-    doc.text(nameLines, MARGIN, yLeft);
-    yLeft += doc.getTextDimensions(nameLines).h;
+    const calculateHeight = (calculator: () => void): number => {
+        const startY = doc.internal.pageSize.height; // A virtual high value
+        let height = 0;
+        const originalY = y;
+        doc.internal.write('q'); // Save context
+        doc.internal.pageSize.height = Infinity; // Temporarily disable page breaks
+        y = startY;
+        calculator();
+        height = y - startY;
+        y = originalY;
+        doc.internal.pageSize.height = PAGE_HEIGHT; // Restore page breaks
+        doc.internal.write('Q'); // Restore context
+        return height;
+    };
     
-    doc.setFontSize(11);
-    doc.setTextColor(COLOR_PRIMARY);
-    doc.setFont(FONT_SANS, 'normal');
-    const titleLines = doc.splitTextToSize(personalInfo.title || '[Professional Title]', LEFT_COL_WIDTH);
-    doc.text(titleLines, MARGIN, yLeft);
-    yLeft += doc.getTextDimensions(titleLines).h + 15;
-    const headerBottomY = yLeft;
-
-    // --- Right Column Header ---
-    const contactInfo = [
-        { icon: 'phone', text: personalInfo.phone },
-        { icon: 'mail', text: personalInfo.email },
-        { icon: 'linkedin', text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-        { icon: 'map-pin', text: personalInfo.location }
-    ].filter(item => item.text);
-
-    doc.setFontSize(8);
-    doc.setTextColor(COLOR_TEXT_MEDIUM);
-    contactInfo.forEach(item => {
-        const textLines = doc.splitTextToSize(item.text, RIGHT_COL_WIDTH);
-        doc.text(textLines, RIGHT_COL_X, yRight, { align: 'left'});
-        yRight += doc.getTextDimensions(textLines).h + 4;
-    });
-
-    // Align Y positions after header
-    yLeft = Math.max(yLeft, yRight);
-    yRight = yLeft;
-    
-    doc.setDrawColor(COLOR_TEXT_LIGHT);
-    doc.setLineWidth(0.5);
-    doc.line(MARGIN, headerBottomY - 8, PAGE_WIDTH - MARGIN, headerBottomY - 8);
-
-    const checkPageBreak = (currentY: number, requiredHeight: number) => {
-        if (currentY + requiredHeight > PAGE_HEIGHT - MARGIN) {
-            addNewPage();
-            return MARGIN;
+    // --- Render Left Column ---
+    const renderLeftColumn = () => {
+        // Summary
+        if (summary) {
+            const height = calculateHeight(() => {
+                y = 0;
+                y += 25; // Title height
+                y += doc.setFontSize(9).getTextDimensions(doc.splitTextToSize(summary, LEFT_COL_WIDTH)).h + 15;
+            });
+            if (yLeft + height > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
+            yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+            yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH) + 15;
         }
-        return currentY;
-    };
 
-    // --- Section Rendering Helpers ---
-    const renderSectionTitle = (title: string, x: number, y: number) => {
-        let currentY = checkPageBreak(y, 30);
-        doc.setFont(FONT_SANS, 'bold');
-        doc.setFontSize(12);
-        doc.setTextColor(COLOR_PRIMARY);
-        doc.text(title.toUpperCase(), x, currentY);
-        doc.setDrawColor(COLOR_TEXT_DARK);
-        doc.setLineWidth(1.5);
-        doc.line(x, currentY + 2, x + doc.getTextWidth(title), currentY + 2);
-        return currentY + 25;
+        // Experience
+        if (experience && experience.length > 0) {
+            if (yLeft + 30 > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
+            yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+            experience.forEach(job => renderJob(job));
+        }
+        
+        // Education
+        if (education && education.length > 0) {
+            if (yLeft + 30 > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
+            yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
+            education.forEach(edu => renderEducation(edu));
+        }
     };
     
-    const renderBulletList = (bullets: string[], x: number, y: number, maxWidth: number) => {
-        let currentY = y;
-        if (!bullets) return currentY;
-        bullets.forEach(bullet => {
-            if (!bullet) return;
-            const textX = x + 12;
-            const textMaxWidth = maxWidth - 12;
-            
-            doc.setFontSize(9);
-            const lines = doc.splitTextToSize(bullet, textMaxWidth);
-            const textHeight = doc.getTextDimensions(lines).h;
-
-            currentY = checkPageBreak(currentY, textHeight);
-            
-            doc.setFontSize(14);
-            doc.setTextColor(COLOR_PRIMARY);
-            doc.text("•", x, currentY);
-
-            doc.setFontSize(9);
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
-            doc.text(lines, textX, currentY);
-            currentY += textHeight + 2;
-        });
-        return currentY;
+    const renderSectionTitle = (title: string, x: number, y: number, width: number): number => {
+      doc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
+      doc.text(title.toUpperCase(), x, y);
+      doc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
+      doc.line(x, y + 2, x + doc.getTextWidth(title), y + 2);
+      return y + 25;
     };
 
-    const renderText = (text: string | null | undefined, x: number, y: number, maxWidth: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
-        if (!text) return y;
-        let currentY = y;
-        doc.setFontSize(size);
-        doc.setTextColor(color);
-        doc.setFont(FONT_SANS, style);
-
-        const lines = doc.splitTextToSize(text, maxWidth);
-        const textHeight = doc.getTextDimensions(lines).h;
-        
-        currentY = checkPageBreak(currentY, textHeight);
-        
-        doc.text(lines, x, currentY);
-        return currentY + textHeight;
+    const renderText = (text: string | null | undefined, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal'): number => {
+      if (!text) return y;
+      doc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
+      const lines = doc.splitTextToSize(text, width);
+      const height = doc.getTextDimensions(lines).h;
+      if (y + height > PAGE_HEIGHT - MARGIN && y > MARGIN) { // check if y is not already at top
+        addPage();
+        y = MARGIN;
+      }
+      doc.text(lines, x, y);
+      return y + height;
     };
-
-    // --- Render Left Column (Main Content) ---
-    yLeft += 15;
-    yRight += 15;
     
-    if(summary) {
-        yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft);
-        yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_TEXT_MEDIUM, 'normal') + 15;
-    }
-    if(experience && experience.length > 0) {
-        yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft);
-        experience.forEach(job => {
-            yLeft = checkPageBreak(yLeft, 60); // Approx height for a job header
-            yLeft = renderText(job.title, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-            yLeft = renderText(job.company, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
-            yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT, 'normal');
-            yLeft += 4;
-            yLeft = renderBulletList(job.details, LEFT_COL_X, yLeft, LEFT_COL_WIDTH);
-            yLeft += 10;
-        });
-    }
-     if (education && education.length > 0) {
-        yLeft = renderSectionTitle('EDUCATION', LEFT_COL_X, yLeft);
-        education.forEach(edu => {
-            yLeft = checkPageBreak(yLeft, 40);
-            yLeft = renderText(edu.degree, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-            yLeft = renderText(edu.institution, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'normal');
-            yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT, 'normal');
-            yLeft += 10;
-        });
-    }
+    const renderJob = (job: any) => {
+      let tempY = yLeft;
+      const titleHeight = doc.setFontSize(10).getTextDimensions(doc.splitTextToSize(job.title || '', LEFT_COL_WIDTH)).h;
+      const companyHeight = doc.setFontSize(9).getTextDimensions(doc.splitTextToSize(job.company || '', LEFT_COL_WIDTH)).h;
+      const metaHeight = doc.setFontSize(8).getTextDimensions(doc.splitTextToSize(`${job.date || ''}`, LEFT_COL_WIDTH)).h;
+      let bulletsHeight = 0;
+      job.details?.forEach((d: string) => bulletsHeight += doc.setFontSize(9).getTextDimensions(doc.splitTextToSize(d, LEFT_COL_WIDTH - 12)).h + 2);
+      const totalHeight = titleHeight + companyHeight + metaHeight + 4 + bulletsHeight + 10;
+      if (yLeft + totalHeight > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
 
+      yLeft = renderText(job.title, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+      yLeft = renderText(job.company, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
+      yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+      yLeft += 4;
+      job.details?.forEach((bullet: string) => {
+        const bulletLines = doc.setFontSize(9).splitTextToSize(bullet, LEFT_COL_WIDTH - 12);
+        const bulletHeight = doc.getTextDimensions(bulletLines).h;
+        if (yLeft + bulletHeight > PAGE_HEIGHT - MARGIN) { addPage(); yLeft = MARGIN; }
+        doc.setFontSize(14).setTextColor(...COLOR_PRIMARY); doc.text("•", LEFT_COL_X, yLeft);
+        doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM); doc.text(bulletLines, LEFT_COL_X + 12, yLeft);
+        yLeft += bulletHeight + 2;
+      });
+      yLeft += 10;
+    };
+    
+    const renderEducation = (edu: any) => {
+        const totalHeight = 40; // Approx height
+        if (yLeft + totalHeight > PAGE_HEIGHT - MARGIN && yLeft > y) addPage();
+        yLeft = renderText(edu.degree, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+        yLeft = renderText(edu.institution, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 9, COLOR_PRIMARY);
+        yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), LEFT_COL_X, yLeft, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+        yLeft += 10;
+    };
 
-    // --- Render Right Column (Sidebar) ---
-    if (keyAchievements && (keyAchievements.title || (keyAchievements.details && keyAchievements.details.length > 0))) {
-        yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight);
+    renderLeftColumn();
+
+    // --- Render Right Column ---
+    const originalLeftPageCount = page;
+    const finalYLeft = yLeft;
+    page = 1;
+    doc.setPage(1);
+
+    const renderRightColumn = () => {
+      // Key Achievements
+      if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
+        if (yRight + 60 > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
+        yRight = renderSectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
         yRight = renderText(keyAchievements.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
         yRight += 4;
-        yRight = renderBulletList(keyAchievements.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
-        yRight += 15;
-    }
-    
-    if (skills && skills.length > 0) {
-        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight);
-        let currentX = RIGHT_COL_X;
-        let currentY = yRight;
-        const tagPaddingX = 6;
-        const tagMargin = 4;
-        doc.setFontSize(8);
-        skills.forEach(skill => {
-            const textWidth = doc.getTextWidth(skill);
-            const tagWidth = textWidth + tagPaddingX * 2;
-
-            if (currentX !== RIGHT_COL_X && currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) {
-                currentX = RIGHT_COL_X;
-                currentY += 12 + tagMargin;
-            }
-            
-            currentY = checkPageBreak(currentY, 12 + tagMargin);
-            if (currentY === MARGIN) { // if new page was added
-                yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN);
-                currentY = yRight;
-            }
-
-            doc.setFillColor("#e5e7eb"); // gray-200
-            doc.roundedRect(currentX, currentY - 8, tagWidth, 12, 3, 3, 'F');
-            doc.setTextColor(COLOR_TEXT_MEDIUM);
-            doc.text(skill, currentX + tagPaddingX, currentY - 1);
-            currentX += tagWidth + tagMargin;
+        keyAchievements.details?.forEach((bullet: string) => {
+            const bulletLines = doc.setFontSize(9).splitTextToSize(bullet, RIGHT_COL_WIDTH - 12);
+            const bulletHeight = doc.getTextDimensions(bulletLines).h;
+            if (yRight + bulletHeight > PAGE_HEIGHT - MARGIN) { addPage(); yRight = MARGIN; }
+            doc.setFontSize(14).setTextColor(...COLOR_PRIMARY); doc.text("•", RIGHT_COL_X, yRight);
+            doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM); doc.text(bulletLines, RIGHT_COL_X + 12, yRight);
+            yRight += bulletHeight + 2;
         });
-        yRight = currentY + 15;
-    }
-    
-    if (projects && projects.length > 0) {
-        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight);
+        yRight += 15;
+      }
+      
+      // Skills
+      if (skills && skills.length > 0) {
+        if (yRight + 30 > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
+        yRight = renderSectionTitle('SKILLS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+        let currentX = RIGHT_COL_X; let currentLineY = yRight;
+        skills.forEach(skill => {
+            const tagWidth = doc.setFontSize(8).getTextWidth(skill) + 12;
+            if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) { currentX = RIGHT_COL_X; currentLineY += 16; }
+            if (currentLineY + 12 > PAGE_HEIGHT - MARGIN) { addPage(); currentLineY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN, RIGHT_COL_WIDTH); currentX = RIGHT_COL_X; }
+            doc.setFillColor(229, 231, 235); doc.roundedRect(currentX, currentLineY - 8, tagWidth, 12, 3, 3, 'F');
+            doc.setTextColor(...COLOR_TEXT_MEDIUM); doc.text(skill, currentX + 6, currentLineY - 1);
+            currentX += tagWidth + 4;
+        });
+        yRight = currentLineY + 15;
+      }
+      
+      // Projects
+      if (projects && projects.length > 0) {
+        if (yRight + 30 > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
+        yRight = renderSectionTitle('PROJECTS', RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
         projects.forEach(proj => {
-            yRight = checkPageBreak(yRight, 50); // Approx height for a project header
+            const totalHeight = 50 + (proj.details?.length || 0) * 15; // Approx height
+            if (yRight + totalHeight > PAGE_HEIGHT - MARGIN && yRight > y) addPage();
             yRight = renderText(proj.title, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-            yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT, 'normal');
+            yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, yRight, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
             yRight += 4;
-            yRight = renderBulletList(proj.details, RIGHT_COL_X, yRight, RIGHT_COL_WIDTH);
+            proj.details?.forEach((bullet: string) => {
+                const bulletLines = doc.setFontSize(9).splitTextToSize(bullet, RIGHT_COL_WIDTH - 12);
+                const bulletHeight = doc.getTextDimensions(bulletLines).h;
+                if (yRight + bulletHeight > PAGE_HEIGHT - MARGIN) { addPage(); yRight = MARGIN; }
+                doc.setFontSize(14).setTextColor(...COLOR_PRIMARY); doc.text("•", RIGHT_COL_X, yRight);
+                doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM); doc.text(bulletLines, RIGHT_COL_X + 12, yRight);
+                yRight += bulletHeight + 2;
+            });
             yRight += 10;
         });
+      }
+    };
+    
+    renderRightColumn();
+    
+    // Ensure total pages match if right column was shorter
+    const finalPageCount = Math.max(originalLeftPageCount, page);
+    while (doc.internal.pages.length < finalPageCount) {
+        doc.addPage();
     }
 
     doc.save('ai_mentor_resume.pdf');
