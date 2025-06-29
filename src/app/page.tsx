@@ -471,12 +471,11 @@ export default function MentorAiPage() {
     
     const parseSummarySection = (lines: string[]) => lines.join('\n');
 
-    const parseMultiEntrySection = (lines: string[]) => {
+    const parseMultiEntrySection = (lines: string[], markers: string[]) => {
         if (!lines || lines.length === 0) return [];
         
         const entries: any[] = [];
         let currentEntry: any = null;
-        const entryMarkers = ['title:', 'degree:'];
 
         const commitEntry = () => {
             if (currentEntry) {
@@ -489,7 +488,7 @@ export default function MentorAiPage() {
             const trimmedLine = line.trim();
             if (!trimmedLine) continue;
 
-            const isNewEntry = entryMarkers.some(marker => trimmedLine.toLowerCase().startsWith(marker));
+            const isNewEntry = markers.some(marker => trimmedLine.toLowerCase().startsWith(marker));
             
             if (isNewEntry) {
                 commitEntry();
@@ -497,8 +496,6 @@ export default function MentorAiPage() {
             }
 
             if (currentEntry === null) {
-                // This can happen if the first line is not a marker.
-                // We'll create a default entry. This is a safeguard.
                 currentEntry = {};
             }
 
@@ -520,21 +517,22 @@ export default function MentorAiPage() {
                 }
             }
         }
-        commitEntry(); // Commit the last entry
+        commitEntry();
         return entries;
     };
 
     const personalInfo = parseKeyValueSection(sections.PERSONAL_INFO);
     const summary = parseSummarySection(sections.SUMMARY);
-    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS)[0] || { details: [] };
-    const experience = parseMultiEntrySection(sections.EXPERIENCE);
-    const education = parseMultiEntrySection(sections.EDUCATION);
-    const projects = parseMultiEntrySection(sections.PROJECTS);
+    const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title:'])[0] || { details: [] };
+    const experience = parseMultiEntrySection(sections.EXPERIENCE, ['title:']);
+    const education = parseMultiEntrySection(sections.EDUCATION, ['degree:']);
+    const projects = parseMultiEntrySection(sections.PROJECTS, ['title:']);
     const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
     const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
   };
+
 
   const handleGetResumeFeedback = async () => {
     const hasFile = !!resumeFile;
@@ -643,12 +641,12 @@ export default function MentorAiPage() {
         const titleHeight = 25;
         let currentY = y;
         if (currentY + titleHeight > PAGE_HEIGHT - MARGIN) {
-            if (isLeftCol) { // If left column overflows, we need a new page
+            if (isLeftCol) { 
                  addNewPage();
-                 currentY = yLeft; // yLeft is already MARGIN
-                 yRight = yLeft; // Reset right column as well
-            } else { // if right column overflows, it can just continue where left col left off on next page
-                currentY = yLeft; // Continue where left col is
+                 currentY = yLeft; 
+                 yRight = yLeft; 
+            } else { 
+                currentY = yLeft; 
             }
         }
         doc.setFont(FONT_SANS, 'bold');
@@ -675,8 +673,7 @@ export default function MentorAiPage() {
 
             if (currentY + textHeight > PAGE_HEIGHT - MARGIN) {
                 if (isLeftCol) { addNewPage(); currentY = yLeft; yRight = yLeft; }
-                else { currentY = yLeft; } // Let right col wrap based on left
-                 // Here you might want to re-render the section title on the new page
+                else { currentY = yLeft; } 
             }
             
             doc.setFontSize(14);
@@ -691,7 +688,8 @@ export default function MentorAiPage() {
         return currentY;
     };
 
-    const renderText = (text: string, x: number, y: number, maxWidth: number, isLeftCol: boolean, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
+    const renderText = (text: string | null | undefined, x: number, y: number, maxWidth: number, isLeftCol: boolean, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
+        if (!text) return y;
         let currentY = y;
         doc.setFontSize(size);
         doc.setTextColor(color[0], color[1], color[2]);
@@ -711,7 +709,7 @@ export default function MentorAiPage() {
     // --- Render Left Column (Main Content) ---
     if(summary) {
         yLeft = renderSectionTitle('SUMMARY', LEFT_COL_X, yLeft, true);
-        yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, true) + 15;
+        yLeft = renderText(summary, LEFT_COL_X, yLeft, LEFT_COL_WIDTH, true, 9, COLOR_TEXT_MEDIUM, 'normal') + 15;
     }
     if(experience.length > 0) {
         yLeft = renderSectionTitle('EXPERIENCE', LEFT_COL_X, yLeft, true);
@@ -719,7 +717,7 @@ export default function MentorAiPage() {
             let tempY = yLeft;
             tempY = renderText(job.title, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 10, COLOR_TEXT_DARK, 'bold');
             tempY = renderText(job.company, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 9, COLOR_PRIMARY, 'bold');
-            tempY = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 8, COLOR_TEXT_LIGHT);
+            tempY = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), LEFT_COL_X, tempY, LEFT_COL_WIDTH, true, 8, COLOR_TEXT_LIGHT, 'normal');
             tempY += 4;
             tempY = renderBulletList(job.details, LEFT_COL_X, tempY, LEFT_COL_WIDTH, true);
             yLeft = tempY + 10;
@@ -733,7 +731,7 @@ export default function MentorAiPage() {
             let tempY = yRight;
             tempY = renderText(edu.degree, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 10, COLOR_TEXT_DARK, 'bold');
             tempY = renderText(edu.institution, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 9, COLOR_PRIMARY, 'normal');
-            tempY = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT);
+            tempY = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT, 'normal');
             yRight = tempY + 10;
         });
     }
@@ -754,7 +752,7 @@ export default function MentorAiPage() {
                 currentY += 12 + tagMargin;
             }
             if (currentY > PAGE_HEIGHT - MARGIN) {
-                 addNewPage(); // Should not happen for right col but safeguard
+                 addNewPage(); 
                  currentY = yRight = renderSectionTitle('SKILLS (CONT.)', RIGHT_COL_X, MARGIN, false);
                  currentX = RIGHT_COL_X;
             }
@@ -772,7 +770,7 @@ export default function MentorAiPage() {
         projects.forEach(proj => {
             let tempY = yRight;
             tempY = renderText(proj.title, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 10, COLOR_TEXT_DARK, 'bold');
-            tempY = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT);
+            tempY = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false, 8, COLOR_TEXT_LIGHT, 'normal');
             tempY += 4;
             tempY = renderBulletList(proj.details, RIGHT_COL_X, tempY, RIGHT_COL_WIDTH, false);
             yRight = tempY + 10;
@@ -2138,3 +2136,5 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
+    
