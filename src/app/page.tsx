@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
