@@ -92,6 +92,9 @@ export function ResultsDisplay({
 
     addSection("Question:", question);
     addSection("Answer:", searchResult?.answer); // Answer might be in question's language
+    if (searchResult?.source) {
+      addSection("Source:", searchResult.source, 12, 10);
+    }
     addSection(`AI Explanation (in ${languageDisplayNames[language] || language}):`, explanation);
 
 
@@ -165,11 +168,11 @@ export function ResultsDisplay({
               Answer
             </h3>
             <p className="text-foreground leading-relaxed whitespace-pre-wrap">{searchResult.answer}</p>
-            {searchResult.pageNumber !== undefined && searchResult.pageNumber !== null && (
+            {searchResult.source && (
                <div className="mt-3 flex items-center">
                 <BookOpen className="mr-2 h-5 w-5 text-primary" />
                 <Badge variant="secondary" className="text-sm">
-                  Found on Page: {searchResult.pageNumber}
+                  Source: {searchResult.source}
                 </Badge>
               </div>
             )}
@@ -218,4 +221,3 @@ export function ResultsDisplay({
     </Card>
   );
 }
-

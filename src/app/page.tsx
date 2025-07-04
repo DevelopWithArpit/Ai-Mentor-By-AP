@@ -115,7 +115,7 @@ const languageCodeToFullName: Record<string, string> = {
 
 export default function MentorAiPage() {
   const [activeTool, setActiveTool] = useState<string>(tools[0].id);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [question, setQuestion] = useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en'); 
   const [searchResult, setSearchResult] = useState<SmartSearchOutput | null>(null);
@@ -207,8 +207,8 @@ export default function MentorAiPage() {
   const [isGeneratingLinkedInVisuals, setIsGeneratingLinkedInVisuals] = useState<boolean>(false);
 
 
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
+  const handleFileChange = (files: File[]) => {
+    setSelectedFiles(files);
     setSearchResult(null);
     setExplanation(null);
     setError(null);
@@ -222,8 +222,11 @@ export default function MentorAiPage() {
     }
     setIsLoading(true); setError(null); setSearchResult(null); setExplanation(null);
     try {
-      const documentDataUriForFlow = selectedFile ? await fileToDataUri(selectedFile) : undefined;
-      const searchInput: SmartSearchInput = { documentDataUri: documentDataUriForFlow, question };
+      const documentDataUris = selectedFiles.length > 0
+        ? await Promise.all(selectedFiles.map(file => fileToDataUri(file)))
+        : undefined;
+        
+      const searchInput: SmartSearchInput = { documentDataUris: documentDataUris, question };
       const result = await smartSearch(searchInput);
       setSearchResult(result);
 
@@ -238,7 +241,7 @@ export default function MentorAiPage() {
         setExplanation(explainerResult.explanation);
         toast({ title: "AI Mentor Success!", description: "Insights generated successfully." });
       } else {
-        toast({ title: "Search complete", description: selectedFile ? "Could not find a direct answer in the document. AI attempted general response." : "I couldn't find an answer to your question." });
+        toast({ title: "Search complete", description: selectedFiles.length > 0 ? "Could not find a direct answer in the document. AI attempted general response." : "I couldn't find an answer to your question." });
       }
     } catch (err: any) {
       const errorMessage = err.message || 'An unexpected error occurred.';
@@ -250,7 +253,7 @@ export default function MentorAiPage() {
   };
   
   const handleResetScholarAI = () => {
-    setSelectedFile(null); setQuestion(''); setSearchResult(null); setExplanation(null); setError(null); setIsLoading(false);
+    setSelectedFiles([]); setQuestion(''); setSearchResult(null); setExplanation(null); setError(null); setIsLoading(false);
     const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
     toast({ title: "Cleared", description: "Document Q&A inputs and results have been cleared." });
@@ -1208,13 +1211,13 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                   <CardHeader>
                     <CardTitle className="font-headline text-2xl text-primary flex items-center"><Brain className="mr-2 h-7 w-7"/>Document Q&amp;A</CardTitle>
-                    <CardDescription>Upload a document (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document. The AI will attempt to answer in the language of your question. Explanations will be in your selected global language.</CardDescription>
+                    <CardDescription>Upload one or more documents (PDF, TXT, DOC, DOCX) and ask questions, or ask general questions without a document. The AI will attempt to answer in the language of your question. Explanations will be in your selected global language.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                       <div className="lg:col-span-1 space-y-6">
                         <FileUpload 
-                          selectedFile={selectedFile} 
+                          selectedFiles={selectedFiles} 
                           onFileChange={handleFileChange} 
                           isLoading={isLoading} 
                           inputId="file-upload-input"
@@ -1225,7 +1228,7 @@ export default function MentorAiPage() {
                         <Button variant="outline" onClick={handleResetScholarAI} disabled={isLoading} className="w-full"><RefreshCcw className="mr-2 h-4 w-4" /> Clear Q&amp;A</Button>
                       </div>
                       <div className="lg:col-span-2">
-                        <ResultsDisplay searchResult={searchResult} explanation={explanation} isLoading={isLoading} error={error} language={selectedLanguage} hasDocument={!!selectedFile} question={question}/>
+                        <ResultsDisplay searchResult={searchResult} explanation={explanation} isLoading={isLoading} error={error} language={selectedLanguage} hasDocument={selectedFiles.length > 0} question={question}/>
                       </div>
                     </div>
                   </CardContent>
@@ -1240,12 +1243,13 @@ export default function MentorAiPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <FileUpload 
-                          selectedFile={summarizerFile} 
-                          onFileChange={setSummarizerFile} 
+                          selectedFiles={summarizerFile ? [summarizerFile] : []} 
+                          onFileChange={(files) => setSummarizerFile(files[0] || null)} 
                           isLoading={isGeneratingSummary} 
                           inputId="summarizer-file-upload"
                           acceptedFileTypes={COMMON_DOC_MIME_TYPES}
                           acceptedFileExtensionsString={COMMON_DOC_EXTENSIONS_STRING}
+                          label="Upload Document"
                         />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -1307,8 +1311,8 @@ export default function MentorAiPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="md:col-span-1 space-y-4">
                         <FileUpload 
-                            selectedFile={imageEditorSrc instanceof File ? imageEditorSrc : null} 
-                            onFileChange={handleImageEditorFileChange} 
+                            selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
+                            onFileChange={(files) => handleImageEditorFileChange(files[0] || null)} 
                             isLoading={isManipulatingImageAI || isRemovingWatermark} 
                             inputId="image-editor-file-upload"
                             label="Upload Image"
@@ -1480,8 +1484,8 @@ export default function MentorAiPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <FileUpload
-                            selectedFile={resumeFile}
-                            onFileChange={setResumeFile}
+                            selectedFiles={resumeFile ? [resumeFile] : []}
+                            onFileChange={(files) => setResumeFile(files[0] || null)}
                             isLoading={isGeneratingResumeFeedback}
                             inputId="resume-file-upload"
                             label="Upload Resume (PDF, DOC, DOCX, TXT - Optional)"

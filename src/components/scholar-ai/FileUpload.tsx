@@ -9,8 +9,8 @@ import { UploadCloud, FileText, XCircle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface FileUploadProps {
-  onFileChange: (file: File | null) => void;
-  selectedFile: File | null;
+  onFileChange: (files: File[]) => void;
+  selectedFiles: File[];
   isLoading: boolean;
   inputId?: string;
   acceptedFileTypes?: string[];
@@ -28,12 +28,12 @@ const DEFAULT_ACCEPTED_DOC_EXTENSIONS_STRING = ".pdf, .txt, .doc, .docx";
 
 export function FileUpload({ 
   onFileChange, 
-  selectedFile, 
+  selectedFiles, 
   isLoading, 
   inputId = "file-upload",
   acceptedFileTypes,
   acceptedFileExtensionsString,
-  label = "Upload Document (Optional)"
+  label = "Upload Document(s) (Optional)"
 }: FileUploadProps) {
   const { toast } = useToast();
 
@@ -41,34 +41,56 @@ export function FileUpload({
   const currentAcceptedExtensionsString = acceptedFileExtensionsString || DEFAULT_ACCEPTED_DOC_EXTENSIONS_STRING;
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (currentAcceptedTypes.includes(file.type) || currentAcceptedTypes.some(type => type.endsWith('/*') && file.type.startsWith(type.slice(0, -2)))) {
-        onFileChange(file);
-      } else {
-        onFileChange(null);
+    const newFiles = event.target.files ? Array.from(event.target.files) : [];
+    if (newFiles.length > 0) {
+      const validFiles = newFiles.filter(file =>
+        currentAcceptedTypes.some(type => {
+          if (type.endsWith('/*')) {
+            return file.type.startsWith(type.slice(0, -1));
+          }
+          return file.type === type;
+        })
+      );
+
+      const invalidFiles = newFiles.filter(file => !validFiles.includes(file));
+
+      if (invalidFiles.length > 0) {
         toast({
           title: "Invalid File Type",
-          description: `Please upload a ${currentAcceptedExtensionsString} file.`,
+          description: `Skipped invalid files: ${invalidFiles.map(f => f.name).join(', ')}. Supported types: ${currentAcceptedExtensionsString}`,
           variant: "destructive",
         });
-        const fileInput = document.getElementById(inputId) as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
-        }
       }
-    } else {
-      onFileChange(null);
+
+      const currentFileNames = new Set(selectedFiles.map(f => f.name));
+      const filesToAdd = validFiles.filter(f => !currentFileNames.has(f.name));
+
+      if (filesToAdd.length > 0) {
+        onFileChange([...selectedFiles, ...filesToAdd]);
+      } else if (validFiles.length > 0 && invalidFiles.length === 0) {
+        toast({
+          title: "Duplicate Files",
+          description: "All selected files are already in the list.",
+        });
+      }
+      
+      // Clear the input value to allow re-selecting the same file after removing it
+      const fileInput = document.getElementById(inputId) as HTMLInputElement;
+      if(fileInput) fileInput.value = '';
     }
   };
 
-  const handleRemoveFile = () => {
-    onFileChange(null);
+  const handleRemoveFile = (fileToRemove: File) => {
+    onFileChange(selectedFiles.filter(file => file !== fileToRemove));
+  };
+  
+  const handleResetFiles = () => {
+    onFileChange([]);
     const fileInput = document.getElementById(inputId) as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
     }
-  };
+  }
 
   return (
     <div className="space-y-4">
@@ -83,6 +105,7 @@ export function FileUpload({
           onChange={handleFileChange}
           className="hidden"
           disabled={isLoading}
+          multiple
         />
         <Button
             variant="outline"
@@ -91,21 +114,28 @@ export function FileUpload({
             className="flex-grow sm:flex-grow-0"
           >
             <UploadCloud className="mr-2 h-5 w-5" />
-            {selectedFile ? "Change File" : "Select File"}
+            {selectedFiles.length > 0 ? "Add More Files" : "Select Files"}
         </Button>
       </div>
        <p className="text-xs text-muted-foreground">
         Supported formats: {currentAcceptedExtensionsString}.
       </p>
-      {selectedFile && (
-        <div className="mt-3 flex items-center justify-between p-3 border rounded-md bg-secondary/30 text-secondary-foreground">
-          <div className="flex items-center space-x-2 overflow-hidden">
-            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-            <span className="text-sm font-medium truncate" title={selectedFile.name}>{selectedFile.name}</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={handleRemoveFile} disabled={isLoading} aria-label="Remove file">
-            <XCircle className="h-5 w-5 text-destructive" />
-          </Button>
+      {selectedFiles.length > 0 && (
+        <div className="mt-3 space-y-2">
+            {selectedFiles.map((file, index) => (
+                 <div key={index} className="flex items-center justify-between p-3 border rounded-md bg-secondary/30 text-secondary-foreground">
+                    <div className="flex items-center space-x-2 overflow-hidden">
+                        <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                        <span className="text-sm font-medium truncate" title={file.name}>{file.name}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveFile(file)} disabled={isLoading} aria-label={`Remove ${file.name}`}>
+                        <XCircle className="h-5 w-5 text-destructive" />
+                    </Button>
+                </div>
+            ))}
+            <Button variant="link" size="sm" className="text-destructive px-0" onClick={handleResetFiles} disabled={isLoading}>
+              Clear all files
+            </Button>
         </div>
       )}
     </div>
