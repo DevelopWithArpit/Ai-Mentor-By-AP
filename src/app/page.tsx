@@ -444,7 +444,7 @@ export default function MentorAiPage() {
     const parseResumeData = (text: string) => {
         const sections: { [key: string]: string[] } = {
             PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
-            EXPERIENCE: [], EDUCATION: [], PROJECTS: [],
+            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: []
         };
         const sectionKeys = Object.keys(sections);
         let currentSection: string | null = null;
@@ -501,31 +501,30 @@ export default function MentorAiPage() {
             });
             return data;
         };
-
-        const parseMultiEntrySection = (lines: string[], markers: string[]) => {
-            if (!lines || lines.length === 0) return [];
+        
+        const parseMultiEntrySection = (sectionLines: string[], markers: string[]) => {
+            if (!sectionLines || sectionLines.length === 0) return [];
             const entries: any[] = [];
-            let currentEntry: any = {};
-
+            let currentEntry: any = null;
+        
             const flushEntry = () => {
-                if (Object.keys(currentEntry).length > 0) {
+                if (currentEntry) {
                     entries.push(currentEntry);
-                    currentEntry = {};
                 }
+                currentEntry = {};
             };
-
-            for (const line of lines) {
-                const trimmedLine = line.trim();
+        
+            for (const line of sectionLines) {
                 const isNewEntry = markers.some(marker => line.startsWith(marker + ':'));
-
+        
                 if (isNewEntry) {
                     flushEntry();
                 }
-
-                if (trimmedLine.startsWith('- ')) {
+        
+                if (line.trim().startsWith('- ')) {
                     if (!currentEntry.details) currentEntry.details = [];
-                    currentEntry.details.push(trimmedLine.substring(2).trim());
-                } else if (trimmedLine.toLowerCase() === 'details:') {
+                    currentEntry.details.push(line.trim().substring(2).trim());
+                } else if (line.trim().toLowerCase() === 'details:') {
                     if (!currentEntry.details) currentEntry.details = [];
                 } else {
                     const parts = line.match(/^([\w\s]+):\s*(.*)$/);
@@ -536,7 +535,9 @@ export default function MentorAiPage() {
                     }
                 }
             }
-            flushEntry();
+            if (currentEntry && Object.keys(currentEntry).length > 0) {
+                 entries.push(currentEntry);
+            }
             return entries;
         };
         
@@ -587,9 +588,11 @@ export default function MentorAiPage() {
             toast({ title: "Error", description: "No resume data to generate PDF. Please generate feedback first.", variant: "destructive" });
             return;
         }
-        const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = parsedResumeData;
-        const doc = new jsPDF({ unit: "pt", format: "letter" });
 
+        const doc = new jsPDF({ unit: "pt", format: "letter" });
+        const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = parsedResumeData;
+
+        // --- CONSTANTS AND HELPERS ---
         const PAGE_WIDTH = doc.internal.pageSize.getWidth();
         const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
         const MARGIN = 40;
@@ -599,200 +602,208 @@ export default function MentorAiPage() {
         const LEFT_COL_X = MARGIN;
         const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
         const FONT_SANS = "Helvetica";
-
-        const COLOR_PRIMARY_VAL = [37, 99, 235];
-        const COLOR_TEXT_DARK_VAL = [31, 41, 55];
-        const COLOR_TEXT_MEDIUM_VAL = [75, 85, 99];
-        const COLOR_TEXT_LIGHT_VAL = [107, 114, 128];
-        const COLOR_PRIMARY = COLOR_PRIMARY_VAL as [number, number, number];
-        const COLOR_TEXT_DARK = COLOR_TEXT_DARK_VAL as [number, number, number];
-        const COLOR_TEXT_MEDIUM = COLOR_TEXT_MEDIUM_VAL as [number, number, number];
-        const COLOR_TEXT_LIGHT = COLOR_TEXT_LIGHT_VAL as [number, number, number];
         
-        let yLeft = MARGIN;
-        let yRight = MARGIN;
-
-        // --- Header ---
-        doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK);
-        doc.text(personalInfo.name || '[Full Name]', LEFT_COL_X, yLeft);
-        yLeft += doc.getTextDimensions(personalInfo.name || '[Full Name]').h;
-        doc.setFont(FONT_SANS, 'normal').setFontSize(11).setTextColor(...COLOR_PRIMARY);
-        doc.text(personalInfo.title || '[Professional Title]', LEFT_COL_X, yLeft);
-        yLeft += doc.getTextDimensions(personalInfo.title || '[Professional Title]').h + 4;
-
-        const contactInfo = [
-            { text: personalInfo.phone },
-            { text: personalInfo.email },
-            { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-            { text: personalInfo.location }
-        ].filter(item => item.text);
-
-        doc.setFontSize(8).setTextColor(...COLOR_TEXT_MEDIUM);
-        contactInfo.forEach(item => {
-            if (!item.text) return;
-            const textLines = doc.splitTextToSize(item.text, RIGHT_COL_WIDTH);
-            doc.text(textLines, RIGHT_COL_X, yRight, { align: 'left'});
-            yRight += doc.getTextDimensions(textLines).h + 4;
+        const COLOR_PRIMARY = [37, 99, 235] as [number, number, number];
+        const COLOR_TEXT_DARK = [31, 41, 55] as [number, number, number];
+        const COLOR_TEXT_MEDIUM = [75, 85, 99] as [number, number, number];
+        const COLOR_TEXT_LIGHT = [107, 114, 128] as [number, number, number];
+        
+        const renderer = (currentDoc: jsPDF) => ({
+            sectionTitle: (title: string, x: number, y: number) => {
+                currentDoc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
+                currentDoc.text(title.toUpperCase(), x, y);
+                const titleWidth = currentDoc.getTextWidth(title);
+                currentDoc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
+                currentDoc.line(x, y + 2, x + titleWidth, y + 2);
+            },
+            text: (text: string, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
+                currentDoc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
+                const lines = currentDoc.splitTextToSize(text, width);
+                currentDoc.text(lines, x, y);
+            },
+            bulletList: (details: string[], x: number, y: number, width: number) => {
+                let localY = y;
+                details.forEach(bullet => {
+                    const bulletLines = currentDoc.splitTextToSize(bullet, width - 12);
+                    currentDoc.setFontSize(14).setTextColor(...COLOR_PRIMARY);
+                    currentDoc.text("•", x, localY);
+                    currentDoc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM);
+                    currentDoc.text(bulletLines, x + 12, localY);
+                    localY += currentDoc.getTextDimensions(bulletLines).h + 2;
+                });
+            },
+            skillTags: (skills: string[], x: number, y: number, width: number) => {
+                 let currentX = x;
+                 let localY = y;
+                 skills.forEach(skill => {
+                     const tagWidth = currentDoc.setFontSize(8).getTextWidth(skill) + 12;
+                     if (currentX + tagWidth > x + width) {
+                         currentX = x;
+                         localY += 16;
+                     }
+                     currentDoc.setFillColor(229, 231, 235);
+                     currentDoc.roundedRect(currentX, localY - 8, tagWidth, 12, 3, 3, 'F');
+                     currentDoc.setTextColor(...COLOR_TEXT_MEDIUM);
+                     currentDoc.text(skill, currentX + 6, localY - 1);
+                     currentX += tagWidth + 4;
+                 });
+            }
         });
 
-        const initialY = Math.max(yLeft, yRight) + 15;
-        yLeft = initialY;
-        yRight = initialY;
+        const calculator = (currentDoc: jsPDF) => ({
+            textHeight: (text: string, width: number, size = 9) => {
+                currentDoc.setFontSize(size);
+                return currentDoc.getTextDimensions(currentDoc.splitTextToSize(text, width)).h;
+            },
+            bulletListHeight: (details: string[] | undefined, width: number) => {
+                if (!details) return 0;
+                return details.reduce((total, bullet) => total + calculator(currentDoc).textHeight(bullet, width - 12, 9) + 2, 0);
+            },
+            skillTagsHeight: (skills: string[], width: number) => {
+                let currentX = 0;
+                let lines = 1;
+                skills.forEach(skill => {
+                   const tagWidth = currentDoc.setFontSize(8).getTextWidth(skill) + 12;
+                   if (currentX + tagWidth > width) {
+                       currentX = 0;
+                       lines++;
+                   }
+                   currentX += tagWidth + 4;
+                });
+                return lines * 16;
+            }
+        });
+
+        const draw = renderer(doc);
+        const calc = calculator(doc);
+        
+        // --- 1. RENDER HEADER ---
+        let headerY = MARGIN;
+        doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK);
+        doc.text(personalInfo.name || '[Full Name]', LEFT_COL_X, headerY);
+        headerY += calc.textHeight(personalInfo.name || '[Full Name]', PAGE_WIDTH, 26);
+        draw.text(personalInfo.title || '[Professional Title]', LEFT_COL_X, headerY, PAGE_WIDTH, 11, COLOR_PRIMARY, 'normal');
+        headerY += calc.textHeight(personalInfo.title || '[Professional Title]', PAGE_WIDTH, 11) + 4;
+
+        let contactY = MARGIN;
+        const contactInfo = [
+            { text: personalInfo.phone }, { text: personalInfo.email }, 
+            { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' }, 
+            { text: personalInfo.location }
+        ].filter(item => item.text);
+        contactInfo.forEach(item => {
+            if (item.text) {
+                draw.text(item.text, RIGHT_COL_X, contactY, RIGHT_COL_WIDTH, 8, COLOR_TEXT_MEDIUM, 'normal');
+                contactY += calc.textHeight(item.text, RIGHT_COL_WIDTH, 8) + 4;
+            }
+        });
+
+        let yLeft = Math.max(headerY, contactY) + 15;
+        let yRight = yLeft;
         doc.setDrawColor(229, 231, 235).setLineWidth(0.5);
         doc.line(MARGIN, yLeft - 8, PAGE_WIDTH - MARGIN, yLeft - 8);
 
-        const checkPageBreak = (col: 'left' | 'right', neededHeight: number) => {
-          const currentY = col === 'left' ? yLeft : yRight;
-          if (currentY + neededHeight > PAGE_HEIGHT - MARGIN) {
-            return true;
-          }
-          return false;
-        };
-
-        const renderSectionTitle = (title: string, col: 'left' | 'right'): number => {
-            let x = col === 'left' ? LEFT_COL_X : RIGHT_COL_X;
-            let y = col === 'left' ? yLeft : yRight;
-            if (checkPageBreak(col, 30)) { // 30 is approx height for title
-              y = MARGIN;
-            }
-            doc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
-            doc.text(title.toUpperCase(), x, y);
-            doc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
-            const titleWidth = doc.getTextWidth(title);
-            doc.line(x, y + 2, x + titleWidth, y + 2);
-            return y + 25;
-        };
-
-        const renderText = (text: string, col: 'left' | 'right', width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal'): number => {
-            let x = col === 'left' ? LEFT_COL_X : RIGHT_COL_X;
-            let y = col === 'left' ? yLeft : yRight;
-
-            doc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
-            const lines = doc.splitTextToSize(text, width);
-            const height = doc.getTextDimensions(lines).h;
-
-            if (checkPageBreak(col, height)) {
-              if (col === 'left' && yRight > MARGIN) { // Left column overflow, move right col content to next page
-                doc.addPage();
-                yLeft = MARGIN;
-                yRight = MARGIN;
-              } else if (col === 'right' && yLeft > MARGIN) {
-                doc.addPage();
-                yLeft = MARGIN;
-                yRight = MARGIN;
-              }
-              y = MARGIN;
-            }
-            doc.text(lines, x, y);
-            return y + height;
-        };
+        // --- 2. BUILD RENDER QUEUES ---
+        type RenderItem = { id: string; render: (y: number) => void; height: number };
+        const leftQueue: RenderItem[] = [];
+        const rightQueue: RenderItem[] = [];
         
-        const renderBulletList = (details: string[] | undefined, col: 'left' | 'right', width: number): number => {
-            if (!details) return col === 'left' ? yLeft : yRight;
-            let currentY = col === 'left' ? yLeft : yRight;
-            const x = col === 'left' ? LEFT_COL_X : RIGHT_COL_X;
-
-            details.forEach(bullet => {
-                const bulletLines = doc.splitTextToSize(bullet, width - 12);
-                const bulletHeight = doc.getTextDimensions(bulletLines).h;
-                 if (currentY + bulletHeight > PAGE_HEIGHT - MARGIN) { 
-                    if (col === 'left') yLeft = PAGE_HEIGHT; // Force left overflow
-                    else yRight = PAGE_HEIGHT; // Force right overflow
-                    return; // Stop rendering this list
-                 }
-                doc.setFontSize(14).setTextColor(...COLOR_PRIMARY);
-                doc.text("•", x, currentY);
-                doc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM);
-                doc.text(bulletLines, x + 12, currentY);
-                currentY += bulletHeight + 2;
+        if (summary) {
+            const height = 25 + calc.textHeight(summary, LEFT_COL_WIDTH, 9);
+            leftQueue.push({ id: 'summary', height, render: (y) => {
+                draw.sectionTitle('SUMMARY', LEFT_COL_X, y);
+                draw.text(summary, LEFT_COL_X, y + 25, LEFT_COL_WIDTH, 9, COLOR_TEXT_MEDIUM);
+            }});
+        }
+        if (experience?.length > 0) {
+            leftQueue.push({ id: 'exp_title', height: 25, render: (y) => draw.sectionTitle('EXPERIENCE', LEFT_COL_X, y) });
+            experience.forEach((job, i) => {
+                const height = calc.textHeight(job.title, LEFT_COL_WIDTH, 10) + calc.textHeight(job.company, LEFT_COL_WIDTH, 9) + calc.textHeight(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_WIDTH, 8) + calc.bulletListHeight(job.details, LEFT_COL_WIDTH) + 18;
+                leftQueue.push({ id: `exp_${i}`, height, render: (y) => {
+                    let localY = y;
+                    draw.text(job.title, LEFT_COL_X, localY, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold'); localY += calc.textHeight(job.title, LEFT_COL_WIDTH, 10);
+                    draw.text(job.company, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold'); localY += calc.textHeight(job.company, LEFT_COL_WIDTH, 9);
+                    draw.text(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_X, localY, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT); localY += calc.textHeight(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_WIDTH, 8) + 4;
+                    draw.bulletList(job.details, LEFT_COL_X, localY, LEFT_COL_WIDTH);
+                }});
             });
-            return currentY;
-        };
-
-        const renderColumnContent = (col: 'left' | 'right') => {
-          if (col === 'left') {
-            if (summary) {
-              yLeft = renderSectionTitle('SUMMARY', 'left');
-              yLeft = renderText(summary, 'left', LEFT_COL_WIDTH) + 15;
-            }
-            if (experience && experience.length > 0) {
-              yLeft = renderSectionTitle('EXPERIENCE', 'left');
-              experience.forEach(job => {
-                  const jobBlockHeight = (job.details?.length || 0) * 15 + 40;
-                  if(checkPageBreak('left', jobBlockHeight)) { doc.addPage(); yLeft = MARGIN; yRight = MARGIN; yLeft = renderSectionTitle('EXPERIENCE (CONT.)', 'left');}
-                  yLeft = renderText(job.title, 'left', LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                  yLeft = renderText(job.company, 'left', LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold');
-                  yLeft = renderText(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`.trim(), 'left', LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-                  yLeft += 4;
-                  yLeft = renderBulletList(job.details, 'left', LEFT_COL_WIDTH);
-                  yLeft += 10;
-              });
-            }
-            if (education && education.length > 0) {
-              yLeft = renderSectionTitle('EDUCATION', 'left');
-              education.forEach(edu => {
-                const eduBlockHeight = 45;
-                if(checkPageBreak('left', eduBlockHeight)) { doc.addPage(); yLeft = MARGIN; yRight = MARGIN; yLeft = renderSectionTitle('EDUCATION (CONT.)', 'left'); }
-                yLeft = renderText(edu.degree, 'left', LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                yLeft = renderText(edu.institution, 'left', LEFT_COL_WIDTH, 9, COLOR_PRIMARY);
-                yLeft = renderText(`${edu.date || ''} | ${edu.location || ''}`.trim(), 'left', LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-                yLeft += 10;
-              });
-            }
-          } else { // Right Column
-            if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-                yRight = renderSectionTitle('KEY ACHIEVEMENTS', 'right');
-                yRight = renderText(keyAchievements.title || '', 'right', RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                yRight += 4;
-                yRight = renderBulletList(keyAchievements.details, 'right', RIGHT_COL_WIDTH);
-                yRight += 15;
-            }
-            if (skills && skills.length > 0) {
-                yRight = renderSectionTitle('SKILLS', 'right');
-                let currentX = RIGHT_COL_X;
-                let currentLineY = yRight;
-                skills.forEach(skill => {
-                    const tagWidth = doc.setFontSize(8).getTextWidth(skill) + 12;
-                    if (currentX + tagWidth > RIGHT_COL_X + RIGHT_COL_WIDTH) { currentX = RIGHT_COL_X; currentLineY += 16; }
-                    if(checkPageBreak('right', 16)) { yRight = PAGE_HEIGHT; return; }
-                    doc.setFillColor(229, 231, 235);
-                    doc.roundedRect(currentX, currentLineY - 8, tagWidth, 12, 3, 3, 'F');
-                    doc.setTextColor(...COLOR_TEXT_MEDIUM);
-                    doc.text(skill, currentX + 6, currentLineY - 1);
-                    currentX += tagWidth + 4;
-                });
-                yRight = currentLineY + 15;
-            }
-            if (projects && projects.length > 0) {
-              yRight = renderSectionTitle('PROJECTS', 'right');
-              projects.forEach(proj => {
-                  const projBlockHeight = (proj.details?.length || 0) * 15 + 30;
-                  if(checkPageBreak('right', projBlockHeight)) { yRight = PAGE_HEIGHT; return; }
-                  yRight = renderText(proj.title, 'right', RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                  yRight = renderText(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`.trim(), 'right', RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
-                  yRight += 4;
-                  yRight = renderBulletList(proj.details, 'right', RIGHT_COL_WIDTH);
-                  yRight += 10;
-              });
-            }
-          }
-        };
-
-        renderColumnContent('left');
-        yLeft = MARGIN; // Reset for next page if any
-        renderColumnContent('right');
-        
-        while (yLeft >= PAGE_HEIGHT - MARGIN || yRight >= PAGE_HEIGHT - MARGIN) {
-          doc.addPage();
-          yLeft = MARGIN;
-          yRight = MARGIN;
-          renderColumnContent('left');
-          renderColumnContent('right');
+        }
+        if (education?.length > 0) {
+            leftQueue.push({ id: 'edu_title', height: 25, render: (y) => draw.sectionTitle('EDUCATION', LEFT_COL_X, y) });
+            education.forEach((edu, i) => {
+                const height = calc.textHeight(edu.degree, LEFT_COL_WIDTH, 10) + calc.textHeight(edu.institution, LEFT_COL_WIDTH, 9) + calc.textHeight(`${edu.date || ''} | ${edu.location || ''}`, LEFT_COL_WIDTH, 8) + 10;
+                leftQueue.push({ id: `edu_${i}`, height, render: (y) => {
+                    let localY = y;
+                    draw.text(edu.degree, LEFT_COL_X, localY, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold'); localY += calc.textHeight(edu.degree, LEFT_COL_WIDTH, 10);
+                    draw.text(edu.institution, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_PRIMARY); localY += calc.textHeight(edu.institution, LEFT_COL_WIDTH, 9);
+                    draw.text(`${edu.date || ''} | ${edu.location || ''}`, LEFT_COL_X, localY, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                }});
+            });
         }
 
+        if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
+            const height = 25 + calc.textHeight(keyAchievements.title || '', RIGHT_COL_WIDTH, 10) + calc.bulletListHeight(keyAchievements.details, RIGHT_COL_WIDTH) + 4;
+            rightQueue.push({ id: 'achieve', height, render: (y) => {
+                draw.sectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, y);
+                let localY = y + 25;
+                draw.text(keyAchievements.title || '', RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
+                localY += calc.textHeight(keyAchievements.title || '', RIGHT_COL_WIDTH, 10) + 4;
+                draw.bulletList(keyAchievements.details, RIGHT_COL_X, localY, RIGHT_COL_WIDTH);
+            }});
+        }
+        if (skills?.length > 0) {
+            const height = 25 + calc.skillTagsHeight(skills, RIGHT_COL_WIDTH);
+            rightQueue.push({ id: 'skills', height, render: (y) => {
+                draw.sectionTitle('SKILLS', RIGHT_COL_X, y);
+                draw.skillTags(skills, RIGHT_COL_X, y + 25, RIGHT_COL_WIDTH);
+            }});
+        }
+        if (projects?.length > 0) {
+            rightQueue.push({ id: 'proj_title', height: 25, render: (y) => draw.sectionTitle('PROJECTS', RIGHT_COL_X, y) });
+            projects.forEach((proj, i) => {
+                const height = calc.textHeight(proj.title, RIGHT_COL_WIDTH, 10) + calc.textHeight(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_WIDTH, 8) + calc.bulletListHeight(proj.details, RIGHT_COL_WIDTH) + 15;
+                rightQueue.push({ id: `proj_${i}`, height, render: (y) => {
+                    let localY = y;
+                    draw.text(proj.title, RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold'); localY += calc.textHeight(proj.title, RIGHT_COL_WIDTH, 10);
+                    draw.text(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT); localY += calc.textHeight(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_WIDTH, 8) + 4;
+                    draw.bulletList(proj.details, RIGHT_COL_X, localY, RIGHT_COL_WIDTH);
+                }});
+            });
+        }
+        
+        // --- 3. PAGE-BY-PAGE RENDER LOOP ---
+        while (leftQueue.length > 0 || rightQueue.length > 0) {
+            let spaceOnPage = true;
+            while(spaceOnPage) {
+                let itemRendered = false;
+                // Try left column
+                if (leftQueue.length > 0 && yLeft + leftQueue[0].height <= PAGE_HEIGHT - MARGIN) {
+                    const item = leftQueue.shift()!;
+                    item.render(yLeft);
+                    yLeft += item.height;
+                    itemRendered = true;
+                }
+                // Try right column
+                if (rightQueue.length > 0 && yRight + rightQueue[0].height <= PAGE_HEIGHT - MARGIN) {
+                    const item = rightQueue.shift()!;
+                    item.render(yRight);
+                    yRight += item.height;
+                    itemRendered = true;
+                }
+                if (!itemRendered) {
+                    spaceOnPage = false;
+                }
+            }
+
+            if (leftQueue.length > 0 || rightQueue.length > 0) {
+                doc.addPage();
+                yLeft = MARGIN;
+                yRight = MARGIN;
+            }
+        }
 
         doc.save('ai_mentor_resume.pdf');
-        toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved in the new format." });
+        toast({ title: "Resume PDF Downloaded", description: "Your resume has been saved." });
     };
 
 
@@ -2159,3 +2170,5 @@ export default function MentorAiPage() {
     </div>
   );
 }
+
+    
