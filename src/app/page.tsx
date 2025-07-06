@@ -444,7 +444,7 @@ export default function MentorAiPage() {
     const parseResumeData = (text: string) => {
         const sections: { [key: string]: string[] } = {
             PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
-            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: []
+            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: [], ERROR: []
         };
         const sectionKeys = Object.keys(sections);
         let currentSection: string | null = null;
@@ -505,27 +505,24 @@ export default function MentorAiPage() {
         const parseMultiEntrySection = (sectionLines: string[], markers: string[]) => {
             if (!sectionLines || sectionLines.length === 0) return [];
             const entries: any[] = [];
-            let currentEntry: any = null;
-        
-            const flushEntry = () => {
-                if (currentEntry) {
-                    entries.push(currentEntry);
-                }
-                currentEntry = {};
-            };
+            let currentEntry: any = {};
         
             for (const line of sectionLines) {
-                const isNewEntry = markers.some(marker => line.startsWith(marker + ':'));
-        
-                if (isNewEntry) {
-                    flushEntry();
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+
+                const isNewEntryMarker = markers.some(marker => line.startsWith(marker + ':'));
+                
+                if (isNewEntryMarker && Object.keys(currentEntry).length > 0) {
+                    entries.push(currentEntry);
+                    currentEntry = {};
                 }
         
-                if (line.trim().startsWith('- ')) {
+                if (trimmedLine.startsWith('- ')) {
                     if (!currentEntry.details) currentEntry.details = [];
-                    currentEntry.details.push(line.trim().substring(2).trim());
-                } else if (line.trim().toLowerCase() === 'details:') {
-                    if (!currentEntry.details) currentEntry.details = [];
+                    currentEntry.details.push(trimmedLine.substring(2).trim());
+                } else if (trimmedLine.toLowerCase() === 'details:') {
+                     if (!currentEntry.details) currentEntry.details = [];
                 } else {
                     const parts = line.match(/^([\w\s]+):\s*(.*)$/);
                     if (parts) {
@@ -535,9 +532,11 @@ export default function MentorAiPage() {
                     }
                 }
             }
-            if (currentEntry && Object.keys(currentEntry).length > 0) {
-                 entries.push(currentEntry);
+        
+            if (Object.keys(currentEntry).length > 0) {
+                entries.push(currentEntry);
             }
+        
             return entries;
         };
         
@@ -603,50 +602,58 @@ export default function MentorAiPage() {
         const RIGHT_COL_X = MARGIN + LEFT_COL_WIDTH + COL_GAP;
         const FONT_SANS = "Helvetica";
         
-        const COLOR_PRIMARY = [37, 99, 235] as [number, number, number];
-        const COLOR_TEXT_DARK = [31, 41, 55] as [number, number, number];
-        const COLOR_TEXT_MEDIUM = [75, 85, 99] as [number, number, number];
-        const COLOR_TEXT_LIGHT = [107, 114, 128] as [number, number, number];
+        const COLOR_PRIMARY_TUPLE: [number, number, number] = [37, 99, 235];
+        const COLOR_TEXT_DARK_TUPLE: [number, number, number] = [31, 41, 55];
+        const COLOR_TEXT_MEDIUM_TUPLE: [number, number, number] = [75, 85, 99];
+        const COLOR_TEXT_LIGHT_TUPLE: [number, number, number] = [107, 114, 128];
         
         const renderer = (currentDoc: jsPDF) => ({
             sectionTitle: (title: string, x: number, y: number) => {
-                currentDoc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY);
-                currentDoc.text(title.toUpperCase(), x, y);
+                currentDoc.setFont(FONT_SANS, 'bold').setFontSize(12).setTextColor(...COLOR_PRIMARY_TUPLE);
+                currentDoc.text(title.toUpperCase(), x, y, { baseline: 'top' });
                 const titleWidth = currentDoc.getTextWidth(title);
-                currentDoc.setDrawColor(...COLOR_TEXT_DARK).setLineWidth(1.5);
-                currentDoc.line(x, y + 2, x + titleWidth, y + 2);
+                currentDoc.setDrawColor(...COLOR_TEXT_DARK_TUPLE).setLineWidth(1.5);
+                currentDoc.line(x, y + 14, x + titleWidth, y + 14);
+                return 14 + 4; // Return height of the title section
             },
-            text: (text: string, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM, style = 'normal') => {
+            text: (text: string, x: number, y: number, width: number, size = 9, color = COLOR_TEXT_MEDIUM_TUPLE, style = 'normal') => {
                 currentDoc.setFont(FONT_SANS, style).setFontSize(size).setTextColor(...color);
                 const lines = currentDoc.splitTextToSize(text, width);
-                currentDoc.text(lines, x, y);
+                currentDoc.text(lines, x, y, { baseline: 'top' });
+                return currentDoc.getTextDimensions(lines).h;
             },
             bulletList: (details: string[], x: number, y: number, width: number) => {
                 let localY = y;
                 details.forEach(bullet => {
                     const bulletLines = currentDoc.splitTextToSize(bullet, width - 12);
-                    currentDoc.setFontSize(14).setTextColor(...COLOR_PRIMARY);
-                    currentDoc.text("•", x, localY);
-                    currentDoc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM);
-                    currentDoc.text(bulletLines, x + 12, localY);
-                    localY += currentDoc.getTextDimensions(bulletLines).h + 2;
+                    const textBlockHeight = currentDoc.getTextDimensions(bulletLines).h;
+                    currentDoc.setFontSize(14).setTextColor(...COLOR_PRIMARY_TUPLE);
+                    // Align bullet with the center of the first line of text
+                    const firstLineHeight = currentDoc.getTextDimensions("T").h;
+                    currentDoc.text("•", x, localY + firstLineHeight / 4, { baseline: 'top' });
+                    currentDoc.setFontSize(9).setTextColor(...COLOR_TEXT_MEDIUM_TUPLE);
+                    currentDoc.text(bulletLines, x + 12, localY, { baseline: 'top' });
+                    localY += textBlockHeight + 2;
                 });
+                return localY - y; // Return total height of the list
             },
             skillTags: (skills: string[], x: number, y: number, width: number) => {
                  let currentX = x;
                  let localY = y;
+                 const tagHeight = 16;
                  skills.forEach(skill => {
                      const tagWidth = currentDoc.setFontSize(8).getTextWidth(skill) + 12;
                      if (currentX + tagWidth > x + width) {
                          currentX = x;
-                         localY += 16;
+                         localY += tagHeight;
                      }
                      currentDoc.setFillColor(229, 231, 235);
-                     currentDoc.roundedRect(currentX, localY - 8, tagWidth, 12, 3, 3, 'F');
-                     currentDoc.setTextColor(...COLOR_TEXT_MEDIUM);
-                     currentDoc.text(skill, currentX + 6, localY - 1);
+                     currentDoc.roundedRect(currentX, localY, tagWidth, 12, 3, 3, 'F');
+                     currentDoc.setTextColor(...COLOR_TEXT_MEDIUM_TUPLE);
+                     currentDoc.text(skill, currentX + 6, localY + 8, { baseline: 'middle' });
                      currentX += tagWidth + 4;
                  });
+                 return (localY - y) + tagHeight;
             }
         });
 
@@ -656,12 +663,14 @@ export default function MentorAiPage() {
                 return currentDoc.getTextDimensions(currentDoc.splitTextToSize(text, width)).h;
             },
             bulletListHeight: (details: string[] | undefined, width: number) => {
-                if (!details) return 0;
+                if (!details || details.length === 0) return 0;
                 return details.reduce((total, bullet) => total + calculator(currentDoc).textHeight(bullet, width - 12, 9) + 2, 0);
             },
             skillTagsHeight: (skills: string[], width: number) => {
+                if (!skills || skills.length === 0) return 0;
                 let currentX = 0;
                 let lines = 1;
+                const tagHeight = 16;
                 skills.forEach(skill => {
                    const tagWidth = currentDoc.setFontSize(8).getTextWidth(skill) + 12;
                    if (currentX + tagWidth > width) {
@@ -670,7 +679,7 @@ export default function MentorAiPage() {
                    }
                    currentX += tagWidth + 4;
                 });
-                return lines * 16;
+                return lines * tagHeight;
             }
         });
 
@@ -679,11 +688,10 @@ export default function MentorAiPage() {
         
         // --- 1. RENDER HEADER ---
         let headerY = MARGIN;
-        doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK);
-        doc.text(personalInfo.name || '[Full Name]', LEFT_COL_X, headerY);
+        doc.setFont(FONT_SANS, 'bold').setFontSize(26).setTextColor(...COLOR_TEXT_DARK_TUPLE);
+        doc.text(personalInfo.name || '[Full Name]', LEFT_COL_X, headerY, { baseline: 'top' });
         headerY += calc.textHeight(personalInfo.name || '[Full Name]', PAGE_WIDTH, 26);
-        draw.text(personalInfo.title || '[Professional Title]', LEFT_COL_X, headerY, PAGE_WIDTH, 11, COLOR_PRIMARY, 'normal');
-        headerY += calc.textHeight(personalInfo.title || '[Professional Title]', PAGE_WIDTH, 11) + 4;
+        headerY += draw.text(personalInfo.title || '[Professional Title]', LEFT_COL_X, headerY, PAGE_WIDTH, 11, COLOR_PRIMARY_TUPLE, 'normal') + 4;
 
         let contactY = MARGIN;
         const contactInfo = [
@@ -693,103 +701,112 @@ export default function MentorAiPage() {
         ].filter(item => item.text);
         contactInfo.forEach(item => {
             if (item.text) {
-                draw.text(item.text, RIGHT_COL_X, contactY, RIGHT_COL_WIDTH, 8, COLOR_TEXT_MEDIUM, 'normal');
-                contactY += calc.textHeight(item.text, RIGHT_COL_WIDTH, 8) + 4;
+                contactY += draw.text(item.text, RIGHT_COL_X, contactY, RIGHT_COL_WIDTH, 8, COLOR_TEXT_MEDIUM_TUPLE, 'normal') + 4;
             }
         });
 
-        let yLeft = Math.max(headerY, contactY) + 15;
-        let yRight = yLeft;
+        let yPos = Math.max(headerY, contactY) + 15;
         doc.setDrawColor(229, 231, 235).setLineWidth(0.5);
-        doc.line(MARGIN, yLeft - 8, PAGE_WIDTH - MARGIN, yLeft - 8);
+        doc.line(MARGIN, yPos - 8, PAGE_WIDTH - MARGIN, yPos - 8);
 
         // --- 2. BUILD RENDER QUEUES ---
         type RenderItem = { id: string; render: (y: number) => void; height: number };
         const leftQueue: RenderItem[] = [];
         const rightQueue: RenderItem[] = [];
+        const SPACING = 18; // General spacing between major items
         
         if (summary) {
-            const height = 25 + calc.textHeight(summary, LEFT_COL_WIDTH, 9);
+            const height = calc.textHeight(summary, LEFT_COL_WIDTH, 9) + draw.sectionTitle('', 0,0) + SPACING;
             leftQueue.push({ id: 'summary', height, render: (y) => {
-                draw.sectionTitle('SUMMARY', LEFT_COL_X, y);
-                draw.text(summary, LEFT_COL_X, y + 25, LEFT_COL_WIDTH, 9, COLOR_TEXT_MEDIUM);
+                let localY = y;
+                localY += draw.sectionTitle('SUMMARY', LEFT_COL_X, localY);
+                draw.text(summary, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_TEXT_MEDIUM_TUPLE);
             }});
         }
         if (experience?.length > 0) {
-            leftQueue.push({ id: 'exp_title', height: 25, render: (y) => draw.sectionTitle('EXPERIENCE', LEFT_COL_X, y) });
+            leftQueue.push({ id: 'exp_title', height: draw.sectionTitle('',0,0) + 4, render: (y) => draw.sectionTitle('EXPERIENCE', LEFT_COL_X, y) });
             experience.forEach((job, i) => {
-                const height = calc.textHeight(job.title, LEFT_COL_WIDTH, 10) + calc.textHeight(job.company, LEFT_COL_WIDTH, 9) + calc.textHeight(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_WIDTH, 8) + calc.bulletListHeight(job.details, LEFT_COL_WIDTH) + 18;
+                const height = calc.textHeight(job.title, LEFT_COL_WIDTH, 10) + calc.textHeight(job.company, LEFT_COL_WIDTH, 9) + calc.textHeight(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_WIDTH, 8) + calc.bulletListHeight(job.details, LEFT_COL_WIDTH) + SPACING;
                 leftQueue.push({ id: `exp_${i}`, height, render: (y) => {
                     let localY = y;
-                    draw.text(job.title, LEFT_COL_X, localY, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold'); localY += calc.textHeight(job.title, LEFT_COL_WIDTH, 10);
-                    draw.text(job.company, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_PRIMARY, 'bold'); localY += calc.textHeight(job.company, LEFT_COL_WIDTH, 9);
-                    draw.text(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_X, localY, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT); localY += calc.textHeight(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_WIDTH, 8) + 4;
+                    localY += draw.text(job.title, LEFT_COL_X, localY, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK_TUPLE, 'bold');
+                    localY += draw.text(job.company, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_PRIMARY_TUPLE, 'bold');
+                    localY += draw.text(`${job.date || ''} | ${job.location || ''} ${job.context ? '- ' + job.context : ''}`, LEFT_COL_X, localY, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT_TUPLE) + 4;
                     draw.bulletList(job.details, LEFT_COL_X, localY, LEFT_COL_WIDTH);
                 }});
             });
         }
         if (education?.length > 0) {
-            leftQueue.push({ id: 'edu_title', height: 25, render: (y) => draw.sectionTitle('EDUCATION', LEFT_COL_X, y) });
+            leftQueue.push({ id: 'edu_title', height: draw.sectionTitle('',0,0) + 4, render: (y) => draw.sectionTitle('EDUCATION', LEFT_COL_X, y) });
             education.forEach((edu, i) => {
-                const height = calc.textHeight(edu.degree, LEFT_COL_WIDTH, 10) + calc.textHeight(edu.institution, LEFT_COL_WIDTH, 9) + calc.textHeight(`${edu.date || ''} | ${edu.location || ''}`, LEFT_COL_WIDTH, 8) + 10;
+                const height = calc.textHeight(edu.degree, LEFT_COL_WIDTH, 10) + calc.textHeight(edu.institution, LEFT_COL_WIDTH, 9) + calc.textHeight(`${edu.date || ''} | ${edu.location || ''}`, LEFT_COL_WIDTH, 8) + SPACING;
                 leftQueue.push({ id: `edu_${i}`, height, render: (y) => {
                     let localY = y;
-                    draw.text(edu.degree, LEFT_COL_X, localY, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold'); localY += calc.textHeight(edu.degree, LEFT_COL_WIDTH, 10);
-                    draw.text(edu.institution, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_PRIMARY); localY += calc.textHeight(edu.institution, LEFT_COL_WIDTH, 9);
-                    draw.text(`${edu.date || ''} | ${edu.location || ''}`, LEFT_COL_X, localY, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT);
+                    localY += draw.text(edu.degree, LEFT_COL_X, localY, LEFT_COL_WIDTH, 10, COLOR_TEXT_DARK_TUPLE, 'bold');
+                    localY += draw.text(edu.institution, LEFT_COL_X, localY, LEFT_COL_WIDTH, 9, COLOR_PRIMARY_TUPLE);
+                    draw.text(`${edu.date || ''} | ${edu.location || ''}`, LEFT_COL_X, localY, LEFT_COL_WIDTH, 8, COLOR_TEXT_LIGHT_TUPLE);
                 }});
             });
         }
 
         if (keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0)) {
-            const height = 25 + calc.textHeight(keyAchievements.title || '', RIGHT_COL_WIDTH, 10) + calc.bulletListHeight(keyAchievements.details, RIGHT_COL_WIDTH) + 4;
+            const height = draw.sectionTitle('',0,0) + calc.textHeight(keyAchievements.title || '', RIGHT_COL_WIDTH, 10) + calc.bulletListHeight(keyAchievements.details, RIGHT_COL_WIDTH) + SPACING;
             rightQueue.push({ id: 'achieve', height, render: (y) => {
-                draw.sectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, y);
-                let localY = y + 25;
-                draw.text(keyAchievements.title || '', RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold');
-                localY += calc.textHeight(keyAchievements.title || '', RIGHT_COL_WIDTH, 10) + 4;
+                let localY = y;
+                localY += draw.sectionTitle('KEY ACHIEVEMENTS', RIGHT_COL_X, localY);
+                localY += draw.text(keyAchievements.title || '', RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK_TUPLE, 'bold') + 4;
                 draw.bulletList(keyAchievements.details, RIGHT_COL_X, localY, RIGHT_COL_WIDTH);
             }});
         }
         if (skills?.length > 0) {
-            const height = 25 + calc.skillTagsHeight(skills, RIGHT_COL_WIDTH);
+            const height = draw.sectionTitle('',0,0) + calc.skillTagsHeight(skills, RIGHT_COL_WIDTH) + SPACING;
             rightQueue.push({ id: 'skills', height, render: (y) => {
-                draw.sectionTitle('SKILLS', RIGHT_COL_X, y);
-                draw.skillTags(skills, RIGHT_COL_X, y + 25, RIGHT_COL_WIDTH);
+                let localY = y;
+                localY += draw.sectionTitle('SKILLS', RIGHT_COL_X, localY);
+                draw.skillTags(skills, RIGHT_COL_X, localY, RIGHT_COL_WIDTH);
             }});
         }
         if (projects?.length > 0) {
-            rightQueue.push({ id: 'proj_title', height: 25, render: (y) => draw.sectionTitle('PROJECTS', RIGHT_COL_X, y) });
+            rightQueue.push({ id: 'proj_title', height: draw.sectionTitle('',0,0) + 4, render: (y) => draw.sectionTitle('PROJECTS', RIGHT_COL_X, y) });
             projects.forEach((proj, i) => {
-                const height = calc.textHeight(proj.title, RIGHT_COL_WIDTH, 10) + calc.textHeight(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_WIDTH, 8) + calc.bulletListHeight(proj.details, RIGHT_COL_WIDTH) + 15;
+                const height = calc.textHeight(proj.title, RIGHT_COL_WIDTH, 10) + calc.textHeight(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_WIDTH, 8) + calc.bulletListHeight(proj.details, RIGHT_COL_WIDTH) + SPACING;
                 rightQueue.push({ id: `proj_${i}`, height, render: (y) => {
                     let localY = y;
-                    draw.text(proj.title, RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK, 'bold'); localY += calc.textHeight(proj.title, RIGHT_COL_WIDTH, 10);
-                    draw.text(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT); localY += calc.textHeight(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_WIDTH, 8) + 4;
+                    localY += draw.text(proj.title, RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 10, COLOR_TEXT_DARK_TUPLE, 'bold');
+                    localY += draw.text(`${proj.date || ''} ${proj.context ? '- ' + proj.context : ''}`, RIGHT_COL_X, localY, RIGHT_COL_WIDTH, 8, COLOR_TEXT_LIGHT_TUPLE) + 4;
                     draw.bulletList(proj.details, RIGHT_COL_X, localY, RIGHT_COL_WIDTH);
                 }});
             });
         }
         
         // --- 3. PAGE-BY-PAGE RENDER LOOP ---
+        let yLeft = yPos;
+        let yRight = yPos;
         while (leftQueue.length > 0 || rightQueue.length > 0) {
             let spaceOnPage = true;
             while(spaceOnPage) {
                 let itemRendered = false;
-                // Try left column
-                if (leftQueue.length > 0 && yLeft + leftQueue[0].height <= PAGE_HEIGHT - MARGIN) {
+                const pageBottom = PAGE_HEIGHT - MARGIN;
+                // Try to render the shorter column first to balance page breaks
+                const canRenderLeft = leftQueue.length > 0 && yLeft + leftQueue[0].height < pageBottom;
+                const canRenderRight = rightQueue.length > 0 && yRight + rightQueue[0].height < pageBottom;
+
+                if (canRenderLeft && (yLeft <= yRight || !canRenderRight)) {
                     const item = leftQueue.shift()!;
                     item.render(yLeft);
                     yLeft += item.height;
                     itemRendered = true;
-                }
-                // Try right column
-                if (rightQueue.length > 0 && yRight + rightQueue[0].height <= PAGE_HEIGHT - MARGIN) {
+                } else if (canRenderRight) {
                     const item = rightQueue.shift()!;
                     item.render(yRight);
                     yRight += item.height;
                     itemRendered = true;
                 }
+                
+                if (!canRenderLeft && !canRenderRight) {
+                    itemRendered = false; // No more space on this page for any remaining item
+                }
+                
                 if (!itemRendered) {
                     spaceOnPage = false;
                 }
@@ -2170,5 +2187,3 @@ export default function MentorAiPage() {
     </div>
   );
 }
-
-    
