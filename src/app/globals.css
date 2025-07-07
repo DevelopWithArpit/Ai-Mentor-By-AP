@@ -117,14 +117,14 @@ body {
 }
 
 @media print {
-  /* Hide everything in the body by default */
-  body * {
-    visibility: hidden;
+  /* Hide everything in the body by default. This is the most reliable method. */
+  body > * {
+    display: none !important;
   }
   
-  /* Make the printable container and its children visible */
+  /* Make ONLY the printable container and its children visible */
   .printable-only, .printable-only * {
-    visibility: visible;
+    display: block !important;
   }
   
   /* Position the printable container to fill the page */
@@ -146,7 +146,7 @@ body {
   /* Reset the resume component's root div for perfect printing */
   .printable-only > div {
     margin: 0 !important;
-    padding: 1in !important; /* Standard resume margin */
+    padding: 0.5in !important; /* Standard resume margin */
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
@@ -154,12 +154,7 @@ body {
     width: 100% !important;
     height: 100% !important;
   }
-  
-  /* Hide elements that shouldn't be printed, as a fallback */
-  .no-print {
-    display: none !important;
-  }
-  
+    
   @page {
     size: auto;
     margin: 0;

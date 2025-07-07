@@ -30,12 +30,8 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
     { icon: MapPin, text: personalInfo.location }
   ].filter(item => item.text);
 
-  // Using A4 paper aspect ratio for sizing. Width is ~210mm, height is ~297mm.
-  // We'll use a fixed width and let height be auto. 8.5in x 11in (Letter) is common too.
-  // 8.5in is ~816px. `max-w-3xl` is 768px. This is a good fit.
-  // Using consistent padding and font sizes for a compact, print-friendly layout.
   return (
-    <div className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-3xl mx-auto my-4 rounded-lg print:shadow-none print:my-0 print:p-8 print:max-w-none print:mx-0 print:rounded-none">
+    <div className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-3xl mx-auto my-4 rounded-lg">
       {/* Header: Forced row layout for consistency */}
       <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
         <div className="mb-0">
@@ -51,7 +47,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
           </div>
         </div>
         <div className="flex-shrink-0 self-start">
-            <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center shadow-md print:shadow-none">
+            <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
                 <span className="text-white text-4xl font-bold tracking-wider">{initials}</span>
             </div>
         </div>
