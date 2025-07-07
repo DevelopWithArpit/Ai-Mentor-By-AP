@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { FC } from 'react';
+import React, { type FC } from 'react';
 import { Phone, Mail, Linkedin as LinkedinIcon, MapPin } from 'lucide-react';
 
 // Define a type for the parsed resume data to ensure type safety
@@ -19,7 +19,7 @@ interface ResumePreviewProps {
   data: ResumeData;
 }
 
-const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
+const ResumePreview: FC<ResumePreviewProps> = React.forwardRef<HTMLDivElement, ResumePreviewProps>(({ data }, ref) => {
   const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = data;
   const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
 
@@ -31,7 +31,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   ].filter(item => item.text);
 
   return (
-    <div className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-3xl mx-auto my-4 rounded-lg">
+    <div ref={ref} className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-3xl mx-auto my-4 rounded-lg">
       {/* Header: Forced row layout for consistency */}
       <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
         <div className="mb-0">
@@ -141,6 +141,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
       </div>
     </div>
   );
-};
+});
 
+ResumePreview.displayName = "ResumePreview";
 export default ResumePreview;

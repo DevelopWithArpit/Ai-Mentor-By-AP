@@ -143,6 +143,8 @@ export default function MentorAiPage() {
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
   const [parsedResumeData, setParsedResumeData] = useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const resumePreviewRef = useRef<HTMLDivElement>(null);
+
 
   const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
   const [coverLetterUserInfo, setCoverLetterUserInfo] = useState<string>('');
@@ -458,6 +460,71 @@ export default function MentorAiPage() {
       toast({ title: "Resume Assistant Complete!", description: "Your resume feedback/creation and LinkedIn suggestions are ready." });
     } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
     finally { setIsGeneratingResumeFeedback(false); }
+  };
+
+  const handlePrintResume = () => {
+    const printContent = resumePreviewRef.current;
+    if (!printContent) {
+      toast({
+        title: "Print Error",
+        description: "Could not find resume content to print.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      toast({
+        title: "Print Error",
+        description: "Could not create a document for printing.",
+        variant: "destructive",
+      });
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write('<!DOCTYPE html><html><head>');
+    
+    // Copy all link and style tags from the main document's head
+    const headElements = document.querySelectorAll('head > link[rel="stylesheet"], head > style');
+    headElements.forEach(el => {
+      iframeDoc.write(el.outerHTML);
+    });
+
+    // Add specific print styles
+    iframeDoc.write('<style>body { margin: 0; } @page { size: auto; margin: 0; }</style>');
+    
+    iframeDoc.write('</head><body>');
+    iframeDoc.write(printContent.innerHTML);
+    iframeDoc.write('</body></html>');
+    iframeDoc.close();
+
+    iframe.onload = function () {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+            toast({
+                title: "Print Error",
+                description: "Could not open print dialog. Please check browser permissions.",
+                variant: "destructive",
+            });
+        } finally {
+            // Cleanup iframe after a delay
+            setTimeout(() => document.body.removeChild(iframe), 1000);
+        }
+      }, 500); // Delay to ensure styles are applied
+    };
   };
 
   const handleResetResumeImprover = () => {
@@ -1141,7 +1208,7 @@ export default function MentorAiPage() {
                                     <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
                                         <Eye className="mr-2 h-4 w-4" /> Preview Resume
                                     </Button>
-                                    <Button onClick={() => window.print()} disabled={isGeneratingResumeFeedback}>
+                                    <Button onClick={handlePrintResume} disabled={isGeneratingResumeFeedback}>
                                         <Download className="mr-2 h-4 w-4" /> Download PDF
                                     </Button>
                                   </>
@@ -1752,9 +1819,13 @@ export default function MentorAiPage() {
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
-            {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
+            {parsedResumeData ? (
+              <div className="p-4">
+                <ResumePreview ref={resumePreviewRef} data={parsedResumeData} />
+              </div>
+             ) : <div className="p-8 text-center">No resume data to preview.</div>}
             <DialogFooter className="p-4 border-t">
-               <Button onClick={() => window.print()}>
+               <Button onClick={handlePrintResume}>
                  <Download className="mr-2 h-4 w-4" /> Download PDF
                </Button>
                <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
@@ -1762,11 +1833,6 @@ export default function MentorAiPage() {
           </DialogContent>
         </Dialog>
       </div>
-      {parsedResumeData && (
-          <div className="printable-only">
-              <ResumePreview data={parsedResumeData} />
-          </div>
-      )}
     </>
   );
 }
