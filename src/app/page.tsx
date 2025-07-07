@@ -1748,12 +1748,15 @@ export default function MentorAiPage() {
           © {new Date().getFullYear()} AI Mentor By AP. Empowering students, creators, and professionals with AI.
         </footer>
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-          <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
-            <DialogHeader className="p-4 border-b">
+          <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh] no-print">
+            <DialogHeader className="p-4 border-b no-print">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
             {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
-            <DialogFooter className="p-4 border-t">
+            <DialogFooter className="p-4 border-t no-print">
+               <Button onClick={() => window.print()}>
+                 <Download className="mr-2 h-4 w-4" /> Download PDF
+               </Button>
                <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
