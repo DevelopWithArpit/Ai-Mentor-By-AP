@@ -32,7 +32,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
-import jsPDF from 'jspdf';
 import { useTheme, type Theme } from "@/components/theme-provider";
 
 
@@ -62,23 +61,6 @@ const fileToDataUri = (file: File): Promise<string> => {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-};
-
-interface PdfTheme {
-  titleFont: string;
-  titleStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
-  titleColor: [number, number, number];
-  bodyFont: string;
-  bodyStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
-  bodyColor: [number, number, number];
-  bulletColor: [number, number, number];
-  accentColor?: [number, number, number];
-}
-
-const pdfThemes: Record<string, PdfTheme> = {
-  default: { titleFont: 'helvetica', titleStyle: 'bold', titleColor: [0, 0, 0], bodyFont: 'helvetica', bodyStyle: 'normal', bodyColor: [50, 50, 50], bulletColor: [0, 0, 0], accentColor: [100, 100, 100] },
-  professional: { titleFont: 'times', titleStyle: 'bold', titleColor: [0, 51, 102], bodyFont: 'times', bodyStyle: 'normal', bodyColor: [30, 30, 30], bulletColor: [0, 51, 102], accentColor: [0, 51, 102] },
-  creative: { titleFont: 'courier', titleStyle: 'bolditalic', titleColor: [102, 0, 102], bodyFont: 'courier', bodyStyle: 'normal', bodyColor: [70, 70, 70], bulletColor: [102, 0, 102], accentColor: [102, 0, 102] },
 };
 
 const tools = [
@@ -325,110 +307,7 @@ export default function MentorAiPage() {
     } catch (err: any) { toast({ title: "Presentation Generation Error", description: err.message || "Failed to generate presentation.", variant: "destructive" }); }
     finally { setIsGeneratingPresentation(false); }
   };
-
-  const handleDownloadPresentationPdf = async (themeKey: string) => {
-    if (!generatedPresentation) return;
-    const theme = pdfThemes[themeKey] || pdfThemes.default;
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
-    const margin = 15;
-    const maxTextWidth = pageWidth - margin * 2;
-    let currentY = margin;
-
-    const addNewPageIfNeeded = (neededHeight: number) => {
-      if (currentY + neededHeight > pageHeight - margin) { doc.addPage(); currentY = margin; return true; } return false;
-    };
-    
-    if (generatedPresentation.title) {
-      doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(22); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
-      const titleLines = doc.splitTextToSize(generatedPresentation.title, maxTextWidth);
-      const titleHeight = doc.getTextDimensions(titleLines).h;
-      addNewPageIfNeeded(titleHeight);
-      doc.text(titleLines, pageWidth / 2, currentY, { align: 'center' });
-      currentY += titleHeight + 10;
-    }
-
-    if (imageStylePrompt?.trim()) {
-        doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-        const stylePromptText = `Overall Image Style Applied: ${imageStylePrompt.trim()}`;
-        let lines = doc.splitTextToSize(stylePromptText, maxTextWidth);
-        let textBlockHeight = doc.getTextDimensions(lines).h;
-        if (addNewPageIfNeeded(textBlockHeight + 5)) { 
-            doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
-        }
-        doc.text(lines, margin, currentY);
-        currentY += textBlockHeight + 7; 
-    }
-
-    for (let i = 0; i < generatedPresentation.slides.length; i++) {
-      const slide = generatedPresentation.slides[i];
-      if (i > 0 || (i === 0 && (!generatedPresentation.title && !imageStylePrompt?.trim()))) { 
-         if (i > 0) { doc.addPage(); currentY = margin; } 
-         else if (currentY <= margin + 5 && !generatedPresentation.title && !imageStylePrompt?.trim() ) { /* no-op, likely first element on page */ } 
-         else { if(!addNewPageIfNeeded(40) && currentY > margin + 20) { doc.addPage(); currentY = margin; } else { currentY +=8; } } 
-      } else if (i === 0 && (generatedPresentation.title || imageStylePrompt?.trim())){ 
-         if (pageHeight - currentY < pageHeight * 0.4) { doc.addPage(); currentY = margin; } else { currentY += 5; } 
-      }
-      
-      doc.setFont(theme.bodyFont, 'normal'); doc.setFontSize(10); 
-      if(theme.accentColor) doc.setTextColor(theme.accentColor[0], theme.accentColor[1], theme.accentColor[2]);
-      else doc.setTextColor(pdfThemes.default.accentColor![0], pdfThemes.default.accentColor![1], pdfThemes.default.accentColor![2]);
-      const slideNumberText = `Slide ${i + 1}`;
-      doc.text(slideNumberText, pageWidth - margin - doc.getTextWidth(slideNumberText), currentY); 
-
-      doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
-      let lines = doc.splitTextToSize(slide.title, maxTextWidth);
-      let textBlockHeight = doc.getTextDimensions(lines).h;
-      if(addNewPageIfNeeded(textBlockHeight + 8)) {
-          doc.setFont(theme.titleFont, theme.titleStyle); doc.setFontSize(18); doc.setTextColor(theme.titleColor[0], theme.titleColor[1], theme.titleColor[2]);
-      }
-      doc.text(lines, margin, currentY);
-      currentY += textBlockHeight + 8;
-
-      doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-      for (const point of slide.bulletPoints) {
-        lines = doc.splitTextToSize(`• ${point}`, maxTextWidth - 8); 
-        textBlockHeight = doc.getTextDimensions(lines).h;
-        if (addNewPageIfNeeded(textBlockHeight + 4)) { 
-           doc.setFont(theme.bodyFont, theme.bodyStyle); doc.setFontSize(12); doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]);
-        } else { doc.setTextColor(theme.bulletColor[0], theme.bulletColor[1], theme.bulletColor[2]); } 
-        doc.text(lines, margin + 5, currentY); 
-        doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]); 
-        currentY += textBlockHeight + 4;
-      }
-
-      if (slide.imageUrl) {
-        currentY += 6; 
-        const IMAGE_MAX_WIDTH = maxTextWidth * 0.9; const IMAGE_MAX_HEIGHT = pageHeight * 0.45; 
-        try {
-            const imgProps = doc.getImageProperties(slide.imageUrl);
-            let imgWidth = imgProps.width; let imgHeight = imgProps.height; const aspectRatio = imgWidth / imgHeight;
-            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; }
-            if (imgHeight > IMAGE_MAX_HEIGHT) { imgHeight = IMAGE_MAX_HEIGHT; imgWidth = imgHeight * aspectRatio; }
-            if (imgWidth > IMAGE_MAX_WIDTH) { imgWidth = IMAGE_MAX_WIDTH; imgHeight = imgWidth / aspectRatio; } 
-
-            if (addNewPageIfNeeded(imgHeight + 10)) { 
-                doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2 , currentY, imgWidth, imgHeight);
-            } else { doc.addImage(slide.imageUrl, 'PNG', margin + (maxTextWidth - imgWidth)/2, currentY, imgWidth, imgHeight); } 
-            currentY += imgHeight + 10; 
-        } catch (e) {
-          console.error("Error adding image to PDF:", e);
-          doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-          lines = doc.splitTextToSize("[Image embedding failed or image format not supported by jsPDF]", maxTextWidth); textBlockHeight = doc.getTextDimensions(lines).h;
-          addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
-        }
-      } else if (slide.suggestedImageDescription) { 
-        currentY += 4; doc.setFont(theme.bodyFont, 'italic'); doc.setFontSize(10); doc.setTextColor(theme.bodyColor[0], theme.bodyColor[1], theme.bodyColor[2]);
-        lines = doc.splitTextToSize(`Suggested Image Idea: ${slide.suggestedImageDescription}`, maxTextWidth);
-        textBlockHeight = doc.getTextDimensions(lines).h;
-        addNewPageIfNeeded(textBlockHeight + 7); doc.text(lines, margin, currentY); currentY += textBlockHeight + 7;
-      }
-    }
-    doc.save(`ai_mentor_presentation_${themeKey}.pdf`);
-    toast({title: "PDF Downloaded", description: `Presentation PDF with ${themeKey} theme has been saved.`});
-  };
-
+  
   const handleGenerateInterviewQuestions = async () => {
     if (!interviewJobRole.trim()) { toast({ title: "Error", description: "Please enter a job role or topic.", variant: "destructive" }); return; }
     setIsGeneratingInterviewQuestions(true); setGeneratedInterviewQuestions(null);
@@ -607,57 +486,6 @@ export default function MentorAiPage() {
     } catch (err: any) { toast({ title: "Cover Letter Error", description: err.message || "Failed to generate cover letter.", variant: "destructive" }); }
     finally { setIsGeneratingCoverLetter(false); }
   };
-  
-  const handleDownloadCoverLetterPdf = () => {
-    if (!generatedCoverLetter?.draftCoverLetter) {
-      toast({ title: "Error", description: "No cover letter content to download.", variant: "destructive" });
-      return;
-    }
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
-    const letterText = generatedCoverLetter.draftCoverLetter;
-    
-    const FONT_FAMILY_SANS = "Helvetica"; // Or 'Times' for a more traditional look
-    const BODY_TEXT_SIZE = 11;
-    const LINE_HEIGHT = BODY_TEXT_SIZE * 1.4;
-    const MARGIN = 72; // 1 inch in points (72 points per inch)
-    const MAX_TEXT_WIDTH = doc.internal.pageSize.getWidth() - MARGIN * 2;
-    
-    let yPos = MARGIN;
-
-    const addNewPageIfNeeded = (neededHeight: number): boolean => {
-      if (yPos + neededHeight > doc.internal.pageSize.getHeight() - MARGIN) {
-        doc.addPage();
-        yPos = MARGIN;
-        return true;
-      }
-      return false;
-    };
-
-    doc.setFont(FONT_FAMILY_SANS, 'normal');
-    doc.setFontSize(BODY_TEXT_SIZE);
-    doc.setTextColor(0, 0, 0); // Black text
-
-    const lines = letterText.split('\n');
-
-    for (const line of lines) {
-      if (line.trim() === "") { // Handle empty lines as paragraph breaks
-        addNewPageIfNeeded(LINE_HEIGHT); // Check if a full line height fits
-        yPos += LINE_HEIGHT * 0.5; // Add half line height for paragraph spacing
-        continue;
-      }
-
-      const splitLines = doc.splitTextToSize(line, MAX_TEXT_WIDTH);
-      for (const textLine of splitLines) {
-        addNewPageIfNeeded(LINE_HEIGHT);
-        doc.text(textLine, MARGIN, yPos);
-        yPos += LINE_HEIGHT;
-      }
-    }
-    
-    doc.save('ai_mentor_cover_letter.pdf');
-    toast({ title: "Cover Letter PDF Downloaded", description: "Your cover letter has been saved." });
-  };
-
 
   const handleGenerateCareerPaths = async () => {
     if (!careerInterests.trim() || !careerSkills.trim()) {
@@ -956,14 +784,15 @@ export default function MentorAiPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header 
+      <Header
+        className="no-print"
         selectedLanguage={selectedLanguage}
         onLanguageChange={setSelectedLanguage}
         currentTheme={theme}
         onThemeChange={setTheme}
       />
       <SidebarProvider defaultOpen={true}>
-        <div className="flex flex-1">
+        <div className="flex flex-1 no-print">
           <Sidebar collapsible="icon">
             <ShadSidebarContent>
               <SidebarMenu>
@@ -1623,11 +1452,6 @@ export default function MentorAiPage() {
                              <Button onClick={handleGenerateCoverLetter} disabled={isGeneratingCoverLetter || !coverLetterJobDesc.trim() || !coverLetterUserInfo.trim()} className="w-auto">
                                 {isGeneratingCoverLetter && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Cover Letter
                             </Button>
-                            {generatedCoverLetter && (
-                                <Button onClick={handleDownloadCoverLetterPdf} variant="outline" className="w-auto" disabled={isGeneratingCoverLetter}>
-                                    <Download className="mr-2 h-4 w-4" /> Download PDF
-                                </Button>
-                            )}
                         </div>
 
                         {generatedCoverLetter && (
@@ -1880,26 +1704,19 @@ export default function MentorAiPage() {
                 <Card className="shadow-xl bg-card">
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl text-primary flex items-center"><PresentationIcon className="mr-2 h-7 w-7"/>AI Presentation Generator</CardTitle>
-                        <CardDescription>Create presentation outlines with AI-generated text and images. Customize image style and download as a themed PDF. (Note: Transitions/animations not supported in PDF).</CardDescription>
+                        <CardDescription>Create presentation outlines with AI-generated text and images. Customize image style and download as a PDF.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Input placeholder="Presentation Topic" value={presentationTopic} onChange={(e) => setPresentationTopic(e.target.value)} disabled={isGeneratingPresentation} />
                         <Input type="number" placeholder="Number of Slides (e.g., 3)" value={numSlides} onChange={(e) => setNumSlides(e.target.value)} disabled={isGeneratingPresentation} min="1" max="7" />
                         <Input placeholder="Image Style Prompt (Optional, e.g., 'vintage art style', 'minimalist flat design')" value={imageStylePrompt} onChange={(e) => setImageStylePrompt(e.target.value)} disabled={isGeneratingPresentation} />
-                        <div className="space-y-2">
-                            <Label htmlFor="presentation-theme-select" className="text-md font-medium flex items-center"><Palette className="mr-2 h-5 w-5 text-primary" />PDF Theme</Label>
-                            <Select value={presentationTheme} onValueChange={setPresentationTheme} disabled={isGeneratingPresentation}>
-                                <SelectTrigger id="presentation-theme-select" className="w-full sm:w-[200px]"><SelectValue placeholder="Select PDF theme" /></SelectTrigger>
-                                <SelectContent>{Object.keys(pdfThemes).map((key) => <SelectItem key={key} value={key} className="capitalize">{key}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
                         <p className="text-xs text-muted-foreground">Note: Generating presentations with images can be slow (2-3 slides recommended). Max 7 slides.</p>
                         <div className="flex items-center text-xs text-muted-foreground bg-muted/50 p-2 rounded-md"><Info className="mr-2 h-4 w-4 text-primary shrink-0" /><span>Slide transitions/animations are not included in PDF output.</span></div>
                         <div className="flex flex-wrap gap-2">
                             <Button onClick={handleGeneratePresentation} disabled={isGeneratingPresentation || !presentationTopic.trim()} className="flex-grow sm:flex-grow-0">
                                 {isGeneratingPresentation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Generate Presentation
                             </Button>
-                            {generatedPresentation && <Button onClick={() => handleDownloadPresentationPdf(presentationTheme)} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}><Download className="mr-2 h-4 w-4" /> Download PDF</Button>}
+                            {generatedPresentation && <Button onClick={() => {}} variant="outline" className="flex-grow sm:flex-grow-0" disabled={isGeneratingPresentation}><Download className="mr-2 h-4 w-4" /> Download PDF</Button>}
                         </div>
                         {generatedPresentation && (
                             <div className="mt-4 p-4 bg-muted rounded-md max-h-[600px] overflow-y-auto">
@@ -1923,7 +1740,7 @@ export default function MentorAiPage() {
           </SidebarInset>
         </div>
       </SidebarProvider>
-      <footer className="text-center p-4 text-muted-foreground text-sm border-t border-border/50 bg-card">
+      <footer className="text-center p-4 text-muted-foreground text-sm border-t border-border/50 bg-card no-print">
         © {new Date().getFullYear()} AI Mentor By AP. Empowering students, creators, and professionals with AI.
       </footer>
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>

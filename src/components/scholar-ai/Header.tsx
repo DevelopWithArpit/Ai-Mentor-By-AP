@@ -6,19 +6,21 @@ import { SettingsDialog } from './SettingsDialog'; // Import SettingsDialog
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import type { Theme } from '@/components/theme-provider'; // Import Theme type
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   selectedLanguage: string;
   onLanguageChange: (language: string) => void;
   currentTheme: Theme;
   onThemeChange: (theme: Theme) => void;
+  className?: string;
 }
 
-export function Header({ selectedLanguage, onLanguageChange, currentTheme, onThemeChange }: HeaderProps) {
+export function Header({ selectedLanguage, onLanguageChange, currentTheme, onThemeChange, className }: HeaderProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
-    <header className="py-6 px-4 md:px-8 border-b border-border/50 shadow-md bg-card">
+    <header className={cn("py-6 px-4 md:px-8 border-b border-border/50 shadow-md bg-card", className)}>
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ScholarAiLogo className="h-10 w-10 text-primary" />
