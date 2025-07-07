@@ -143,7 +143,6 @@ export default function MentorAiPage() {
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
   const [parsedResumeData, setParsedResumeData] = useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
 
   const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
   const [coverLetterUserInfo, setCoverLetterUserInfo] = useState<string>('');
@@ -188,19 +187,6 @@ export default function MentorAiPage() {
   const [linkedInVisualStyle, setLinkedInVisualStyle] = useState<GenerateLinkedInVisualsInput['stylePreference']>('professional-minimalist');
   const [generatedLinkedInVisuals, setGeneratedLinkedInVisuals] = useState<GenerateLinkedInVisualsOutput | null>(null);
   const [isGeneratingLinkedInVisuals, setIsGeneratingLinkedInVisuals] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (isPrinting) {
-      const handleAfterPrint = () => {
-        setIsPrinting(false);
-      };
-      window.addEventListener('afterprint', handleAfterPrint);
-      window.print();
-      return () => {
-        window.removeEventListener('afterprint', handleAfterPrint);
-      };
-    }
-  }, [isPrinting]);
 
   const handleFileChange = (files: File[]) => {
     setSelectedFiles(files);
@@ -797,7 +783,7 @@ export default function MentorAiPage() {
 
   return (
     <>
-      <div className={isPrinting ? 'no-print' : 'flex flex-col min-h-screen bg-background'}>
+      <div className={'flex flex-col min-h-screen bg-background no-print'}>
         <Header
           selectedLanguage={selectedLanguage}
           onLanguageChange={setSelectedLanguage}
@@ -1151,9 +1137,14 @@ export default function MentorAiPage() {
                                   {resumeButtonText}
                               </Button>
                                {parsedResumeData && (
-                                  <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
-                                      <Eye className="mr-2 h-4 w-4" /> Preview Resume
-                                  </Button>
+                                  <>
+                                    <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
+                                        <Eye className="mr-2 h-4 w-4" /> Preview Resume
+                                    </Button>
+                                    <Button onClick={() => window.print()} disabled={isGeneratingResumeFeedback}>
+                                        <Download className="mr-2 h-4 w-4" /> Download PDF
+                                    </Button>
+                                  </>
                               )}
                               <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
                                   <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
@@ -1763,15 +1754,12 @@ export default function MentorAiPage() {
             </DialogHeader>
             {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
             <DialogFooter className="p-4 border-t">
-              <Button onClick={() => setIsPrinting(true)}>
-                <Download className="mr-2 h-4 w-4" />
-                Download as PDF
-              </Button>
+               <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-      {isPrinting && parsedResumeData && (
+      {parsedResumeData && (
           <div className="printable-only">
               <ResumePreview data={parsedResumeData} />
           </div>
