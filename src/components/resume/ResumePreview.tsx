@@ -30,13 +30,17 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
     { icon: MapPin, text: personalInfo.location }
   ].filter(item => item.text);
 
+  // Using A4 paper aspect ratio for sizing. Width is ~210mm, height is ~297mm.
+  // We'll use a fixed width and let height be auto. 8.5in x 11in (Letter) is common too.
+  // 8.5in is ~816px. `max-w-3xl` is 768px. This is a good fit.
+  // Using consistent padding and font sizes for a compact, print-friendly layout.
   return (
-    <div className="bg-white text-black p-6 sm:p-8 font-sans text-sm shadow-lg max-w-4xl mx-auto my-4 rounded-lg">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row justify-between items-start mb-6 border-b-2 border-gray-200 pb-4">
-        <div className="mb-4 sm:mb-0">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 tracking-tight">{personalInfo.name || '[Full Name]'}</h1>
-          <h2 className="text-md md:text-lg text-blue-600 font-semibold">{personalInfo.title || '[Professional Title]'}</h2>
+    <div className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-3xl mx-auto my-4 rounded-lg">
+      {/* Header: Forced row layout for consistency */}
+      <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
+        <div className="mb-0">
+          <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{personalInfo.name || '[Full Name]'}</h1>
+          <h2 className="text-lg text-blue-600 font-semibold">{personalInfo.title || '[Professional Title]'}</h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
             {contactInfo.map((item, index) => (
               <div key={index} className="flex items-center">
@@ -46,34 +50,34 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
             ))}
           </div>
         </div>
-        <div className="flex-shrink-0 self-center sm:self-start">
+        <div className="flex-shrink-0 self-start">
             <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
                 <span className="text-white text-4xl font-bold tracking-wider">{initials}</span>
             </div>
         </div>
       </header>
 
-      {/* Main Content: Two Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8">
+      {/* Main Content: Forced two-column grid */}
+      <div className="grid grid-cols-3 gap-x-6">
         {/* Left Column (Main Content) */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="col-span-2 space-y-4">
           {summary && (
             <section>
-              <h3 className="text-lg font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide">SUMMARY</h3>
-              <p className="text-gray-700 leading-relaxed text-sm">{summary}</p>
+              <h3 className="text-base font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Summary</h3>
+              <p className="text-gray-700 leading-relaxed text-xs">{summary}</p>
             </section>
           )}
 
           {experience.length > 0 && (
             <section>
-              <h3 className="text-lg font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-3 tracking-wide">EXPERIENCE</h3>
-              <div className="space-y-4">
+              <h3 className="text-base font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Experience</h3>
+              <div className="space-y-3">
                 {experience.map((job, index) => (
                   <div key={`exp-${index}`}>
-                    <h4 className="text-base font-bold text-gray-900">{job.title || '[Job Title]'}</h4>
+                    <h4 className="font-bold text-gray-900">{job.title || '[Job Title]'}</h4>
                     <p className="text-blue-600 font-semibold text-sm">{job.company || '[Company Name]'}</p>
                     <p className="text-xs text-gray-500 mb-1">{job.date || '[Date]'} {job.location && `| ${job.location}`} {job.context && `- ${job.context}`}</p>
-                    <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2 text-sm">
+                    <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2 text-xs">
                       {job.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                     </ul>
                   </div>
@@ -84,11 +88,11 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
           
           {education.length > 0 && (
              <section>
-              <h3 className="text-lg font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-3 tracking-wide">EDUCATION</h3>
-              <div className="space-y-4">
+              <h3 className="text-base font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Education</h3>
+              <div className="space-y-3">
                 {education.map((edu, index) => (
                   <div key={`edu-${index}`}>
-                    <h4 className="text-base font-bold text-gray-900">{edu.degree || '[Degree]'}</h4>
+                    <h4 className="font-bold text-gray-900">{edu.degree || '[Degree]'}</h4>
                     <p className="text-blue-600 font-semibold text-sm">{edu.institution || '[Institution]'}</p>
                     <p className="text-xs text-gray-500">{edu.date || '[Date]'} {edu.location && `| ${edu.location}`}</p>
                   </div>
@@ -99,12 +103,12 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
         </div>
 
         {/* Right Column (Sidebar) */}
-        <div className="md:col-span-1 space-y-6 mt-6 md:mt-0">
+        <div className="col-span-1 space-y-4">
           {keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0) && (
              <section>
-                <h3 className="text-lg font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide">KEY ACHIEVEMENTS</h3>
-                 <h4 className="text-base font-bold text-gray-900">{keyAchievements.title}</h4>
-                 <ul className="list-disc list-inside text-gray-700 space-y-1 mt-1 pl-2 text-sm">
+                <h3 className="text-base font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Key Achievements</h3>
+                 <h4 className="font-bold text-gray-900">{keyAchievements.title}</h4>
+                 <ul className="list-disc list-inside text-gray-700 space-y-1 mt-1 pl-2 text-xs">
                     {keyAchievements.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                   </ul>
              </section>
@@ -112,10 +116,10 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
 
           {skills.length > 0 && (
             <section>
-              <h3 className="text-lg font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide">SKILLS</h3>
-              <div className="flex flex-wrap gap-2">
+              <h3 className="text-base font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Skills</h3>
+              <div className="flex flex-wrap gap-1">
                 {skills.map((skill, index) => (
-                  <span key={index} className="bg-gray-200 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-md">{skill}</span>
+                  <span key={index} className="bg-gray-200 text-gray-800 text-xs font-medium px-2 py-0.5 rounded-md">{skill}</span>
                 ))}
               </div>
             </section>
@@ -123,13 +127,13 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
           
           {projects.length > 0 && (
             <section>
-              <h3 className="text-lg font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-3 tracking-wide">PROJECTS</h3>
-              <div className="space-y-4">
+              <h3 className="text-base font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Projects</h3>
+              <div className="space-y-3">
                 {projects.map((proj, index) => (
                   <div key={`proj-${index}`}>
-                    <h4 className="text-base font-bold text-gray-900">{proj.title || '[Project Title]'}</h4>
+                    <h4 className="font-bold text-gray-900">{proj.title || '[Project Title]'}</h4>
                     <p className="text-xs text-gray-500 mb-1">{proj.date || '[Date]'} {proj.context && `- ${proj.context}`}</p>
-                    <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2 text-sm">
+                    <ul className="list-disc list-inside text-gray-700 space-y-1 pl-2 text-xs">
                       {proj.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                     </ul>
                   </div>
@@ -144,4 +148,3 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
 };
 
 export default ResumePreview;
-
