@@ -118,9 +118,9 @@ body {
 
 @media print {
   body {
+    margin: 0 !important;
+    padding: 0 !important;
     background: white !important;
-    margin: 0;
-    padding: 0;
   }
 
   .no-print {
@@ -129,5 +129,22 @@ body {
   
   .printable-only {
     display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .printable-only > div {
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 0mm;
   }
 }

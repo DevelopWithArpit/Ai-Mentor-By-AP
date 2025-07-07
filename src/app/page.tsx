@@ -191,8 +191,14 @@ export default function MentorAiPage() {
 
   useEffect(() => {
     if (isPrinting) {
-        window.print();
+      const handleAfterPrint = () => {
         setIsPrinting(false);
+      };
+      window.addEventListener('afterprint', handleAfterPrint);
+      window.print();
+      return () => {
+        window.removeEventListener('afterprint', handleAfterPrint);
+      };
     }
   }, [isPrinting]);
 
