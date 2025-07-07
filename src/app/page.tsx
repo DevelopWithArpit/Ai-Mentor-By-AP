@@ -783,7 +783,7 @@ export default function MentorAiPage() {
 
   return (
     <>
-      <div className={'flex flex-col min-h-screen bg-background no-print'}>
+      <div className={'flex flex-col min-h-screen bg-background'}>
         <Header
           selectedLanguage={selectedLanguage}
           onLanguageChange={setSelectedLanguage}
@@ -1748,12 +1748,12 @@ export default function MentorAiPage() {
           © {new Date().getFullYear()} AI Mentor By AP. Empowering students, creators, and professionals with AI.
         </footer>
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-          <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh] no-print">
-            <DialogHeader className="p-4 border-b no-print">
+          <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
+            <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
             {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="p-8 text-center">No resume data to preview.</div>}
-            <DialogFooter className="p-4 border-t no-print">
+            <DialogFooter className="p-4 border-t">
                <Button onClick={() => window.print()}>
                  <Download className="mr-2 h-4 w-4" /> Download PDF
                </Button>

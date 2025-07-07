@@ -117,34 +117,51 @@ body {
 }
 
 @media print {
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-  }
-
-  .no-print {
-    display: none !important;
+  /* Hide everything in the body by default */
+  body * {
+    visibility: hidden;
   }
   
+  /* Make the printable container and its children visible */
+  .printable-only, .printable-only * {
+    visibility: visible;
+  }
+  
+  /* Position the printable container to fill the page */
   .printable-only {
-    display: block !important;
     position: absolute;
-    top: 0;
     left: 0;
+    top: 0;
     width: 100%;
+    height: 100%;
   }
 
+  /* Reset body styles for printing */
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Reset the resume component's root div for perfect printing */
   .printable-only > div {
     margin: 0 !important;
+    padding: 1in !important; /* Standard resume margin */
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
     border-radius: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
   }
-
+  
+  /* Hide elements that shouldn't be printed, as a fallback */
+  .no-print {
+    display: none !important;
+  }
+  
   @page {
     size: auto;
-    margin: 0mm;
+    margin: 0;
   }
 }
