@@ -111,3 +111,15 @@ body {
     font-family: var(--font-headline);
   }
 }
+
+@media print {
+  /* When printing, hide everything in the body by default */
+  body.is-printing > * {
+    display: none !important;
+  }
+
+  /* Then, reveal only the element designated for printing */
+  body.is-printing #print-mount {
+    display: block !important;
+  }
+}

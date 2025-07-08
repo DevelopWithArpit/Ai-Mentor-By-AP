@@ -463,68 +463,35 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
-    const printContent = resumePreviewRef.current;
-    if (!printContent) {
-      toast({
-        title: "Print Error",
-        description: "Could not find resume content to print.",
-        variant: "destructive",
-      });
+    const contentToPrint = resumePreviewRef.current;
+    if (!contentToPrint) {
+      toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
       return;
     }
 
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
+    // Create a container for the printable content
+    const printMount = document.createElement('div');
+    printMount.id = 'print-mount';
+    
+    // Clone the resume preview content to avoid moving the original
+    const contentClone = contentToPrint.cloneNode(true);
+    printMount.appendChild(contentClone);
+    document.body.appendChild(printMount);
 
-    const iframeDoc = iframe.contentWindow?.document;
-    if (!iframeDoc) {
-      toast({
-        title: "Print Error",
-        description: "Could not create a document for printing.",
-        variant: "destructive",
-      });
-      document.body.removeChild(iframe);
-      return;
+    // Add a class to the body to trigger print styles
+    document.body.classList.add('is-printing');
+
+    try {
+      // Trigger the browser's print dialog
+      window.print();
+    } catch (e) {
+      toast({ title: "Print Error", description: "Could not open print dialog. Please check your browser's permissions.", variant: "destructive" });
+    } finally {
+      // Clean up after printing
+      // This runs after the user closes the print dialog
+      document.body.classList.remove('is-printing');
+      document.body.removeChild(printMount);
     }
-
-    iframeDoc.open();
-    iframeDoc.write('<!DOCTYPE html><html><head>');
-    
-    // Copy all link and style tags from the main document's head
-    const headElements = document.querySelectorAll('head > link[rel="stylesheet"], head > style');
-    headElements.forEach(el => {
-      iframeDoc.write(el.outerHTML);
-    });
-
-    // Add specific print styles
-    iframeDoc.write('<style>body { margin: 0; } @page { size: auto; margin: 0; }</style>');
-    
-    iframeDoc.write('</head><body>');
-    iframeDoc.write(printContent.innerHTML);
-    iframeDoc.write('</body></html>');
-    iframeDoc.close();
-
-    iframe.onload = function () {
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch (e) {
-            toast({
-                title: "Print Error",
-                description: "Could not open print dialog. Please check browser permissions.",
-                variant: "destructive",
-            });
-        } finally {
-            // Cleanup iframe after a delay
-            setTimeout(() => document.body.removeChild(iframe), 1000);
-        }
-      }, 500); // Delay to ensure styles are applied
-    };
   };
 
   const handleResetResumeImprover = () => {
@@ -1821,7 +1788,9 @@ export default function MentorAiPage() {
             </DialogHeader>
             {parsedResumeData ? (
               <div className="p-4">
-                <ResumePreview ref={resumePreviewRef} data={parsedResumeData} />
+                <div id="resume-preview-wrapper">
+                  <ResumePreview ref={resumePreviewRef} data={parsedResumeData} />
+                </div>
               </div>
              ) : <div className="p-8 text-center">No resume data to preview.</div>}
             <DialogFooter className="p-4 border-t">
