@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye, AudioLines } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -50,6 +50,7 @@ import { analyzeGeneratedCode, type AnalyzeCodeInput, type AnalyzeCodeOutput } f
 import { manipulateImageText, type ManipulateImageTextInput, type ManipulateImageTextOutput } from '@/ai/flows/image-text-manipulation-flow';
 import { removeWatermarkFromImage, type WatermarkRemoverInput, type WatermarkRemoverOutput } from '@/ai/flows/watermark-remover-flow';
 import { generateLinkedInVisuals, type GenerateLinkedInVisualsInput, type GenerateLinkedInVisualsOutput } from '@/ai/flows/linkedin-visuals-generator-flow';
+import { textToSpeech, type TextToSpeechInput, type TextToSpeechOutput } from '@/ai/flows/text-to-speech-flow';
 
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -76,6 +77,7 @@ const tools = [
   { id: 'image-text-editor', label: 'Image-Text Editor', icon: Edit, cardTitle: 'Image Text Editor' },
   { id: 'diagram-gen', label: 'Diagram Gen', icon: Wand2, cardTitle: 'AI Diagram Generator' },
   { id: 'presentations', label: 'Presentations', icon: PresentationIcon, cardTitle: 'AI Presentation Generator' },
+  { id: 'text-to-speech', label: 'Text-to-Speech', icon: AudioLines, cardTitle: 'AI Text-to-Speech Converter' },
 ];
 
 const COMMON_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/*'];
@@ -143,9 +145,7 @@ export default function MentorAiPage() {
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
   const [parsedResumeData, setParsedResumeData] = useState<any | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const resumePreviewRef = useRef<HTMLDivElement>(null);
-
-
+  
   const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
   const [coverLetterUserInfo, setCoverLetterUserInfo] = useState<string>('');
   const [coverLetterTone, setCoverLetterTone] = useState<"professional" | "enthusiastic" | "formal" | "slightly-informal">("professional");
@@ -189,6 +189,11 @@ export default function MentorAiPage() {
   const [linkedInVisualStyle, setLinkedInVisualStyle] = useState<GenerateLinkedInVisualsInput['stylePreference']>('professional-minimalist');
   const [generatedLinkedInVisuals, setGeneratedLinkedInVisuals] = useState<GenerateLinkedInVisualsOutput | null>(null);
   const [isGeneratingLinkedInVisuals, setIsGeneratingLinkedInVisuals] = useState<boolean>(false);
+
+  // Text-to-Speech States
+  const [ttsInputText, setTtsInputText] = useState<string>('');
+  const [generatedAudioUri, setGeneratedAudioUri] = useState<string | null>(null);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState<boolean>(false);
 
   const handleFileChange = (files: File[]) => {
     setSelectedFiles(files);
@@ -463,36 +468,100 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
-    const contentToPrint = resumePreviewRef.current;
-    if (!contentToPrint) {
-      toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
+    // Create an iframe to print from, ensuring isolation from the main document's styles.
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const printDocument = iframe.contentWindow?.document;
+    if (!printDocument) {
+      toast({ title: "Print Error", description: "Could not create a print-friendly document.", variant: "destructive" });
+      document.body.removeChild(iframe);
       return;
     }
 
-    // Create a container for the printable content
-    const printMount = document.createElement('div');
-    printMount.id = 'print-mount';
-    
-    // Clone the resume preview content to avoid moving the original
-    const contentClone = contentToPrint.cloneNode(true);
-    printMount.appendChild(contentClone);
-    document.body.appendChild(printMount);
-
-    // Add a class to the body to trigger print styles
-    document.body.classList.add('is-printing');
-
-    try {
-      // Trigger the browser's print dialog
-      window.print();
-    } catch (e) {
-      toast({ title: "Print Error", description: "Could not open print dialog. Please check your browser's permissions.", variant: "destructive" });
-    } finally {
-      // Clean up after printing
-      // This runs after the user closes the print dialog
-      document.body.classList.remove('is-printing');
-      document.body.removeChild(printMount);
+    const resumeWrapper = document.getElementById('resume-preview-wrapper');
+    if (!resumeWrapper) {
+      toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
+      document.body.removeChild(iframe);
+      return;
     }
-  };
+
+    // Clone the resume content and all associated styles.
+    printDocument.open();
+    printDocument.write(`
+        <html>
+        <head>
+            <title>Resume</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+            <style>
+              /* Basic page setup for printing */
+              @media print {
+                  @page {
+                      size: A4;
+                      margin: 0;
+                  }
+                  html, body {
+                      width: 210mm;
+                      height: 297mm;
+                      font-family: 'PT Sans', sans-serif;
+                      -webkit-print-color-adjust: exact; /* Chrome, Safari */
+                      color-adjust: exact; /* Firefox */
+                  }
+              }
+              body {
+                margin: 0;
+                padding: 0;
+                font-family: 'PT Sans', sans-serif;
+              }
+              /* Directly embed the tailwind output from globals.css for print consistency */
+              ${Array.from(document.styleSheets)
+                .map(s => {
+                    try {
+                        return Array.from(s.cssRules || []).map(r => r.cssText).join('\n');
+                    } catch (e) {
+                        return ''; // Ignore cross-origin stylesheets
+                    }
+                }).join('\n')}
+              /* Ensure the wrapper takes full page width */
+              #resume-preview-wrapper {
+                  width: 100%;
+                  height: auto;
+                  box-shadow: none;
+                  margin: 0;
+                  padding: 0;
+              }
+            </style>
+        </head>
+        <body>
+            <div id="resume-preview-wrapper">
+              ${resumeWrapper.innerHTML}
+            </div>
+        </body>
+        </html>
+    `);
+    printDocument.close();
+    
+    // Wait for content to load in iframe then print
+    iframe.onload = () => {
+        try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+        } catch (e) {
+            toast({ title: "Print Error", description: "An error occurred while trying to open the print dialog.", variant: "destructive" });
+        } finally {
+            // Clean up by removing the iframe after a delay
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000);
+        }
+    };
+};
 
   const handleResetResumeImprover = () => {
     setResumeFile(null);
@@ -803,6 +872,23 @@ export default function MentorAiPage() {
     }
   };
 
+  const handleGenerateAudio = async () => {
+    if (!ttsInputText.trim()) {
+        toast({ title: "Error", description: "Please enter some text to convert to speech.", variant: "destructive" });
+        return;
+    }
+    setIsGeneratingAudio(true);
+    setGeneratedAudioUri(null);
+    try {
+        const result = await textToSpeech(ttsInputText);
+        setGeneratedAudioUri(result.audioDataUri);
+        toast({ title: "Audio Generated!", description: "Your text has been converted to speech." });
+    } catch (err: any) {
+        toast({ title: "Audio Generation Error", description: err.message || "Failed to generate audio.", variant: "destructive" });
+    } finally {
+        setIsGeneratingAudio(false);
+    }
+  };
 
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
   const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Helvetica'];
@@ -1774,6 +1860,41 @@ export default function MentorAiPage() {
                       </CardContent>
                   </Card>
                 )}
+
+                {activeTool === 'text-to-speech' && (
+                  <Card className="shadow-xl bg-card">
+                    <CardHeader>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><AudioLines className="mr-2 h-7 w-7"/>AI Text-to-Speech Converter</CardTitle>
+                      <CardDescription>Convert written text into natural-sounding speech. Enter your text below and click generate.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Textarea
+                        placeholder="Enter the text you want to convert to speech here..."
+                        value={ttsInputText}
+                        onChange={(e) => setTtsInputText(e.target.value)}
+                        disabled={isGeneratingAudio}
+                        className="min-h-[150px]"
+                      />
+                      <Button onClick={handleGenerateAudio} disabled={isGeneratingAudio || !ttsInputText.trim()} className="w-full sm:w-auto">
+                        {isGeneratingAudio ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Generate Audio
+                      </Button>
+                      {generatedAudioUri && (
+                        <div className="mt-4 p-4 bg-muted rounded-md">
+                          <h4 className="font-semibold mb-2 text-foreground">Generated Audio:</h4>
+                          <audio controls src={generatedAudioUri} className="w-full">
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      )}
+                      {!generatedAudioUri && !isGeneratingAudio && (
+                        <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
+                          <AudioLines className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                          <p className="mt-2 text-sm">Your generated audio will appear here.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </SidebarInset>
           </div>
@@ -1786,13 +1907,11 @@ export default function MentorAiPage() {
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
-            {parsedResumeData ? (
-              <div className="p-4">
-                <div id="resume-preview-wrapper">
-                  <ResumePreview ref={resumePreviewRef} data={parsedResumeData} />
-                </div>
+            <div className="p-4">
+              <div id="resume-preview-wrapper" className="bg-white">
+                {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="text-center p-8">No resume data to preview.</div>}
               </div>
-             ) : <div className="p-8 text-center">No resume data to preview.</div>}
+            </div>
             <DialogFooter className="p-4 border-t">
                <Button onClick={handlePrintResume}>
                  <Download className="mr-2 h-4 w-4" /> Download PDF
