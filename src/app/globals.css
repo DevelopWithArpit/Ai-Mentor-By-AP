@@ -112,14 +112,30 @@ body {
   }
 }
 
+/* Robust Print Styles */
 @media print {
-  /* When printing, hide everything in the body by default */
-  body.is-printing > * {
+  /* Hide everything by default */
+  body > #app-wrapper {
     display: none !important;
   }
-
-  /* Then, reveal only the element designated for printing */
-  body.is-printing #print-mount {
+  
+  /* Only show the dedicated print component */
+  body > #resume-print-mount {
     display: block !important;
+  }
+
+  /* Ensure the print component takes up the whole page */
+  #resume-print-mount, #resume-print-mount > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 1cm;
   }
 }

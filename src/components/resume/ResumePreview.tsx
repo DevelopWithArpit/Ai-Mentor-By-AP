@@ -3,24 +3,50 @@
 
 import React, { type FC } from 'react';
 import { Phone, Mail, Linkedin as LinkedinIcon, MapPin } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Define a type for the parsed resume data to ensure type safety
-interface ResumeData {
-  personalInfo: { [key: string]: string };
-  summary: string;
-  keyAchievements: { title?: string, details?: string[] };
-  experience: any[];
-  education: any[];
-  projects: any[];
-  skills: string[];
+export interface ResumeData {
+  personalInfo?: { [key: string]: string };
+  summary?: string;
+  keyAchievements?: { title?: string, details?: string[] };
+  experience?: any[];
+  education?: any[];
+  projects?: any[];
+  skills?: string[];
 }
 
 interface ResumePreviewProps {
-  data: ResumeData;
+  data: ResumeData | null; // Allow data to be null
 }
 
-const ResumePreview: FC<ResumePreviewProps> = React.forwardRef<HTMLDivElement, ResumePreviewProps>(({ data }, ref) => {
-  const { personalInfo, summary, keyAchievements, experience, education, projects, skills } = data;
+const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
+  if (!data) {
+    return (
+        <div className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-4xl mx-auto my-4 rounded-lg">
+            <div className="flex justify-between items-start mb-4 pb-3">
+                <div>
+                    <Skeleton className="h-9 w-64 mb-2" />
+                    <Skeleton className="h-6 w-48" />
+                </div>
+                <Skeleton className="w-24 h-24 rounded-full" />
+            </div>
+            <div className="grid grid-cols-3 gap-x-6">
+                <div className="col-span-2 space-y-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-full" />
+                </div>
+                <div className="col-span-1 space-y-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-10/12" />
+                </div>
+            </div>
+        </div>
+    );
+  }
+
+  const { personalInfo = {}, summary = '', keyAchievements = {}, experience = [], education = [], projects = [], skills = [] } = data;
   const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
 
   const contactInfo = [
@@ -31,8 +57,7 @@ const ResumePreview: FC<ResumePreviewProps> = React.forwardRef<HTMLDivElement, R
   ].filter(item => item.text);
 
   return (
-    <div ref={ref} className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-3xl mx-auto my-4 rounded-lg">
-      {/* Header: Forced row layout for consistency */}
+    <div id="resume-preview" className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-4xl mx-auto rounded-lg">
       <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
         <div className="mb-0">
           <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{personalInfo.name || '[Full Name]'}</h1>
@@ -52,10 +77,8 @@ const ResumePreview: FC<ResumePreviewProps> = React.forwardRef<HTMLDivElement, R
             </div>
         </div>
       </header>
-
-      {/* Main Content: Forced two-column grid */}
+      
       <div className="grid grid-cols-3 gap-x-6">
-        {/* Left Column (Main Content) */}
         <div className="col-span-2 space-y-4">
           {summary && (
             <section>
@@ -97,8 +120,7 @@ const ResumePreview: FC<ResumePreviewProps> = React.forwardRef<HTMLDivElement, R
             </section>
           )}
         </div>
-
-        {/* Right Column (Sidebar) */}
+        
         <div className="col-span-1 space-y-4">
           {keyAchievements && (keyAchievements.title || keyAchievements.details?.length > 0) && (
              <section>
@@ -141,7 +163,7 @@ const ResumePreview: FC<ResumePreviewProps> = React.forwardRef<HTMLDivElement, R
       </div>
     </div>
   );
-});
+};
 
 ResumePreview.displayName = "ResumePreview";
 export default ResumePreview;

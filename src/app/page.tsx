@@ -8,6 +8,7 @@ import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview from '@/components/resume/ResumePreview';
+import ResumePrint from '@/components/resume/ResumePrint'; // Import the new print component
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -468,100 +469,12 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
-    // Create an iframe to print from, ensuring isolation from the main document's styles.
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-
-    const printDocument = iframe.contentWindow?.document;
-    if (!printDocument) {
-      toast({ title: "Print Error", description: "Could not create a print-friendly document.", variant: "destructive" });
-      document.body.removeChild(iframe);
+    if (!parsedResumeData) {
+      toast({ title: "Error", description: "Resume data is not available to print.", variant: "destructive" });
       return;
     }
-
-    const resumeWrapper = document.getElementById('resume-preview-wrapper');
-    if (!resumeWrapper) {
-      toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
-      document.body.removeChild(iframe);
-      return;
-    }
-
-    // Clone the resume content and all associated styles.
-    printDocument.open();
-    printDocument.write(`
-        <html>
-        <head>
-            <title>Resume</title>
-            <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-            <style>
-              /* Basic page setup for printing */
-              @media print {
-                  @page {
-                      size: A4;
-                      margin: 0;
-                  }
-                  html, body {
-                      width: 210mm;
-                      height: 297mm;
-                      font-family: 'PT Sans', sans-serif;
-                      -webkit-print-color-adjust: exact; /* Chrome, Safari */
-                      color-adjust: exact; /* Firefox */
-                  }
-              }
-              body {
-                margin: 0;
-                padding: 0;
-                font-family: 'PT Sans', sans-serif;
-              }
-              /* Directly embed the tailwind output from globals.css for print consistency */
-              ${Array.from(document.styleSheets)
-                .map(s => {
-                    try {
-                        return Array.from(s.cssRules || []).map(r => r.cssText).join('\n');
-                    } catch (e) {
-                        return ''; // Ignore cross-origin stylesheets
-                    }
-                }).join('\n')}
-              /* Ensure the wrapper takes full page width */
-              #resume-preview-wrapper {
-                  width: 100%;
-                  height: auto;
-                  box-shadow: none;
-                  margin: 0;
-                  padding: 0;
-              }
-            </style>
-        </head>
-        <body>
-            <div id="resume-preview-wrapper">
-              ${resumeWrapper.innerHTML}
-            </div>
-        </body>
-        </html>
-    `);
-    printDocument.close();
-    
-    // Wait for content to load in iframe then print
-    iframe.onload = () => {
-        try {
-            iframe.contentWindow?.focus();
-            iframe.contentWindow?.print();
-        } catch (e) {
-            toast({ title: "Print Error", description: "An error occurred while trying to open the print dialog.", variant: "destructive" });
-        } finally {
-            // Clean up by removing the iframe after a delay
-            setTimeout(() => {
-                document.body.removeChild(iframe);
-            }, 1000);
-        }
-    };
-};
+    window.print();
+  };
 
   const handleResetResumeImprover = () => {
     setResumeFile(null);
@@ -903,7 +816,7 @@ export default function MentorAiPage() {
 
   return (
     <>
-      <div className={'flex flex-col min-h-screen bg-background'}>
+      <div id="app-wrapper" className={'flex flex-col min-h-screen bg-background'}>
         <Header
           selectedLanguage={selectedLanguage}
           onLanguageChange={setSelectedLanguage}
@@ -1907,10 +1820,8 @@ export default function MentorAiPage() {
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
-            <div className="p-4">
-              <div id="resume-preview-wrapper" className="bg-white">
-                {parsedResumeData ? <ResumePreview data={parsedResumeData} /> : <div className="text-center p-8">No resume data to preview.</div>}
-              </div>
+            <div className="p-4 bg-gray-300">
+              <ResumePreview data={parsedResumeData} />
             </div>
             <DialogFooter className="p-4 border-t">
                <Button onClick={handlePrintResume}>
@@ -1921,6 +1832,7 @@ export default function MentorAiPage() {
           </DialogContent>
         </Dialog>
       </div>
+      {parsedResumeData && <ResumePrint data={parsedResumeData} />}
     </>
   );
 }
