@@ -27,7 +27,7 @@ export async function generatePortfolioSite(input: GeneratePortfolioInput): Prom
   return generatePortfolioFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const portfolioPrompt = ai.definePrompt({
   name: 'generatePortfolioPrompt',
   input: {schema: GeneratePortfolioInputSchema},
   output: {schema: GeneratePortfolioOutputSchema},
@@ -49,7 +49,7 @@ A modern, dark-themed portfolio with a prominent hero section featuring a circul
 2.  **Generate HTML**: Create a single, complete HTML5 document ('htmlContent').
     *   The HTML must be well-structured and semantic (using tags like <header>, <nav>, <main>, <section>, <footer>).
     *   It must include a <head> section with a proper title (using the person's name from Personal Info), meta tags for viewport and character set, and a link to an external stylesheet named "style.css".
-    *   Create a `<nav>` bar with links that smooth-scroll to sections: Home, About, Projects, Experience, Contact.
+    *   Create a <nav> bar with links that smooth-scroll to sections: Home, About, Projects, Experience, Contact.
     *   **Hero Section**: Create a prominent hero section. It should display "Hello.", the user's name, and their professional title. It MUST include a circular profile picture area.
     *   Create distinct sections for 'About Me' (from Summary), 'Projects', 'Experience', and a 'Contact' section in the footer. Use the 'animate-on-scroll' class for these sections to enable animations.
     *   The contact information (email, phone, LinkedIn) should be in the footer.
@@ -73,7 +73,7 @@ const generatePortfolioFlow = ai.defineFlow(
     outputSchema: GeneratePortfolioOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await portfolioPrompt(input);
     return output!;
   }
 );
