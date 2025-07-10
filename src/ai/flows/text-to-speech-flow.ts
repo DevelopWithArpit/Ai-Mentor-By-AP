@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for converting text to speech.
@@ -12,10 +13,10 @@ import {z} from 'genkit';
 import wav from 'wav';
 import { googleAI } from '@genkit-ai/googleai';
 
-export const TextToSpeechInputSchema = z.string().describe('The text to be converted to speech.');
+const TextToSpeechInputSchema = z.string().describe('The text to be converted to speech.');
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
-export const TextToSpeechOutputSchema = z.object({
+const TextToSpeechOutputSchema = z.object({
   audioDataUri: z.string().describe("The generated audio as a data URI. Expected format: 'data:audio/wav;base64,<encoded_data>'."),
 });
 export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;
