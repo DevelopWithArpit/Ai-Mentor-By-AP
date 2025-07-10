@@ -47,18 +47,11 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   const { personalInfo = {}, summary = '', keyAchievements = {}, experience = [], education = [], projects = [], skills = [] } = data;
   const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
 
-  const ICONS = {
-    phone: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z",
-    mail: "M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6",
-    linkedin: "M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2zM4 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
-    mapPin: "M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
-  };
-
   const contactInfo = [
-    { iconPath: ICONS.phone, text: personalInfo.phone },
-    { iconPath: ICONS.mail, text: personalInfo.email },
-    { iconPath: ICONS.linkedin, text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-    { iconPath: ICONS.mapPin, text: personalInfo.location }
+    { icon: "📞", text: personalInfo.phone },
+    { icon: "📧", text: personalInfo.email },
+    { icon: "💼", text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
+    { icon: "📍", text: personalInfo.location }
   ].filter(item => item.text);
 
   return (
@@ -70,20 +63,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
             {contactInfo.map((item, index) => (
               <div key={index} className="flex items-center">
-                 <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-1.5"
-                >
-                    <path d={item.iconPath} />
-                </svg>
+                <span className="mr-1.5 text-blue-600">{item.icon}</span>
                 <span>{item.text}</span>
               </div>
             ))}
@@ -185,3 +165,5 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
 
 ResumePreview.displayName = "ResumePreview";
 export default ResumePreview;
+
+    
