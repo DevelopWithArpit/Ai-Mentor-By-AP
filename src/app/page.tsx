@@ -476,20 +476,17 @@ export default function MentorAiPage() {
     finally { setIsGeneratingResumeFeedback(false); }
   };
 
-  const handlePrintResume = () => {
+  const handleDownloadResume = () => {
     if (!parsedResumeData) {
-        toast({ title: "Error", description: "No resume data available to print.", variant: "destructive" });
+        toast({ title: "Error", description: "No resume data available to download.", variant: "destructive" });
         return;
     }
     try {
         sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
-        const printWindow = window.open('/print-resume', '_blank');
-        if (!printWindow) {
-            toast({ title: "Popup Blocked", description: "Please allow popups for this site to print your resume.", variant: "destructive" });
-        }
+        window.open('/print-resume', '_blank');
     } catch (error) {
-        console.error("Failed to open print window:", error);
-        toast({ title: "Print Error", description: "Could not open the print window.", variant: "destructive" });
+        console.error("Error setting resume data in session storage:", error);
+        toast({ title: "Download Error", description: "Could not prepare resume data for download.", variant: "destructive"});
     }
   };
 
@@ -1949,7 +1946,7 @@ export default function MentorAiPage() {
               <ResumePreview data={parsedResumeData} />
             </div>
             <DialogFooter className="p-4 border-t">
-               <Button onClick={handlePrintResume}>
+               <Button onClick={handleDownloadResume}>
                  <Download className="mr-2 h-4 w-4" /> Download PDF
                </Button>
                <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
