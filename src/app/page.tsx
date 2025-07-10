@@ -442,13 +442,16 @@ export default function MentorAiPage() {
         return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
     };
 
-    const handlePrintResume = () => {
-        if (!parsedResumeData) return;
+    const handleDownloadResume = () => {
+        if (!parsedResumeData) {
+            toast({ title: "Error", description: "No resume data available to download.", variant: "destructive" });
+            return;
+        }
         try {
             sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
             window.open('/print-resume', '_blank');
         } catch (error) {
-            console.error("Error setting resume data in session storage:", error);
+            console.error("Error preparing resume for download:", error);
             toast({ title: "Download Error", description: "Could not prepare resume data for download.", variant: "destructive"});
         }
     };
@@ -481,20 +484,6 @@ export default function MentorAiPage() {
       toast({ title: "Resume Assistant Complete!", description: "Your resume feedback/creation and LinkedIn suggestions are ready." });
     } catch (err: any) { toast({ title: "Resume Feedback Error", description: err.message || "Failed to get feedback.", variant: "destructive" }); }
     finally { setIsGeneratingResumeFeedback(false); }
-  };
-
-  const handleDownloadResume = () => {
-    if (!parsedResumeData) {
-        toast({ title: "Error", description: "No resume data available to download.", variant: "destructive" });
-        return;
-    }
-    try {
-        sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
-        window.open('/print-resume', '_blank');
-    } catch (error) {
-        console.error("Error setting resume data in session storage:", error);
-        toast({ title: "Download Error", description: "Could not prepare resume data for download.", variant: "destructive"});
-    }
   };
 
   const handleResetResumeImprover = () => {
@@ -1009,7 +998,7 @@ export default function MentorAiPage() {
                           />
                           
                           <Separator />
-                          <div className="space-y-2">
+                           <div className="space-y-2">
                              <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
                                   <Type className="mr-2 h-4 w-4"/> Add New Text
                               </Button>
@@ -1055,26 +1044,28 @@ export default function MentorAiPage() {
                           <Separator />
                           
                           <div className="space-y-3">
-                              <Label className="text-md font-semibold text-primary flex items-center"><Sparkles className="mr-2 h-5 w-5"/>AI In-Image Text Manipulation (Experimental)</Label>
-                               {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable AI text manipulation.</p>}
+                              <Label className="text-md font-semibold text-primary flex items-center"><Sparkles className="mr-2 h-5 w-5"/>AI In-Image Text Manipulation</Label>
+                               {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable.</p>}
                               <Input 
                                   id="ai-image-instruction" 
                                   value={aiImageInstruction} 
                                   onChange={(e) => setAiImageInstruction(e.target.value)} 
-                                  placeholder={imageEditorSrc ? "e.g., Change 'Old Text' to 'New Text'" : "Upload an image first..."}
+                                  placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
                                   disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
                               />
                               <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                  {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Manipulation
+                                  {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
                               </Button>
                               {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
                           </div>
+                          
                           <Separator />
-                          <div className="space-y-3">
-                               <Label className="text-md font-semibold text-primary flex items-center"><Eraser className="mr-2 h-5 w-5"/>AI Watermark Remover (Experimental)</Label>
-                               {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable AI watermark removal.</p>}
+
+                           <div className="space-y-3">
+                               <Label className="text-md font-semibold text-primary flex items-center"><Eraser className="mr-2 h-5 w-5"/>AI Watermark Remover</Label>
+                               {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable.</p>}
                                <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                  {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt AI Watermark Removal
+                                  {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
                                </Button>
                                {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
                           </div>
@@ -1949,5 +1940,3 @@ export default function MentorAiPage() {
     </>
   );
 }
-
-    

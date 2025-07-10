@@ -31,8 +31,11 @@ const prompt = ai.definePrompt({
   name: 'generatePortfolioPrompt',
   input: {schema: GeneratePortfolioInputSchema},
   output: {schema: GeneratePortfolioOutputSchema},
-  prompt: `You are an expert full-stack web developer specializing in creating clean, modern, and responsive single-page portfolio websites.
+  prompt: `You are an expert full-stack web developer specializing in creating clean, modern, and responsive single-page portfolio websites with professional animations, inspired by the provided design example.
 Your task is to generate the complete HTML and CSS for a portfolio site based on the provided resume text and a selected theme.
+
+**Design Inspiration:**
+A modern, dark-themed portfolio with a prominent hero section featuring a circular profile image with an accent ring. The layout is clean with clear sections for "About Me," "Projects," etc. Sections should have subtle scroll-in animations.
 
 **Input Resume Text:**
 \`\`\`
@@ -45,18 +48,20 @@ Your task is to generate the complete HTML and CSS for a portfolio site based on
 1.  **Parse the Resume**: Carefully parse the provided resume text, which is structured with "SECTION: [NAME]" and "END_SECTION" delimiters, to extract all relevant information (Personal Info, Summary, Experience, Education, Skills, Projects, Key Achievements).
 2.  **Generate HTML**: Create a single, complete HTML5 document ('htmlContent').
     *   The HTML must be well-structured and semantic (using tags like <header>, <nav>, <main>, <section>, <footer>).
-    *   It must include a <head> section with a proper title (using the person's name), meta tags for viewport and character set, and a link to an external stylesheet named "style.css".
-    *   Create distinct sections for 'About Me' (from Summary), 'Experience', 'Projects', 'Education', and 'Skills'.
-    *   The contact information (email, phone, LinkedIn) should be prominently displayed, likely in the header or footer.
-    *   The site should be a single page with smooth-scrolling navigation links if possible.
+    *   It must include a <head> section with a proper title (using the person's name from Personal Info), meta tags for viewport and character set, and a link to an external stylesheet named "style.css".
+    *   Create a `<nav>` bar with links that smooth-scroll to sections: Home, About, Projects, Experience, Contact.
+    *   **Hero Section**: Create a prominent hero section. It should display "Hello.", the user's name, and their professional title. It MUST include a circular profile picture area.
+    *   Create distinct sections for 'About Me' (from Summary), 'Projects', 'Experience', and a 'Contact' section in the footer. Use the 'animate-on-scroll' class for these sections to enable animations.
+    *   The contact information (email, phone, LinkedIn) should be in the footer.
+    *   Include a script at the end of the \`<body>\` for handling smooth scrolling and the scroll animations.
 3.  **Generate CSS**: Create the corresponding CSS styling in a single string ('cssContent').
-    *   **Theme 'professional-dark'**: Use a dark background (e.g., #1a202c), light text (e.g., #e2e8f0), and a professional accent color (e.g., a shade of blue or teal). Fonts should be clean and sans-serif (e.g., 'Inter', 'Lato', or system-ui).
-    *   **Theme 'professional-light'**: Use a light background (e.g., #f7fafc), dark text (e.g., #2d3748), and a professional accent color. Fonts should be clean and sans-serif.
-    *   **Theme 'creative-vibrant'**: Use more expressive colors, possibly gradients, and a more creative font pairing (e.g., a serif for headings and sans-serif for body). Feel free to add subtle animations or hover effects.
-    *   The layout MUST be responsive. Use flexbox or grid for layout and media queries to ensure it looks great on desktop, tablet, and mobile devices.
-    *   Style all elements, including cards for projects/experience, skill tags, and contact links.
-4.  **Content Integration**: Populate the HTML sections with the parsed resume data. For example, the 'Skills' section should display the list of skills as styled tags or badges. The 'Experience' section should list each job with its title, company, date, and details.
-5.  **Output Format**: Return the generated HTML and CSS as two separate, complete strings in the specified JSON output format. Do not include any markdown formatting like 'html' or 'css' code fences in the output strings.
+    *   **Theme 'professional-dark' (Primary focus)**: Use a very dark background (e.g., #111827), off-white text (e.g., #E5E7EB), and a professional accent color (e.g., a shade of vibrant orange or red like #F97316) for highlights, links, and the ring around the profile picture. Fonts should be clean and sans-serif (e.g., 'Inter' or system-ui).
+    *   **Profile Picture**: Style the hero image as a circle with a colorful gradient border/ring, similar to the design inspiration.
+    *   **Layout**: The layout MUST be responsive. Use flexbox or grid and media queries to ensure it looks great on desktop and mobile, matching the two-column inspiration.
+    *   **Animations**: Implement a fade-in-up animation for elements with the 'animate-on-scroll' class. The animation should trigger when the element scrolls into view. Use an 'is-visible' class added by JavaScript to trigger the animation. Define keyframes for this.
+    *   **Styling**: Style all elements, including cards for projects/experience, buttons, and navigation links with hover effects.
+4.  **Content Integration**: Populate the HTML sections with the parsed resume data.
+5.  **Output Format**: Return the generated HTML and CSS as two separate, complete strings in the specified JSON output format. Do not include any markdown formatting like 'html' or 'css' code fences.
 
 Generate the portfolio website code now.`,
 });
