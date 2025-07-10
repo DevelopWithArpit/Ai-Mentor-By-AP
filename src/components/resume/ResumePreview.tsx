@@ -23,7 +23,7 @@ interface ResumePreviewProps {
 const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   if (!data) {
     return (
-        <div className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-4xl mx-auto my-4 rounded-lg">
+        <div id="resume-preview-content" className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-4xl mx-auto my-4 rounded-lg">
             <div className="flex justify-between items-start mb-4 pb-3">
                 <div>
                     <Skeleton className="h-9 w-64 mb-2" />
@@ -57,7 +57,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   ].filter(item => item.text);
 
   return (
-    <div id="resume-preview" className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-4xl mx-auto rounded-lg">
+    <div id="resume-preview-content" className="bg-white text-black p-6 font-sans text-sm shadow-lg max-w-4xl mx-auto rounded-lg">
       <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
         <div className="mb-0">
           <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{personalInfo.name || '[Full Name]'}</h1>

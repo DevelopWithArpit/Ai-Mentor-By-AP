@@ -26,7 +26,7 @@ const ResumePrint: FC<ResumePrintProps> = ({ data }) => {
   ].filter(item => item.text);
 
   return (
-    <div id="resume-print-mount" className="hidden"> {/* Hidden by default, made visible by print styles */}
+    <div id="resume-print-mount"> 
       <div className="bg-white text-black p-6 font-sans text-sm">
         <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
           <div className="mb-0">

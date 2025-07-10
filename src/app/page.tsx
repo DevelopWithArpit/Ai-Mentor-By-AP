@@ -8,7 +8,7 @@ import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview from '@/components/resume/ResumePreview';
-import ResumePrint from '@/components/resume/ResumePrint'; // Import the new print component
+import ResumePrint from '@/components/resume/ResumePrint'; // This will be used for printing
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -1170,14 +1170,9 @@ export default function MentorAiPage() {
                                   {resumeButtonText}
                               </Button>
                                {parsedResumeData && (
-                                  <>
-                                    <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
-                                        <Eye className="mr-2 h-4 w-4" /> Preview Resume
-                                    </Button>
-                                    <Button onClick={handlePrintResume} disabled={isGeneratingResumeFeedback}>
-                                        <Download className="mr-2 h-4 w-4" /> Download PDF
-                                    </Button>
-                                  </>
+                                  <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
+                                      <Eye className="mr-2 h-4 w-4" /> Preview Resume
+                                  </Button>
                               )}
                               <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
                                   <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
@@ -1816,7 +1811,7 @@ export default function MentorAiPage() {
           © {new Date().getFullYear()} AI Mentor By AP. Empowering students, creators, and professionals with AI.
         </footer>
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-          <DialogContent className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
+          <DialogContent id="resume-preview-dialog" className="max-w-4xl p-0 bg-background overflow-y-auto max-h-[90vh]">
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
@@ -1832,7 +1827,7 @@ export default function MentorAiPage() {
           </DialogContent>
         </Dialog>
       </div>
-      {parsedResumeData && <ResumePrint data={parsedResumeData} />}
+      <ResumePrint data={parsedResumeData} />
     </>
   );
 }
