@@ -477,55 +477,56 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
+    const printContent = document.getElementById('resume-print-mount')?.innerHTML;
+    if (!printContent) {
+        toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
+        return;
+    }
+    
     const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const printContent = document.getElementById('resume-print-mount')?.innerHTML;
-      if (printContent) {
-        printWindow.document.write(`
-          <html>
+    if (!printWindow) {
+        toast({ title: "Popup Blocked", description: "Please allow popups for this site to print your resume.", variant: "destructive" });
+        return;
+    }
+
+    const allStyleSheets = Array.from(document.styleSheets)
+        .map(styleSheet => {
+            try {
+                return Array.from(styleSheet.cssRules)
+                    .map(rule => rule.cssText)
+                    .join('');
+            } catch (e) {
+                // Ignore stylesheets that can't be accessed due to CORS
+                return '';
+            }
+        })
+        .join('\n');
+
+    printWindow.document.write(`
+        <html>
             <head>
-              <title>Print Resume</title>
-              <link rel="stylesheet" href="/_next/static/css/main.css">
-              <style>
-                @import url('https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-                body { 
-                  font-family: 'PT Sans', sans-serif;
-                  margin: 0;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                @page {
-                  size: A4;
-                  margin: 1cm;
-                }
-              </style>
+                <title>Print Resume</title>
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+                <style>
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    @page { size: A4; margin: 1cm; }
+                    ${allStyleSheets}
+                </style>
             </head>
             <body>
-              ${printContent}
+                ${printContent}
             </body>
-          </html>
-        `);
-        // Link to external stylesheet is often blocked, let's inject main styles directly
-        const styles = document.head.getElementsByTagName('style');
-        for (let i = 0; i < styles.length; i++) {
-          printWindow.document.head.appendChild(styles[i].cloneNode(true));
-        }
-        
-        // This timeout gives the browser a moment to load styles before printing
-        setTimeout(() => {
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-          printWindow.close();
-        }, 500);
+        </html>
+    `);
 
-      } else {
-        toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
+    setTimeout(() => {
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
         printWindow.close();
-      }
-    } else {
-      toast({ title: "Popup Blocked", description: "Please allow popups for this site to print your resume.", variant: "destructive" });
-    }
+    }, 500); // Timeout allows styles to load
   };
 
   const handleResetResumeImprover = () => {
@@ -2016,5 +2017,3 @@ export default function MentorAiPage() {
     </>
   );
 }
-
-    
