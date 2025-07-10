@@ -8,7 +8,7 @@ import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview from '@/components/resume/ResumePreview';
-import { type ResumeData } from '@/components/resume/ResumePrint';
+import { type ResumeData } from '@/components/resume/ResumePreview';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -1730,7 +1730,7 @@ export default function MentorAiPage() {
                                       </Accordion>
                                       <p className="text-xs italic text-muted-foreground mt-3 p-2 bg-background/50 rounded-md border border-dashed">
                                         <AlertTriangle className="inline h-4 w-4 mr-1 text-yellow-600"/>
-                                        **Important Disclaimer:** Institutional examples and admission outlooks are illustrative and based on general information. Admission is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with institutions. This information is not a guarantee of admission.
+                                        **Important Disclaimer:** Institutional examples and admission outlooks are illustrative and based on general information. Admission is highly competitive and depends on many factors beyond scores. Always research and verify current admission requirements directly with institutions. This is not a guarantee of admission.
                                       </p>
                                     </div>
                                   )}
@@ -1977,9 +1977,6 @@ export default function MentorAiPage() {
             </Dialog>
         )}
       </div>
-      {/* The ResumePrint component is no longer needed here as it's part of a separate page */}
     </>
   );
 }
-
-    
