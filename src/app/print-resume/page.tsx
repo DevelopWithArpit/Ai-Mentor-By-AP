@@ -54,8 +54,7 @@ const PrintResumePage = () => {
         );
     }
     
-    // ResumePreview is used directly as it contains the desired visual layout.
-    // The print-specific CSS will handle making it look correct on paper.
+    // The main content to be printed.
     return (
         <main>
             <ResumePreview data={data} />
