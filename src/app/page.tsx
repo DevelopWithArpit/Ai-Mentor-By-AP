@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { useTheme, type Theme } from "@/components/theme-provider";
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 import { smartSearch, type SmartSearchInput, type SmartSearchOutput } from '@/ai/flows/smart-search';
@@ -442,30 +443,35 @@ export default function MentorAiPage() {
         return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
     };
 
-    const handleDownloadPdf = () => {
+    const handleDownloadPdf = async () => {
         const resumeContent = document.getElementById('resume-preview-content');
         if (!resumeContent) {
             toast({ title: "Error", description: "Could not find resume content to print.", variant: "destructive" });
             return;
         }
 
-        const doc = new jsPDF({
-            orientation: 'p',
-            unit: 'px',
+        const canvas = await html2canvas(resumeContent, {
+            scale: 2, // Increase scale for better quality
+            useCORS: true,
+            logging: true,
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        
+        // A4 page dimensions in mm: 210 x 297
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
             format: 'a4',
-            hotfixes: ['px_scaling'],
         });
-
-        doc.html(resumeContent, {
-            callback: function (doc) {
-                doc.save('resume.pdf');
-                toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
-            },
-            x: 0,
-            y: 0,
-            width: 445, // approx A4 width in px at 72dpi
-            windowWidth: resumeContent.offsetWidth
-        });
+        
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save('resume.pdf');
+        toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
     };
 
 
@@ -1914,10 +1920,8 @@ export default function MentorAiPage() {
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
-            <div className="p-4 bg-gray-300">
-                <div id="resume-print-mount" className="bg-white">
-                  <ResumePreview data={parsedResumeData} />
-                </div>
+            <div className="p-6 bg-gray-200" id="pdf-render-area">
+                <ResumePreview data={parsedResumeData} />
             </div>
             <DialogFooter className="p-4 border-t">
                <Button onClick={handleDownloadPdf}>
