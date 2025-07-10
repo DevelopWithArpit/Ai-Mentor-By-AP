@@ -477,7 +477,55 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const printContent = document.getElementById('resume-print-mount')?.innerHTML;
+      if (printContent) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Print Resume</title>
+              <link rel="stylesheet" href="/_next/static/css/main.css">
+              <style>
+                @import url('https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+                body { 
+                  font-family: 'PT Sans', sans-serif;
+                  margin: 0;
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+                @page {
+                  size: A4;
+                  margin: 1cm;
+                }
+              </style>
+            </head>
+            <body>
+              ${printContent}
+            </body>
+          </html>
+        `);
+        // Link to external stylesheet is often blocked, let's inject main styles directly
+        const styles = document.head.getElementsByTagName('style');
+        for (let i = 0; i < styles.length; i++) {
+          printWindow.document.head.appendChild(styles[i].cloneNode(true));
+        }
+        
+        // This timeout gives the browser a moment to load styles before printing
+        setTimeout(() => {
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+
+      } else {
+        toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
+        printWindow.close();
+      }
+    } else {
+      toast({ title: "Popup Blocked", description: "Please allow popups for this site to print your resume.", variant: "destructive" });
+    }
   };
 
   const handleResetResumeImprover = () => {
@@ -1232,9 +1280,6 @@ export default function MentorAiPage() {
                                   <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
                                       <Eye className="mr-2 h-4 w-4" /> Preview Resume
                                   </Button>
-                                  <Button onClick={handlePrintResume} disabled={isGeneratingResumeFeedback}>
-                                    <Download className="mr-2 h-4 w-4" /> Download PDF
-                                  </Button>
                                 </>
                               )}
                               <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
@@ -1971,3 +2016,5 @@ export default function MentorAiPage() {
     </>
   );
 }
+
+    
