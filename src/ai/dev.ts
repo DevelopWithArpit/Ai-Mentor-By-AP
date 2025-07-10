@@ -16,6 +16,8 @@ import '@/ai/flows/document-summarizer-flow.ts';
 import '@/ai/flows/code-analyzer-flow.ts';
 import '@/ai/flows/image-text-manipulation-flow.ts';
 import '@/ai/flows/watermark-remover-flow.ts';
-import '@/ai/flows/linkedin-visuals-generator-flow.ts'; // Added new flow
+import '@/ai/flows/linkedin-visuals-generator-flow.ts';
 import '@/ai/flows/text-to-speech-flow.ts';
+import '@/ai/flows/portfolio-generator-flow.ts';
+
 

@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye, AudioLines } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye, AudioLines, Globe } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -52,6 +52,7 @@ import { manipulateImageText, type ManipulateImageTextInput, type ManipulateImag
 import { removeWatermarkFromImage, type WatermarkRemoverInput, type WatermarkRemoverOutput } from '@/ai/flows/watermark-remover-flow';
 import { generateLinkedInVisuals, type GenerateLinkedInVisualsInput, type GenerateLinkedInVisualsOutput } from '@/ai/flows/linkedin-visuals-generator-flow';
 import { textToSpeech, type TextToSpeechInput, type TextToSpeechOutput } from '@/ai/flows/text-to-speech-flow';
+import { generatePortfolioSite, type GeneratePortfolioInput, type GeneratePortfolioOutput } from '@/ai/flows/portfolio-generator-flow';
 
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -70,6 +71,7 @@ const tools = [
   { id: 'summarizer', label: 'Summarizer', icon: FileType, cardTitle: 'AI Document Summarizer' },
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
   { id: 'resume-review', label: 'Resume Assistant', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
+  { id: 'portfolio-site', label: 'Portfolio Site', icon: Globe, cardTitle: 'AI Portfolio Site Generator' },
   { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare2, cardTitle: 'AI LinkedIn Visuals Generator' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
@@ -195,6 +197,12 @@ export default function MentorAiPage() {
   const [ttsInputText, setTtsInputText] = useState<string>('');
   const [generatedAudioUri, setGeneratedAudioUri] = useState<string | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState<boolean>(false);
+
+  // Portfolio Site Generator States
+  const [portfolioTheme, setPortfolioTheme] = useState<GeneratePortfolioInput['theme']>('professional-dark');
+  const [generatedPortfolio, setGeneratedPortfolio] = useState<GeneratePortfolioOutput | null>(null);
+  const [isGeneratingPortfolio, setIsGeneratingPortfolio] = useState<boolean>(false);
+  const [isPortfolioPreviewOpen, setIsPortfolioPreviewOpen] = useState(false);
 
   const handleFileChange = (files: File[]) => {
     setSelectedFiles(files);
@@ -799,6 +807,60 @@ export default function MentorAiPage() {
     }
   };
 
+  const handleGeneratePortfolio = async () => {
+    if (!resumeFeedback?.modifiedResumeText) {
+      toast({ title: "Resume Required", description: "Please generate or improve a resume first using the 'Resume Assistant' tool.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingPortfolio(true);
+    setGeneratedPortfolio(null);
+    try {
+      const result = await generatePortfolioSite({
+        resumeText: resumeFeedback.modifiedResumeText,
+        theme: portfolioTheme,
+      });
+      setGeneratedPortfolio(result);
+      toast({ title: "Portfolio Site Generated!", description: "Your new portfolio is ready to preview and download." });
+    } catch (err: any) {
+      toast({ title: "Portfolio Generation Error", description: (err as Error).message || "Failed to generate portfolio.", variant: "destructive" });
+    } finally {
+      setIsGeneratingPortfolio(false);
+    }
+  };
+
+  const handleDownloadPortfolio = () => {
+    if (!generatedPortfolio) return;
+    const { htmlContent, cssContent } = generatedPortfolio;
+  
+    // Create a Blob for the HTML content
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+    const htmlUrl = URL.createObjectURL(htmlBlob);
+  
+    // Create a Blob for the CSS content
+    const cssBlob = new Blob([cssContent], { type: 'text/css' });
+    const cssUrl = URL.createObjectURL(cssBlob);
+  
+    // Download HTML
+    const htmlLink = document.createElement('a');
+    htmlLink.href = htmlUrl;
+    htmlLink.download = 'index.html';
+    document.body.appendChild(htmlLink);
+    htmlLink.click();
+    document.body.removeChild(htmlLink);
+    URL.revokeObjectURL(htmlUrl);
+  
+    // Download CSS
+    const cssLink = document.createElement('a');
+    cssLink.href = cssUrl;
+    cssLink.download = 'style.css';
+    document.body.appendChild(cssLink);
+    cssLink.click();
+    document.body.removeChild(cssLink);
+    URL.revokeObjectURL(cssUrl);
+
+    toast({ title: "Portfolio Downloaded", description: "index.html and style.css have been saved. Place them in the same folder to view."});
+  };
+
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
   const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Helvetica'];
   
@@ -1366,6 +1428,63 @@ export default function MentorAiPage() {
                   </Card>
                 )}
 
+                {activeTool === 'portfolio-site' && (
+                  <Card className="shadow-xl bg-card">
+                    <CardHeader>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Globe className="mr-2 h-7 w-7"/>AI Portfolio Site Generator</CardTitle>
+                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here to generate your site.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!resumeFeedback?.modifiedResumeText ? (
+                          <div className="p-4 text-center border border-dashed rounded-md bg-muted/50">
+                            <Info className="mx-auto h-8 w-8 text-primary mb-2" />
+                            <p className="font-semibold">Resume Data Required</p>
+                            <p className="text-sm text-muted-foreground">Please use the "Resume Assistant" tool first to generate or improve your resume. The portfolio generator uses that data.</p>
+                          </div>
+                        ) : (
+                          <>
+                           <div>
+                              <Label htmlFor="portfolio-theme">Select a Theme</Label>
+                              <Select value={portfolioTheme} onValueChange={(v) => setPortfolioTheme(v as any)} disabled={isGeneratingPortfolio}>
+                                  <SelectTrigger id="portfolio-theme"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="professional-dark">Professional Dark</SelectItem>
+                                      <SelectItem value="professional-light">Professional Light</SelectItem>
+                                      <SelectItem value="creative-vibrant">Creative & Vibrant</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <Button onClick={handleGeneratePortfolio} disabled={isGeneratingPortfolio} className="w-full sm:w-auto">
+                              {isGeneratingPortfolio && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Portfolio Site
+                          </Button>
+                          </>
+                        )}
+
+                        {generatedPortfolio && (
+                           <div className="mt-6 p-4 bg-muted rounded-md space-y-4">
+                            <h4 className="font-semibold text-foreground">Portfolio Generated!</h4>
+                            <p className="text-sm text-muted-foreground">Your single-page portfolio is ready. You can preview it or download the HTML and CSS files to host anywhere.</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button onClick={() => setIsPortfolioPreviewOpen(true)} variant="secondary">
+                                <Eye className="mr-2 h-4 w-4"/> Preview Site
+                              </Button>
+                              <Button onClick={handleDownloadPortfolio} variant="default">
+                                <DownloadCloud className="mr-2 h-4 w-4"/> Download Files (HTML+CSS)
+                              </Button>
+                            </div>
+                           </div>
+                        )}
+                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText &&(
+                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
+                             <Globe className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                             <p className="mt-2 text-sm">Your generated portfolio preview will be available here.</p>
+                           </div>
+                        )}
+                    </CardContent>
+                  </Card>
+                )}
+
+
                {activeTool === 'linkedin-visuals' && (
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
@@ -1827,6 +1946,26 @@ export default function MentorAiPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {generatedPortfolio && (
+            <Dialog open={isPortfolioPreviewOpen} onOpenChange={setIsPortfolioPreviewOpen}>
+              <DialogContent className="max-w-7xl h-[90vh] p-0">
+                  <DialogHeader className="p-4 border-b">
+                      <DialogTitle>Portfolio Preview</DialogTitle>
+                  </DialogHeader>
+                  <iframe 
+                      srcDoc={`<html><head><style>${generatedPortfolio.cssContent}</style></head><body>${generatedPortfolio.htmlContent}</body></html>`}
+                      title="Portfolio Preview"
+                      className="w-full h-full border-0"
+                  />
+                  <DialogFooter className="p-4 border-t">
+                      <Button onClick={handleDownloadPortfolio}>
+                        <DownloadCloud className="mr-2 h-4 w-4" /> Download Files
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsPortfolioPreviewOpen(false)}>Close</Button>
+                  </DialogFooter>
+              </DialogContent>
+            </Dialog>
+        )}
       </div>
       <ResumePrint data={parsedResumeData} />
     </>
