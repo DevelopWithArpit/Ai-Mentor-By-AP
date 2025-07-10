@@ -446,6 +446,17 @@ export default function MentorAiPage() {
         return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
     };
 
+    const handlePrintResume = () => {
+        if (!parsedResumeData) return;
+        try {
+            sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
+            window.open('/print-resume', '_blank');
+        } catch (error) {
+            console.error("Error setting resume data in session storage:", error);
+            toast({ title: "Download Error", description: "Could not prepare resume data for download.", variant: "destructive"});
+        }
+    };
+
 
   const handleGetResumeFeedback = async () => {
     const hasFile = !!resumeFile;
@@ -1036,49 +1047,54 @@ export default function MentorAiPage() {
                           />
                           
                           <Separator />
-                          <Label className="text-md font-semibold text-primary">Overlay Text Controls</Label>
                           <div>
-                            <Label htmlFor="image-editor-text">Text Content</Label>
-                            <Input id="image-editor-text" value={imageEditorCurrentText} onChange={(e) => setImageEditorCurrentText(e.target.value)} placeholder="Enter text"/>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                  <Label htmlFor="image-editor-font-size">Font Size</Label>
-                                  <Input id="image-editor-font-size" type="number" value={imageEditorTextFontSize} onChange={(e) => setImageEditorTextFontSize(Number(e.target.value))} placeholder="Size"/>
-                              </div>
-                              <div>
-                                  <Label htmlFor="image-editor-text-color">Color</Label>
-                                  <Input id="image-editor-text-color" type="color" value={imageEditorTextColor} onChange={(e) => setImageEditorTextColor(e.target.value)} className="h-10"/>
-                              </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="image-editor-font-family">Font Family</Label>
-                            <Select value={imageEditorTextFontFamily} onValueChange={setImageEditorTextFontFamily}>
-                              <SelectTrigger id="image-editor-font-family"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {availableFonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                            <Label className="text-md font-semibold text-primary">Overlay Text Controls</Label>
+                            <div className="space-y-3 mt-2">
+                                <div>
+                                    <Label htmlFor="image-editor-text">Text Content</Label>
+                                    <Input id="image-editor-text" value={imageEditorCurrentText} onChange={(e) => setImageEditorCurrentText(e.target.value)} placeholder="Enter text"/>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="image-editor-font-size">Font Size</Label>
+                                        <Input id="image-editor-font-size" type="number" value={imageEditorTextFontSize} onChange={(e) => setImageEditorTextFontSize(Number(e.target.value))} placeholder="Size"/>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="image-editor-text-color">Color</Label>
+                                        <Input id="image-editor-text-color" type="color" value={imageEditorTextColor} onChange={(e) => setImageEditorTextColor(e.target.value)} className="h-10"/>
+                                    </div>
+                                </div>
+                                <div>
+                                    <Label htmlFor="image-editor-font-family">Font Family</Label>
+                                    <Select value={imageEditorTextFontFamily} onValueChange={setImageEditorTextFontFamily}>
+                                    <SelectTrigger id="image-editor-font-family"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {availableFonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                    </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="flex flex-col space-y-2">
+                                    <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || !imageEditorCurrentText.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                        <Type className="mr-2 h-4 w-4"/> {selectedTextElementId ? "Add New Text Instead" : "Prepare to Add Text"}
+                                    </Button>
+                                    {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
+
+                                    {selectedTextElementId && (
+                                        <>
+                                        <Button onClick={handleUpdateSelectedText} variant="secondary" disabled={isManipulatingImageAI || isRemovingWatermark || !imageEditorCurrentText.trim()} className="w-full">
+                                            <CheckCircle className="mr-2 h-4 w-4"/> Update Selected Text
+                                        </Button>
+                                        <Button onClick={handleDeleteSelectedText} variant="destructive" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                            <Trash2 className="mr-2 h-4 w-4"/> Delete Selected Text
+                                        </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                           </div>
 
-                          <div className="flex flex-col space-y-2">
-                              <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || !imageEditorCurrentText.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                <Type className="mr-2 h-4 w-4"/> {selectedTextElementId ? "Add New Text Instead" : "Prepare to Add Text"}
-                              </Button>
-                              {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
-
-                              {selectedTextElementId && (
-                                  <>
-                                  <Button onClick={handleUpdateSelectedText} variant="secondary" disabled={isManipulatingImageAI || isRemovingWatermark || !imageEditorCurrentText.trim()} className="w-full">
-                                      <CheckCircle className="mr-2 h-4 w-4"/> Update Selected Text
-                                  </Button>
-                                  <Button onClick={handleDeleteSelectedText} variant="destructive" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                      <Trash2 className="mr-2 h-4 w-4"/> Delete Selected Text
-                                  </Button>
-                                  </>
-                              )}
-                          </div>
                           <Separator />
                           
                           <div className="space-y-3">
@@ -1135,7 +1151,6 @@ export default function MentorAiPage() {
                     </CardContent>
                   </Card>
                 )}
-
 
                 {activeTool === 'interview-prep' && (
                   <Card className="shadow-xl bg-card">
