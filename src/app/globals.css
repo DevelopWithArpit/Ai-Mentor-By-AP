@@ -113,27 +113,24 @@ body {
   }
 }
 
-/* Robust Print Styles */
 @media print {
-  body > *:not(#resume-print-mount) {
-    display: none !important;
+  body.printing * {
+    visibility: hidden;
   }
-
-  #resume-print-mount {
-    display: block !important;
+  body.printing #resume-print-mount, body.printing #resume-print-mount * {
+    visibility: visible;
+  }
+  body.printing #resume-print-mount {
     position: absolute;
-    top: 0;
     left: 0;
+    top: 0;
     width: 100%;
-    height: auto;
-    margin: 0;
-    padding: 0;
-    border: none;
-    box-shadow: none;
   }
   
   @page {
     size: A4;
-    margin: 1cm;
+    margin: 0;
   }
 }
+
+    

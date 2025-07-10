@@ -1,8 +1,9 @@
 
 "use client";
 
-import React, { type FC, useEffect } from 'react';
+import React, { type FC, useEffect, useState } from 'react';
 import { Phone, Mail, Linkedin as LinkedinIcon, MapPin } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Define a type for the parsed resume data to ensure type safety
 export interface ResumeData {
@@ -15,36 +16,19 @@ export interface ResumeData {
   skills?: string[];
 }
 
-interface ResumePrintProps {
-  data: ResumeData | null; // Allow data to be null
-}
-
-const ResumePrint: FC<ResumePrintProps> = ({ data }) => {
-  useEffect(() => {
-    // This effect ensures the component re-renders when data changes,
-    // making the latest data available for the print operation.
-  }, [data]);
-
-  if (!data) {
-    // Render an empty, hidden container if no data is available yet.
-    return <div id="resume-print-mount" className="hidden" />;
-  }
-
-  const { personalInfo = {}, summary = '', keyAchievements = {}, experience = [], education = [], projects = [], skills = [] } = data;
-  const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
-
-  const contactInfo = [
-    { icon: Phone, text: personalInfo.phone },
-    { icon: Mail, text: personalInfo.email },
-    { icon: LinkedinIcon, text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-    { icon: MapPin, text: personalInfo.location }
-  ].filter(item => item.text);
-
-  return (
-    // This is the hidden component that gets targeted by the print styles.
-    // It's a simplified version of ResumePreview, designed for printing.
-    <div id="resume-print-mount" className="hidden"> 
-      <div className="bg-white text-black p-6 font-sans text-sm">
+const ResumePrintContent: FC<{ data: ResumeData }> = ({ data }) => {
+    const { personalInfo = {}, summary = '', keyAchievements = {}, experience = [], education = [], projects = [], skills = [] } = data;
+    const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
+  
+    const contactInfo = [
+      { icon: Phone, text: personalInfo.phone },
+      { icon: Mail, text: personalInfo.email },
+      { icon: LinkedinIcon, text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
+      { icon: MapPin, text: personalInfo.location }
+    ].filter(item => item.text);
+  
+    return (
+      <div className="bg-white text-black p-6 font-sans text-sm" style={{ width: '210mm', minHeight: '297mm', margin: 'auto' }}>
         <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
           <div className="mb-0">
             <h1 className="text-3xl font-bold text-gray-800 tracking-tight">{personalInfo.name || ''}</h1>
@@ -143,9 +127,59 @@ const ResumePrint: FC<ResumePrintProps> = ({ data }) => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
 };
 
-ResumePrint.displayName = "ResumePrint";
-export default ResumePrint;
+
+const PrintPage = () => {
+    const [data, setData] = useState<ResumeData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        try {
+            const savedData = sessionStorage.getItem('resumeDataForPrint');
+            if (savedData) {
+                setData(JSON.parse(savedData));
+            }
+        } catch (error) {
+            console.error("Could not parse resume data from sessionStorage", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isLoading && data) {
+            // Give the browser a moment to render everything, including fonts
+            const timer = setTimeout(() => {
+                window.print();
+            }, 500); // A 500ms delay should be sufficient for rendering
+            return () => clearTimeout(timer);
+        }
+    }, [isLoading, data]);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <p>Loading preview...</p>
+            </div>
+        );
+    }
+    
+    if (!data) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <div className="text-center">
+                    <h1 className="text-xl font-bold">No Resume Data Found</h1>
+                    <p>Please go back and generate a resume first.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return <ResumePrintContent data={data} />;
+};
+
+export default PrintPage;
+
+    

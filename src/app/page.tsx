@@ -8,7 +8,7 @@ import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview from '@/components/resume/ResumePreview';
-import ResumePrint, { type ResumeData } from '@/components/resume/ResumePrint';
+import { type ResumeData } from '@/components/resume/ResumePrint';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -477,48 +477,20 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
-    const printContent = document.getElementById('resume-print-mount')?.innerHTML;
-    if (!printContent) {
-        toast({ title: "Print Error", description: "Could not find resume content to print.", variant: "destructive" });
+    if (!parsedResumeData) {
+        toast({ title: "Error", description: "No resume data available to print.", variant: "destructive" });
         return;
     }
-    
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        toast({ title: "Popup Blocked", description: "Please allow popups for this site to print your resume.", variant: "destructive" });
-        return;
+    try {
+        sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
+        const printWindow = window.open('/print-resume', '_blank');
+        if (!printWindow) {
+            toast({ title: "Popup Blocked", description: "Please allow popups for this site to print your resume.", variant: "destructive" });
+        }
+    } catch (error) {
+        console.error("Failed to open print window:", error);
+        toast({ title: "Print Error", description: "Could not open the print window.", variant: "destructive" });
     }
-
-    const allStyleSheets = Array.from(document.styleSheets)
-        .map(styleSheet => {
-            try {
-                return Array.from(styleSheet.cssRules)
-                    .map(rule => rule.cssText)
-                    .join('');
-            } catch (e) {
-                return '';
-            }
-        })
-        .join('\n');
-
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Print Resume</title>
-                <style>${allStyleSheets}</style>
-            </head>
-            <body>
-                ${printContent}
-            </body>
-        </html>
-    `);
-
-    setTimeout(() => {
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-    }, 500);
   };
 
   const handleResetResumeImprover = () => {
@@ -2005,7 +1977,9 @@ export default function MentorAiPage() {
             </Dialog>
         )}
       </div>
-      <ResumePrint data={parsedResumeData} />
+      {/* The ResumePrint component is no longer needed here as it's part of a separate page */}
     </>
   );
 }
+
+    
