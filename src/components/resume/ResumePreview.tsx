@@ -18,23 +18,6 @@ interface ResumePreviewProps {
   data: ResumeData | null;
 }
 
-const Icon: FC<{ path: string, className?: string }> = ({ path, className }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
-        <path d={path} />
-    </svg>
-);
-
 const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   if (!data) {
     return (
@@ -87,7 +70,20 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
             {contactInfo.map((item, index) => (
               <div key={index} className="flex items-center">
-                <Icon path={item.iconPath} className="mr-1.5 h-3 w-3 text-blue-600" />
+                 <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mr-1.5"
+                >
+                    <path d={item.iconPath} />
+                </svg>
                 <span>{item.text}</span>
               </div>
             ))}
@@ -189,5 +185,3 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
 
 ResumePreview.displayName = "ResumePreview";
 export default ResumePreview;
-
-    
