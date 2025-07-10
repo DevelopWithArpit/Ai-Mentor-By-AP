@@ -448,7 +448,9 @@ export default function MentorAiPage() {
             return;
         }
         try {
+            // Save data to sessionStorage to be accessed by the new print window
             sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
+            // Open the dedicated print page in a new window/tab
             window.open('/print-resume', '_blank');
         } catch (error) {
             console.error("Error preparing resume for download:", error);
@@ -986,6 +988,7 @@ export default function MentorAiPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* CONTROLS COLUMN */}
                         <div className="md:col-span-1 space-y-4">
                           <FileUpload 
                               selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
@@ -998,13 +1001,15 @@ export default function MentorAiPage() {
                           />
                           
                           <Separator />
-                           <div className="space-y-2">
+                          {/* Manual Text Editing Panel */}
+                          <div className="space-y-2">
                              <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
                                   <Type className="mr-2 h-4 w-4"/> Add New Text
                               </Button>
                               {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
                           </div>
                           
+                          {/* This card only appears when text is selected */}
                           {selectedTextElement && (
                             <Card className="p-4 bg-background/50">
                                 <CardHeader className="p-0 pb-2 mb-2 border-b">
@@ -1040,38 +1045,37 @@ export default function MentorAiPage() {
                                 </CardContent>
                             </Card>
                           )}
-
-                          <Separator />
-                          
-                          <div className="space-y-3">
-                              <Label className="text-md font-semibold text-primary flex items-center"><Sparkles className="mr-2 h-5 w-5"/>AI In-Image Text Manipulation</Label>
-                               {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable.</p>}
-                              <Input 
-                                  id="ai-image-instruction" 
-                                  value={aiImageInstruction} 
-                                  onChange={(e) => setAiImageInstruction(e.target.value)} 
-                                  placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
-                                  disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
-                              />
-                              <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                  {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
-                              </Button>
-                              {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
-                          </div>
                           
                           <Separator />
-
-                           <div className="space-y-3">
-                               <Label className="text-md font-semibold text-primary flex items-center"><Eraser className="mr-2 h-5 w-5"/>AI Watermark Remover</Label>
-                               {!imageEditorSrc && <p className="text-xs text-muted-foreground">Upload an image to enable.</p>}
-                               <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                  {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
-                               </Button>
-                               {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                          {/* AI Editing Panels */}
+                          <div className="space-y-4">
+                            <div className="space-y-3">
+                                <Label className="text-md font-semibold text-primary flex items-center"><Sparkles className="mr-2 h-5 w-5"/>AI In-Image Text Manipulation</Label>
+                                <Input 
+                                    id="ai-image-instruction" 
+                                    value={aiImageInstruction} 
+                                    onChange={(e) => setAiImageInstruction(e.target.value)} 
+                                    placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
+                                    disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
+                                />
+                                <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                    {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
+                                </Button>
+                                {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <Label className="text-md font-semibold text-primary flex items-center"><Eraser className="mr-2 h-5 w-5"/>AI Watermark Remover</Label>
+                                <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                   {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
+                                </Button>
+                                {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                           </div>
                           </div>
 
                         </div>
 
+                        {/* CANVAS COLUMN */}
                         <div className="md:col-span-2">
                           <ImageEditorCanvas
                             ref={imageEditorCanvasRef}
