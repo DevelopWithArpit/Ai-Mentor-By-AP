@@ -91,4 +91,3 @@ const generateCoverLetterFlow = ai.defineFlow(
     return output!;
   }
 );
-

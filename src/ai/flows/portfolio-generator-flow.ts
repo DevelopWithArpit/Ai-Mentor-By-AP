@@ -50,7 +50,6 @@ Your task is to generate the complete HTML and CSS for a portfolio site based on
     *   The contact information (email, phone, LinkedIn) should be prominently displayed, likely in the header or footer.
     *   The site should be a single page with smooth-scrolling navigation links if possible.
 3.  **Generate CSS**: Create the corresponding CSS styling in a single string ('cssContent').
-    *   The CSS should be clean, well-organized, and implement the visual style of the selected '{{{theme}}}'.
     *   **Theme 'professional-dark'**: Use a dark background (e.g., #1a202c), light text (e.g., #e2e8f0), and a professional accent color (e.g., a shade of blue or teal). Fonts should be clean and sans-serif (e.g., 'Inter', 'Lato', or system-ui).
     *   **Theme 'professional-light'**: Use a light background (e.g., #f7fafc), dark text (e.g., #2d3748), and a professional accent color. Fonts should be clean and sans-serif.
     *   **Theme 'creative-vibrant'**: Use more expressive colors, possibly gradients, and a more creative font pairing (e.g., a serif for headings and sans-serif for body). Feel free to add subtle animations or hover effects.

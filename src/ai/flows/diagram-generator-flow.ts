@@ -52,4 +52,3 @@ const generateDiagramFlow = ai.defineFlow(
 export async function wrappedGenerateDiagram(input: GenerateDiagramInput): Promise<GenerateDiagramOutput> {
   return generateDiagramFlow(input);
 }
-

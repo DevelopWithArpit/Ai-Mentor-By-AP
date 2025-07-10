@@ -126,4 +126,3 @@ const suggestCareerPathsFlow = ai.defineFlow(
     return output!;
   }
 );
-

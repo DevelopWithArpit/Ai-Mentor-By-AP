@@ -1232,9 +1232,6 @@ export default function MentorAiPage() {
                                   <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
                                       <Eye className="mr-2 h-4 w-4" /> Preview Resume
                                   </Button>
-                                  <Button variant="outline" onClick={handlePrintResume} disabled={isGeneratingResumeFeedback}>
-                                      <Download className="mr-2 h-4 w-4" /> Download PDF
-                                  </Button>
                                 </>
                               )}
                               <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">

@@ -52,4 +52,3 @@ const generateImageFlow = ai.defineFlow(
 export async function wrappedGenerateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
   return generateImageFlow(input);
 }
-

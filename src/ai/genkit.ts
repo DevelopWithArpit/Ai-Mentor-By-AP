@@ -10,4 +10,3 @@ export const ai = genkit({
   ],
   model: 'googleai/gemini-2.0-flash', // Default model if not specified in a flow
 });
-

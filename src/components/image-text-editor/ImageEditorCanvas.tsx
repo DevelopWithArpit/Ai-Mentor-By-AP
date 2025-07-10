@@ -163,4 +163,3 @@ const ImageEditorCanvas = React.forwardRef<HTMLCanvasElement, ImageEditorCanvasP
 
 ImageEditorCanvas.displayName = "ImageEditorCanvas";
 export default ImageEditorCanvas;
-
