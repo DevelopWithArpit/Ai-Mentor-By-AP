@@ -1,16 +1,32 @@
 
 "use client";
 
-import React, { type FC } from 'react';
-import type { ResumeData } from './ResumePreview'; // Re-use the same data type
+import React, { type FC, useEffect } from 'react';
+
+// Define a type for the parsed resume data to ensure type safety
+export interface ResumeData {
+  personalInfo?: { [key: string]: string };
+  summary?: string;
+  keyAchievements?: { title?: string, details?: string[] };
+  experience?: any[];
+  education?: any[];
+  projects?: any[];
+  skills?: string[];
+}
 
 interface ResumePrintProps {
-  data: ResumeData | null;
+  data: ResumeData | null; // Allow data to be null
 }
 
 const ResumePrint: FC<ResumePrintProps> = ({ data }) => {
+  // Use effect to ensure this component re-renders when data changes,
+  // making it available for the print operation.
+  useEffect(() => {
+    // This effect's purpose is simply to track the `data` prop and re-render.
+  }, [data]);
+
   if (!data) {
-    return null; // Don't render anything if there's no data
+    return <div id="resume-print-mount" style={{ display: 'none' }} />; // Render hidden container even if no data
   }
 
   // This is a simplified version of ResumePreview, designed to be hidden

@@ -4,17 +4,7 @@
 import React, { type FC } from 'react';
 import { Phone, Mail, Linkedin as LinkedinIcon, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Define a type for the parsed resume data to ensure type safety
-export interface ResumeData {
-  personalInfo?: { [key: string]: string };
-  summary?: string;
-  keyAchievements?: { title?: string, details?: string[] };
-  experience?: any[];
-  education?: any[];
-  projects?: any[];
-  skills?: string[];
-}
+import type { ResumeData } from './ResumePrint'; // Import ResumeData type from ResumePrint
 
 interface ResumePreviewProps {
   data: ResumeData | null; // Allow data to be null

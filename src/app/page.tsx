@@ -8,7 +8,7 @@ import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview from '@/components/resume/ResumePreview';
-import ResumePrint from '@/components/resume/ResumePrint'; // This will be used for printing
+import ResumePrint, { type ResumeData } from '@/components/resume/ResumePrint';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -144,7 +144,7 @@ export default function MentorAiPage() {
   const [resumeAdditionalInfo, setResumeAdditionalInfo] = useState<string>('');
   const [resumeFeedback, setResumeFeedback] = useState<ResumeFeedbackOutput | null>(null);
   const [isGeneratingResumeFeedback, setIsGeneratingResumeFeedback] = useState<boolean>(false);
-  const [parsedResumeData, setParsedResumeData] = useState<any | null>(null);
+  const [parsedResumeData, setParsedResumeData] = useState<ResumeData | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
   const [coverLetterJobDesc, setCoverLetterJobDesc] = useState<string>('');
@@ -327,7 +327,7 @@ export default function MentorAiPage() {
     finally { setIsGeneratingInterviewQuestions(false); }
   };
 
-    const parseResumeData = (text: string) => {
+    const parseResumeData = (text: string): ResumeData => {
         const sections: { [key: string]: string[] } = {
             PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
             EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: [], ERROR: []
@@ -469,10 +469,6 @@ export default function MentorAiPage() {
   };
 
   const handlePrintResume = () => {
-    if (!parsedResumeData) {
-      toast({ title: "Error", description: "Resume data is not available to print.", variant: "destructive" });
-      return;
-    }
     window.print();
   };
 
@@ -1170,9 +1166,14 @@ export default function MentorAiPage() {
                                   {resumeButtonText}
                               </Button>
                                {parsedResumeData && (
+                                <>
                                   <Button variant="secondary" onClick={() => setIsPreviewOpen(true)} disabled={isGeneratingResumeFeedback}>
                                       <Eye className="mr-2 h-4 w-4" /> Preview Resume
                                   </Button>
+                                  <Button variant="outline" onClick={handlePrintResume} disabled={isGeneratingResumeFeedback}>
+                                      <Download className="mr-2 h-4 w-4" /> Download PDF
+                                  </Button>
+                                </>
                               )}
                               <Button variant="outline" onClick={handleResetResumeImprover} disabled={isGeneratingResumeFeedback} className="w-auto">
                                   <RefreshCcw className="mr-2 h-4 w-4" /> Clear Form & Results
