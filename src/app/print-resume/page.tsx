@@ -17,24 +17,43 @@ export default function PrintResumePage() {
             if (dataString) {
                 const data = JSON.parse(dataString);
                 setResumeData(data);
+                
+                // Inject styles from parent window to ensure consistency
+                const styleSheets = Array.from(window.opener.document.styleSheets);
+                styleSheets.forEach(sheet => {
+                    try {
+                        const rules = Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
+                        const styleEl = document.createElement('style');
+                        styleEl.textContent = rules;
+                        document.head.appendChild(styleEl);
+                    } catch (e) {
+                        // For external stylesheets (like Google Fonts), copy the link tag
+                        if (sheet.href) {
+                            const linkEl = document.createElement('link');
+                            linkEl.rel = 'stylesheet';
+                            linkEl.href = sheet.href;
+                            document.head.appendChild(linkEl);
+                        }
+                    }
+                });
+
             } else {
                 setError("Could not find resume data to print. Please return to the previous page and generate a resume first.");
             }
         } catch (e) {
-            console.error("Failed to parse resume data from session storage:", e);
-            setError("Failed to load resume data. It might be corrupted.");
+            console.error("Failed to parse or process resume data from session storage:", e);
+            setError("Failed to load resume data. It might be corrupted or inaccessible.");
         } finally {
             setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        // This effect triggers the print dialog once the data is loaded and rendered.
         if (resumeData && !isLoading && !error) {
-            // A small timeout ensures the content is fully painted in the DOM before printing.
+            // A timeout ensures all content, especially fonts, is painted before printing.
             const timer = setTimeout(() => {
                 window.print();
-            }, 500); // 500ms delay as a safeguard
+            }, 1000); // Increased delay for more reliability with fonts
 
             return () => clearTimeout(timer);
         }
@@ -74,8 +93,7 @@ export default function PrintResumePage() {
     }
 
     return (
-        <div className="bg-gray-200 p-4">
-            {/* The ResumePreview component is used directly to ensure a perfect match */}
+        <div className="bg-white">
             <ResumePreview data={resumeData} />
         </div>
     );

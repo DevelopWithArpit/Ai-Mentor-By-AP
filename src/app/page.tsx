@@ -172,10 +172,6 @@ export default function MentorAiPage() {
   // Image Text Editor States
   const [imageEditorSrc, setImageEditorSrc] = useState<string | File | null>(null); // Can be File or base64 string
   const [imageEditorTextElements, setImageEditorTextElements] = useState<TextElement[]>([]);
-  const [imageEditorCurrentText, setImageEditorCurrentText] = useState<string>('Hello Text');
-  const [imageEditorTextColor, setImageEditorTextColor] = useState<string>('#007bff'); 
-  const [imageEditorTextFontSize, setImageEditorTextFontSize] = useState<number>(40);
-  const [imageEditorTextFontFamily, setImageEditorTextFontFamily] = useState<string>('Arial');
   const [isAddingTextMode, setIsAddingTextMode] = useState<boolean>(false);
   const [selectedTextElementId, setSelectedTextElementId] = useState<string | null>(null);
   const imageEditorCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -577,28 +573,24 @@ export default function MentorAiPage() {
   };
 
   const handleImageEditorCanvasClick = (logicalX: number, logicalY: number) => {
-    if (isAddingTextMode && imageEditorCurrentText.trim()) {
+    if (isAddingTextMode) {
       setImageEditorTextElements(prev => [
         ...prev,
         {
           id: new Date().toISOString(),
-          text: imageEditorCurrentText,
+          text: "New Text",
           x: logicalX,
           y: logicalY,
-          color: imageEditorTextColor,
-          fontSize: imageEditorTextFontSize,
-          fontFamily: imageEditorTextFontFamily,
+          color: '#007bff',
+          fontSize: 40,
+          fontFamily: 'Arial',
         },
       ]);
       setIsAddingTextMode(false);
-      setSelectedTextElementId(null); // Deselect after adding new text
+      setSelectedTextElementId(null);
       toast({ title: "Text Added", description: "Text placed on image." });
-    } else if (!isAddingTextMode) {
-        handleSelectTextElement(logicalX, logicalY);
     } else {
-        if (isAddingTextMode && !imageEditorCurrentText.trim()) {
-            toast({ title: "Add Text", description: "Please enter some text before placing it.", variant: "default" });
-        }
+        handleSelectTextElement(logicalX, logicalY);
     }
   };
   
@@ -609,24 +601,17 @@ export default function MentorAiPage() {
     if (!ctx) return;
 
     let foundElement: TextElement | null = null;
-    // Iterate in reverse to select topmost element if overlapping
     for (let i = imageEditorTextElements.length - 1; i >= 0; i--) {
         const el = imageEditorTextElements[i];
-        
-        // Apply canvas scaling for accurate measurement relative to logical coordinates
-        ctx.font = `${el.fontSize}px ${el.fontFamily}`; 
-        
+        ctx.font = `${el.fontSize}px ${el.fontFamily}`;
         const textMetrics = ctx.measureText(el.text);
-        const elWidth = textMetrics.width; 
-        const elHeight = el.fontSize; 
-        
-        // Adjust hit box to be more generous, especially around the baseline
-        // y is typically the baseline, so text extends upwards mostly
+        const elWidth = textMetrics.width;
+        const elHeight = el.fontSize;
         if (
             clickX >= el.x &&
             clickX <= el.x + elWidth &&
-            clickY >= el.y - elHeight * 0.8 && // Check from slightly above the text
-            clickY <= el.y + elHeight * 0.2  // Check slightly below the baseline
+            clickY >= el.y - elHeight * 0.8 &&
+            clickY <= el.y + elHeight * 0.2
         ) {
             foundElement = el;
             break;
@@ -635,10 +620,6 @@ export default function MentorAiPage() {
 
     if (foundElement) {
         setSelectedTextElementId(foundElement.id);
-        setImageEditorCurrentText(foundElement.text);
-        setImageEditorTextColor(foundElement.color);
-        setImageEditorTextFontSize(foundElement.fontSize);
-        setImageEditorTextFontFamily(foundElement.fontFamily);
         setIsAddingTextMode(false); 
         toast({ title: "Text Selected", description: "You can now edit or delete the selected text."});
     } else {
@@ -646,23 +627,15 @@ export default function MentorAiPage() {
     }
   };
 
-  const handleUpdateSelectedText = () => {
-    if (!selectedTextElementId || !imageEditorCurrentText.trim()) {
-        if (!imageEditorCurrentText.trim()) {
-            toast({ title: "Cannot Update", description: "Text content cannot be empty.", variant: "destructive" });
-        } else {
-          toast({ title: "No Text Selected", description: "Click on a text element on the image to select it first.", variant: "default" });
-        }
-        return;
-    }
+  const handleUpdateSelectedText = (prop: keyof TextElement, value: string | number) => {
+    if (!selectedTextElementId) return;
     setImageEditorTextElements(prev => 
         prev.map(el => 
             el.id === selectedTextElementId 
-            ? { ...el, text: imageEditorCurrentText, color: imageEditorTextColor, fontSize: imageEditorTextFontSize, fontFamily: imageEditorTextFontFamily } 
+            ? { ...el, [prop]: value }
             : el
         )
     );
-    toast({ title: "Text Updated", description: "Selected text properties have been updated."});
   };
 
   const handleDeleteSelectedText = () => {
@@ -672,10 +645,6 @@ export default function MentorAiPage() {
     }
     setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
     setSelectedTextElementId(null);
-    setImageEditorCurrentText('Hello Text'); // Reset to default
-    setImageEditorTextColor('#007bff');
-    setImageEditorTextFontSize(40);
-    setImageEditorTextFontFamily('Arial');
     setIsAddingTextMode(false);
     toast({ title: "Text Deleted", description: "Selected text has been removed."});
   };
@@ -685,11 +654,7 @@ export default function MentorAiPage() {
         toast({title: "No Image", description: "Please upload an image first to add text.", variant: "destructive"});
         return;
     }
-    if (!imageEditorCurrentText.trim()) {
-        toast({title: "No Text", description: "Please enter some text in the input field first.", variant: "destructive"});
-        return;
-    }
-    setSelectedTextElementId(null); // Ensure we are in "add" mode, not "edit" mode
+    setSelectedTextElementId(null);
     setIsAddingTextMode(true);
     toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
   }
@@ -712,10 +677,6 @@ export default function MentorAiPage() {
     setImageEditorSrc(null);
     setImageEditorTextElements([]);
     setSelectedTextElementId(null);
-    setImageEditorCurrentText('Hello Text');
-    setImageEditorTextColor('#007bff');
-    setImageEditorTextFontSize(40);
-    setImageEditorTextFontFamily('Arial');
     setIsAddingTextMode(false);
     setAiImageInstruction('');
     setAiImageManipulationMessage('');
@@ -881,7 +842,8 @@ export default function MentorAiPage() {
 
     toast({ title: "Portfolio Downloaded", description: "index.html and style.css have been saved. Place them in the same folder to view."});
   };
-
+  
+  const selectedTextElement = imageEditorTextElements.find(el => el.id === selectedTextElementId);
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
   const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Helvetica'];
   
@@ -1031,7 +993,7 @@ export default function MentorAiPage() {
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
                       <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
-                      <CardDescription>Upload an image, add/edit text overlays, or use AI (experimental) to modify in-image text or remove watermarks. Download your creation.</CardDescription>
+                      <CardDescription>Upload an image, add/edit text overlays, or use AI to modify in-image text or remove watermarks. Download your creation.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1047,53 +1009,46 @@ export default function MentorAiPage() {
                           />
                           
                           <Separator />
-                          <div>
-                            <Label className="text-md font-semibold text-primary">Overlay Text Controls</Label>
-                            <div className="space-y-3 mt-2">
-                                <div>
-                                    <Label htmlFor="image-editor-text">Text Content</Label>
-                                    <Input id="image-editor-text" value={imageEditorCurrentText} onChange={(e) => setImageEditorCurrentText(e.target.value)} placeholder="Enter text"/>
-                                </div>
-                                
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="image-editor-font-size">Font Size</Label>
-                                        <Input id="image-editor-font-size" type="number" value={imageEditorTextFontSize} onChange={(e) => setImageEditorTextFontSize(Number(e.target.value))} placeholder="Size"/>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="image-editor-text-color">Color</Label>
-                                        <Input id="image-editor-text-color" type="color" value={imageEditorTextColor} onChange={(e) => setImageEditorTextColor(e.target.value)} className="h-10"/>
-                                    </div>
-                                </div>
-                                <div>
-                                    <Label htmlFor="image-editor-font-family">Font Family</Label>
-                                    <Select value={imageEditorTextFontFamily} onValueChange={setImageEditorTextFontFamily}>
-                                    <SelectTrigger id="image-editor-font-family"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {availableFonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
-                                    </SelectContent>
-                                    </Select>
-                                </div>
+                           <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                <Type className="mr-2 h-4 w-4"/> Add New Text
+                            </Button>
+                            {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
 
-                                <div className="flex flex-col space-y-2">
-                                    <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || !imageEditorCurrentText.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                        <Type className="mr-2 h-4 w-4"/> {selectedTextElementId ? "Add New Text Instead" : "Prepare to Add Text"}
+                          {selectedTextElement && (
+                            <Card className="p-4 bg-background/50">
+                                <CardHeader className="p-0 pb-2 mb-2 border-b">
+                                    <CardTitle className="text-base text-primary">Edit Selected Text</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0 space-y-3">
+                                    <div>
+                                        <Label htmlFor="image-editor-text">Text Content</Label>
+                                        <Input id="image-editor-text" value={selectedTextElement.text} onChange={(e) => handleUpdateSelectedText('text', e.target.value)} placeholder="Enter text"/>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="image-editor-font-size">Font Size</Label>
+                                            <Input id="image-editor-font-size" type="number" value={selectedTextElement.fontSize} onChange={(e) => handleUpdateSelectedText('fontSize', Number(e.target.value))} placeholder="Size"/>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="image-editor-text-color">Color</Label>
+                                            <Input id="image-editor-text-color" type="color" value={selectedTextElement.color} onChange={(e) => handleUpdateSelectedText('color', e.target.value)} className="h-10"/>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="image-editor-font-family">Font Family</Label>
+                                        <Select value={selectedTextElement.fontFamily} onValueChange={(v) => handleUpdateSelectedText('fontFamily', v)}>
+                                            <SelectTrigger id="image-editor-font-family"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {availableFonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button onClick={handleDeleteSelectedText} variant="destructive" size="sm" className="w-full">
+                                        <Trash2 className="mr-2 h-4 w-4"/> Delete Selected Text
                                     </Button>
-                                    {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
-
-                                    {selectedTextElementId && (
-                                        <>
-                                        <Button onClick={handleUpdateSelectedText} variant="secondary" disabled={isManipulatingImageAI || isRemovingWatermark || !imageEditorCurrentText.trim()} className="w-full">
-                                            <CheckCircle className="mr-2 h-4 w-4"/> Update Selected Text
-                                        </Button>
-                                        <Button onClick={handleDeleteSelectedText} variant="destructive" disabled={isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                            <Trash2 className="mr-2 h-4 w-4"/> Delete Selected Text
-                                        </Button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                          </div>
+                                </CardContent>
+                            </Card>
+                          )}
 
                           <Separator />
                           
