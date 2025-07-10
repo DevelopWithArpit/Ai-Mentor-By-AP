@@ -25,7 +25,6 @@ export async function textToSpeech(input: TextToSpeechInput): Promise<TextToSpee
   return textToSpeechFlow(input);
 }
 
-// Helper function to convert raw PCM audio data to WAV format
 async function toWav(
   pcmData: Buffer,
   channels = 1,
@@ -78,8 +77,6 @@ const textToSpeechFlow = ai.defineFlow(
       throw new Error('No audio media was returned from the AI model.');
     }
     
-    // The model returns audio in raw PCM format. We need to convert it to WAV to be playable in browsers.
-    // The data URI is 'data:audio/pcm;base64,<data>'
     const audioBuffer = Buffer.from(
       media.url.substring(media.url.indexOf(',') + 1),
       'base64'

@@ -12,55 +12,35 @@ export default function PrintResumePage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // This effect runs once on component mount.
         try {
-            // Attempt to retrieve the resume data from session storage.
             const dataString = sessionStorage.getItem('resumeDataForPrint');
             if (dataString) {
                 const data = JSON.parse(dataString);
                 setResumeData(data);
                 
-                // Copy all stylesheets from the parent window to the print window.
-                // This is crucial for matching the preview style.
-                const parentStyles = Array.from(window.opener.document.styleSheets);
-                parentStyles.forEach(sheet => {
-                    try {
-                        // For inline <style> tags, copy their rules.
-                        const rules = Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
-                        if (rules) {
-                            const styleEl = document.createElement('style');
-                            styleEl.textContent = rules;
-                            document.head.appendChild(styleEl);
-                        }
-                    } catch (e) {
-                        // For external stylesheets (like Google Fonts), copy the <link> tag itself.
-                        if (sheet.href) {
-                            const linkEl = document.createElement('link');
-                            linkEl.rel = 'stylesheet';
-                            linkEl.href = sheet.href;
-                            document.head.appendChild(linkEl);
-                        }
-                    }
-                });
+                // This is the crucial part for styling. It copies all style-related links
+                // from the main application window into this print window's head.
+                if (window.opener) {
+                  const parentStyles = Array.from(window.opener.document.head.querySelectorAll('link[rel="stylesheet"], style'));
+                  parentStyles.forEach(styleNode => {
+                      document.head.appendChild(styleNode.cloneNode(true));
+                  });
+                }
             } else {
-                // If no data is found, set an error.
                 setError("Could not find resume data to print. Please return to the previous page and generate a resume first.");
             }
         } catch (e) {
             console.error("Failed to parse or process resume data from session storage:", e);
             setError("Failed to load resume data. It might be corrupted or inaccessible.");
         } finally {
-            // Data loading attempt is complete.
             setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        // This effect triggers the print dialog *after* the component has rendered
-        // with the resume data and is no longer in a loading state.
         if (resumeData && !isLoading && !error) {
             // Using a timeout gives the browser a moment to render fonts and styles
-            // before opening the print dialog, preventing blank pages.
+            // from the newly added stylesheets before opening the print dialog.
             const timer = setTimeout(() => {
                 window.print();
             }, 1000); // 1-second delay is generally safe.
@@ -94,7 +74,6 @@ export default function PrintResumePage() {
     }
 
     if (!resumeData) {
-        // This case should ideally not be reached if the error state is set correctly.
         return (
              <div className="flex justify-center items-center min-h-screen bg-gray-100 p-4">
                 <div className="text-center text-gray-600">

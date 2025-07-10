@@ -7,8 +7,7 @@ import { FileUpload } from '@/components/scholar-ai/FileUpload';
 import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
 import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
-import ResumePreview from '@/components/resume/ResumePreview';
-import { type ResumeData } from '@/components/resume/ResumePreview';
+import ResumePreview, { type ResumeData } from '@/components/resume/ResumePreview';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -448,9 +447,7 @@ export default function MentorAiPage() {
             return;
         }
         try {
-            // Save data to sessionStorage to be accessed by the new print window
             sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
-            // Open the dedicated print page in a new window/tab
             window.open('/print-resume', '_blank');
         } catch (error) {
             console.error("Error preparing resume for download:", error);
@@ -805,15 +802,12 @@ export default function MentorAiPage() {
     if (!generatedPortfolio) return;
     const { htmlContent, cssContent } = generatedPortfolio;
   
-    // Create a Blob for the HTML content
     const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
     const htmlUrl = URL.createObjectURL(htmlBlob);
   
-    // Create a Blob for the CSS content
     const cssBlob = new Blob([cssContent], { type: 'text/css' });
     const cssUrl = URL.createObjectURL(cssBlob);
   
-    // Download HTML
     const htmlLink = document.createElement('a');
     htmlLink.href = htmlUrl;
     htmlLink.download = 'index.html';
@@ -822,7 +816,6 @@ export default function MentorAiPage() {
     document.body.removeChild(htmlLink);
     URL.revokeObjectURL(htmlUrl);
   
-    // Download CSS
     const cssLink = document.createElement('a');
     cssLink.href = cssUrl;
     cssLink.download = 'style.css';
@@ -838,7 +831,6 @@ export default function MentorAiPage() {
   const activeToolData = tools.find(tool => tool.id === activeTool) || tools[0];
   const availableFonts = ['Arial', 'Verdana', 'Times New Roman', 'Courier New', 'Georgia', 'Comic Sans MS', 'Impact', 'Helvetica'];
   
-  // Resume Assistant Button Logic
   const hasExistingResumeInput = !!(resumeFile || resumeText.trim());
   const canCreateNewResume = !!(resumeAdditionalInfo.trim() && !hasExistingResumeInput);
   let resumeButtonText = "Provide Input";
@@ -988,7 +980,6 @@ export default function MentorAiPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* CONTROLS COLUMN */}
                         <div className="md:col-span-1 space-y-4">
                           <FileUpload 
                               selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
@@ -1001,7 +992,7 @@ export default function MentorAiPage() {
                           />
                           
                           <Separator />
-                          {/* Manual Text Editing Panel */}
+                          
                           <div className="space-y-2">
                              <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
                                   <Type className="mr-2 h-4 w-4"/> Add New Text
@@ -1009,7 +1000,6 @@ export default function MentorAiPage() {
                               {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
                           </div>
                           
-                          {/* This card only appears when text is selected */}
                           {selectedTextElement && (
                             <Card className="p-4 bg-background/50">
                                 <CardHeader className="p-0 pb-2 mb-2 border-b">
@@ -1047,35 +1037,38 @@ export default function MentorAiPage() {
                           )}
                           
                           <Separator />
-                          {/* AI Editing Panels */}
-                          <div className="space-y-4">
-                            <div className="space-y-3">
-                                <Label className="text-md font-semibold text-primary flex items-center"><Sparkles className="mr-2 h-5 w-5"/>AI In-Image Text Manipulation</Label>
-                                <Input 
-                                    id="ai-image-instruction" 
-                                    value={aiImageInstruction} 
-                                    onChange={(e) => setAiImageInstruction(e.target.value)} 
-                                    placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
-                                    disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
-                                />
-                                <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                    {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
-                                </Button>
-                                {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
-                            </div>
-                            
-                            <div className="space-y-3">
-                                <Label className="text-md font-semibold text-primary flex items-center"><Eraser className="mr-2 h-5 w-5"/>AI Watermark Remover</Label>
-                                <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                   {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
-                                </Button>
-                                {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
-                           </div>
-                          </div>
-
+                          
+                          <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="ai-tools">
+                              <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
+                              <AccordionContent className="space-y-4 pt-2">
+                                <div className="space-y-3">
+                                    <Label className="flex items-center">In-Image Text Manipulation</Label>
+                                    <Input 
+                                        id="ai-image-instruction" 
+                                        value={aiImageInstruction} 
+                                        onChange={(e) => setAiImageInstruction(e.target.value)} 
+                                        placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
+                                        disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
+                                    />
+                                    <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                        {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
+                                    </Button>
+                                    {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
+                                </div>
+                                
+                                <div className="space-y-3">
+                                    <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
+                                    <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                      {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
+                                    </Button>
+                                    {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                               </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         </div>
 
-                        {/* CANVAS COLUMN */}
                         <div className="md:col-span-2">
                           <ImageEditorCanvas
                             ref={imageEditorCanvasRef}

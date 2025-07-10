@@ -5,7 +5,6 @@ import React, { type FC } from 'react';
 import { Phone, Mail, Linkedin as LinkedinIcon, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Define a type for the parsed resume data to ensure type safety
 export interface ResumeData {
   personalInfo?: { [key: string]: string };
   summary?: string;
@@ -18,7 +17,7 @@ export interface ResumeData {
 
 
 interface ResumePreviewProps {
-  data: ResumeData | null; // Allow data to be null
+  data: ResumeData | null;
 }
 
 const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
