@@ -496,7 +496,6 @@ export default function MentorAiPage() {
                     .map(rule => rule.cssText)
                     .join('');
             } catch (e) {
-                // Ignore stylesheets that can't be accessed due to CORS
                 return '';
             }
         })
@@ -506,14 +505,7 @@ export default function MentorAiPage() {
         <html>
             <head>
                 <title>Print Resume</title>
-                <link rel="preconnect" href="https://fonts.googleapis.com">
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-                <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-                <style>
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    @page { size: A4; margin: 1cm; }
-                    ${allStyleSheets}
-                </style>
+                <style>${allStyleSheets}</style>
             </head>
             <body>
                 ${printContent}
@@ -526,7 +518,7 @@ export default function MentorAiPage() {
         printWindow.focus();
         printWindow.print();
         printWindow.close();
-    }, 500); // Timeout allows styles to load
+    }, 500);
   };
 
   const handleResetResumeImprover = () => {
