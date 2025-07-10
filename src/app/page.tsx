@@ -33,6 +33,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { useTheme, type Theme } from "@/components/theme-provider";
+import jsPDF from 'jspdf';
 
 
 import { smartSearch, type SmartSearchInput, type SmartSearchOutput } from '@/ai/flows/smart-search';
@@ -441,18 +442,30 @@ export default function MentorAiPage() {
         return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
     };
 
-    const handleDownloadResume = () => {
-        if (!parsedResumeData) {
-            toast({ title: "Error", description: "No resume data available to download.", variant: "destructive" });
+    const handleDownloadPdf = () => {
+        const resumeContent = document.getElementById('resume-preview-content');
+        if (!resumeContent) {
+            toast({ title: "Error", description: "Could not find resume content to print.", variant: "destructive" });
             return;
         }
-        try {
-            sessionStorage.setItem('resumeDataForPrint', JSON.stringify(parsedResumeData));
-            window.open('/print-resume', '_blank');
-        } catch (error) {
-            console.error("Error preparing resume for download:", error);
-            toast({ title: "Download Error", description: "Could not prepare resume data for download.", variant: "destructive"});
-        }
+
+        const doc = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: 'a4',
+            hotfixes: ['px_scaling'],
+        });
+
+        doc.html(resumeContent, {
+            callback: function (doc) {
+                doc.save('resume.pdf');
+                toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
+            },
+            x: 0,
+            y: 0,
+            width: 445, // approx A4 width in px at 72dpi
+            windowWidth: resumeContent.offsetWidth
+        });
     };
 
 
@@ -999,8 +1012,8 @@ export default function MentorAiPage() {
                               </Button>
                               {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
                           </div>
-                          
-                          {selectedTextElement && (
+
+                          {selectedTextElement ? (
                             <Card className="p-4 bg-background/50">
                                 <CardHeader className="p-0 pb-2 mb-2 border-b">
                                     <CardTitle className="text-base text-primary">Edit Selected Text</CardTitle>
@@ -1034,39 +1047,38 @@ export default function MentorAiPage() {
                                     </Button>
                                 </CardContent>
                             </Card>
+                          ) : (
+                             <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem value="ai-tools">
+                                  <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
+                                  <AccordionContent className="space-y-4 pt-2">
+                                    <div className="space-y-3">
+                                        <Label className="flex items-center">In-Image Text Manipulation</Label>
+                                        <Input 
+                                            id="ai-image-instruction" 
+                                            value={aiImageInstruction} 
+                                            onChange={(e) => setAiImageInstruction(e.target.value)} 
+                                            placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
+                                            disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
+                                        />
+                                        <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                            {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
+                                        </Button>
+                                        {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                        <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
+                                        <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                          {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
+                                        </Button>
+                                        {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                                   </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
                           )}
                           
-                          <Separator />
-                          
-                          <Accordion type="single" collapsible className="w-full">
-                            <AccordionItem value="ai-tools">
-                              <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
-                              <AccordionContent className="space-y-4 pt-2">
-                                <div className="space-y-3">
-                                    <Label className="flex items-center">In-Image Text Manipulation</Label>
-                                    <Input 
-                                        id="ai-image-instruction" 
-                                        value={aiImageInstruction} 
-                                        onChange={(e) => setAiImageInstruction(e.target.value)} 
-                                        placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
-                                        disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
-                                    />
-                                    <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                        {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
-                                    </Button>
-                                    {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
-                                </div>
-                                
-                                <div className="space-y-3">
-                                    <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
-                                    <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                      {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
-                                    </Button>
-                                    {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
-                               </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
                         </div>
 
                         <div className="md:col-span-2">
@@ -1903,10 +1915,12 @@ export default function MentorAiPage() {
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
             <div className="p-4 bg-gray-300">
-              <ResumePreview data={parsedResumeData} />
+                <div id="resume-print-mount" className="bg-white">
+                  <ResumePreview data={parsedResumeData} />
+                </div>
             </div>
             <DialogFooter className="p-4 border-t">
-               <Button onClick={handleDownloadResume}>
+               <Button onClick={handleDownloadPdf}>
                  <Download className="mr-2 h-4 w-4" /> Download PDF
                </Button>
                <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>Close</Button>
