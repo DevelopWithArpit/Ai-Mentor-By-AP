@@ -581,7 +581,7 @@ export default function MentorAiPage() {
           text: "New Text",
           x: logicalX,
           y: logicalY,
-          color: '#007bff',
+          color: theme === 'dark' ? '#FFFFFF' : '#000000',
           fontSize: 40,
           fontFamily: 'Arial',
         },
@@ -1009,11 +1009,13 @@ export default function MentorAiPage() {
                           />
                           
                           <Separator />
-                           <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                <Type className="mr-2 h-4 w-4"/> Add New Text
-                            </Button>
-                            {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
-
+                          <div className="space-y-2">
+                             <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                  <Type className="mr-2 h-4 w-4"/> Add New Text
+                              </Button>
+                              {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
+                          </div>
+                          
                           {selectedTextElement && (
                             <Card className="p-4 bg-background/50">
                                 <CardHeader className="p-0 pb-2 mb-2 border-b">
@@ -1947,3 +1949,5 @@ export default function MentorAiPage() {
     </>
   );
 }
+
+    

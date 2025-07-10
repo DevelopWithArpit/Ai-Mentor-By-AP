@@ -19,13 +19,16 @@ export default function PrintResumePage() {
                 setResumeData(data);
                 
                 // Inject styles from parent window to ensure consistency
-                const styleSheets = Array.from(window.opener.document.styleSheets);
-                styleSheets.forEach(sheet => {
+                const allStyleSheets: CSSStyleSheet[] = Array.from(window.opener.document.styleSheets);
+
+                allStyleSheets.forEach(sheet => {
                     try {
                         const rules = Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n');
-                        const styleEl = document.createElement('style');
-                        styleEl.textContent = rules;
-                        document.head.appendChild(styleEl);
+                        if(rules) {
+                            const styleEl = document.createElement('style');
+                            styleEl.textContent = rules;
+                            document.head.appendChild(styleEl);
+                        }
                     } catch (e) {
                         // For external stylesheets (like Google Fonts), copy the link tag
                         if (sheet.href) {
@@ -98,3 +101,5 @@ export default function PrintResumePage() {
         </div>
     );
 }
+
+    
