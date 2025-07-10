@@ -2,6 +2,7 @@
 "use client";
 
 import React, { type FC, useEffect } from 'react';
+import { Phone, Mail, Linkedin as LinkedinIcon, MapPin } from 'lucide-react';
 
 // Define a type for the parsed resume data to ensure type safety
 export interface ResumeData {
@@ -19,30 +20,30 @@ interface ResumePrintProps {
 }
 
 const ResumePrint: FC<ResumePrintProps> = ({ data }) => {
-  // Use effect to ensure this component re-renders when data changes,
-  // making it available for the print operation.
   useEffect(() => {
-    // This effect's purpose is simply to track the `data` prop and re-render.
+    // This effect ensures the component re-renders when data changes,
+    // making the latest data available for the print operation.
   }, [data]);
 
   if (!data) {
-    return <div id="resume-print-mount" style={{ display: 'none' }} />; // Render hidden container even if no data
+    // Render an empty, hidden container if no data is available yet.
+    return <div id="resume-print-mount" className="hidden" />;
   }
 
-  // This is a simplified version of ResumePreview, designed to be hidden
-  // but available for the print CSS to target.
   const { personalInfo = {}, summary = '', keyAchievements = {}, experience = [], education = [], projects = [], skills = [] } = data;
   const initials = (personalInfo.name || "N A").split(" ").map((n:string)=>n[0]).join("").substring(0,2).toUpperCase();
 
   const contactInfo = [
-    { text: personalInfo.phone },
-    { text: personalInfo.email },
-    { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-    { text: personalInfo.location }
+    { icon: Phone, text: personalInfo.phone },
+    { icon: Mail, text: personalInfo.email },
+    { icon: LinkedinIcon, text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
+    { icon: MapPin, text: personalInfo.location }
   ].filter(item => item.text);
 
   return (
-    <div id="resume-print-mount"> 
+    // This is the hidden component that gets targeted by the print styles.
+    // It's a simplified version of ResumePreview, designed for printing.
+    <div id="resume-print-mount" className="hidden"> 
       <div className="bg-white text-black p-6 font-sans text-sm">
         <header className="flex flex-row justify-between items-start mb-4 border-b-2 border-gray-200 pb-3">
           <div className="mb-0">
@@ -50,7 +51,10 @@ const ResumePrint: FC<ResumePrintProps> = ({ data }) => {
             <h2 className="text-lg text-blue-600 font-semibold">{personalInfo.title || ''}</h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
               {contactInfo.map((item, index) => (
-                <span key={index} className="flex items-center">{item.text}</span>
+                <div key={index} className="flex items-center">
+                  <item.icon className="mr-1.5 h-3 w-3 text-blue-600"/>
+                  <span>{item.text}</span>
+                </div>
               ))}
             </div>
           </div>
