@@ -6,7 +6,6 @@ import { Header } from '@/components/scholar-ai/Header';
 import { FileUpload } from '@/components/scholar-ai/FileUpload';
 import { QuestionInput } from '@/components/scholar-ai/QuestionInput';
 import { ResultsDisplay } from '@/components/scholar-ai/ResultsDisplay';
-import ImageEditorCanvas, { type TextElement } from '@/components/image-text-editor/ImageEditorCanvas';
 import ResumePreview, { type ResumeData } from '@/components/resume/ResumePreview';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -17,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Phone, Mail, MapPin, UserSquare2, ImagePlay, Calendar, AtSign, Eye, AudioLines, Globe } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, UserSquare2 } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -172,15 +171,17 @@ export default function MentorAiPage() {
 
   // Image Text Editor States
   const [imageEditorSrc, setImageEditorSrc] = useState<string | File | null>(null); // Can be File or base64 string
-  const [imageEditorTextElements, setImageEditorTextElements] = useState<TextElement[]>([]);
-  const [isAddingTextMode, setIsAddingTextMode] = useState<boolean>(false);
+  const [textControlPanel, setTextControlPanel] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
+  const [imageEditorTextElements, setImageEditorTextElements] = useState<any[]>([]);
   const [selectedTextElementId, setSelectedTextElementId] = useState<string | null>(null);
   const imageEditorCanvasRef = useRef<HTMLCanvasElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
   const [aiImageInstruction, setAiImageInstruction] = useState<string>('');
   const [isManipulatingImageAI, setIsManipulatingImageAI] = useState<boolean>(false);
   const [aiImageManipulationMessage, setAiImageManipulationMessage] = useState<string>('');
   const [isRemovingWatermark, setIsRemovingWatermark] = useState<boolean>(false);
   const [watermarkRemovalMessage, setWatermarkRemovalMessage] = useState<string>('');
+
 
   // LinkedIn Visuals Generator States
   const [linkedInFullName, setLinkedInFullName] = useState<string>('');
@@ -450,28 +451,34 @@ export default function MentorAiPage() {
             return;
         }
 
-        const canvas = await html2canvas(resumeContent, {
-            scale: 2, // Increase scale for better quality
-            useCORS: true,
-            logging: true,
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        
-        // A4 page dimensions in mm: 210 x 297
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-        });
-        
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save('resume.pdf');
-        toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
+        toast({ title: "Preparing PDF...", description: "Please wait, this may take a moment." });
+
+        try {
+            const canvas = await html2canvas(resumeContent, {
+                scale: 2, 
+                useCORS: true,
+                logging: true,
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+            });
+            
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save('resume.pdf');
+            toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
+        } catch (e) {
+            console.error(e);
+            toast({ title: "PDF Generation Failed", description: "An error occurred while creating the PDF.", variant: "destructive" });
+        }
     };
 
 
@@ -570,101 +577,86 @@ export default function MentorAiPage() {
   };
 
   // Image Text Editor Handlers
-  const handleImageEditorFileChange = (file: File | null) => {
-    setImageEditorSrc(file); 
-    setImageEditorTextElements([]); 
-    setSelectedTextElementId(null);
-    setAiImageManipulationMessage('');
-    setWatermarkRemovalMessage('');
-    setAiImageInstruction('');
-  };
+    const handleImageEditorFileChange = (file: File | null) => {
+        setImageEditorSrc(file); 
+        setImageEditorTextElements([]); 
+        setSelectedTextElementId(null);
+        setTextControlPanel({ visible: false, x: 0, y: 0 });
+        setAiImageManipulationMessage('');
+        setWatermarkRemovalMessage('');
+        setAiImageInstruction('');
+    };
 
-  const handleImageEditorCanvasClick = (logicalX: number, logicalY: number) => {
-    if (isAddingTextMode) {
-      setImageEditorTextElements(prev => [
-        ...prev,
-        {
-          id: new Date().toISOString(),
-          text: "New Text",
-          x: logicalX,
-          y: logicalY,
-          color: theme === 'dark' ? '#FFFFFF' : '#000000',
-          fontSize: 40,
-          fontFamily: 'Arial',
-        },
-      ]);
-      setIsAddingTextMode(false);
-      setSelectedTextElementId(null);
-      toast({ title: "Text Added", description: "Text placed on image." });
-    } else {
-        handleSelectTextElement(logicalX, logicalY);
-    }
-  };
-  
-  const handleSelectTextElement = (clickX: number, clickY: number) => {
-    const canvas = imageEditorCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const handleCanvasClick = (e: ReactMouseEvent<HTMLCanvasElement>) => {
+        const canvas = imageEditorCanvasRef.current;
+        if (!canvas) return;
 
-    let foundElement: TextElement | null = null;
-    for (let i = imageEditorTextElements.length - 1; i >= 0; i--) {
-        const el = imageEditorTextElements[i];
-        ctx.font = `${el.fontSize}px ${el.fontFamily}`;
-        const textMetrics = ctx.measureText(el.text);
-        const elWidth = textMetrics.width;
-        const elHeight = el.fontSize;
-        if (
-            clickX >= el.x &&
-            clickX <= el.x + elWidth &&
-            clickY >= el.y - elHeight * 0.8 &&
-            clickY <= el.y + elHeight * 0.2
-        ) {
-            foundElement = el;
-            break;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        
+        let clickedOnText = false;
+        for (const el of imageEditorTextElements) {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) continue;
+            ctx.font = `${el.fontSize}px ${el.fontFamily}`;
+            const textMetrics = ctx.measureText(el.text);
+            const elWidth = textMetrics.width;
+            const elHeight = el.fontSize; 
+            if (x >= el.x && x <= el.x + elWidth && y >= el.y - elHeight && y <= el.y) {
+                setSelectedTextElementId(el.id);
+                setTextControlPanel({ visible: true, x: e.clientX, y: e.clientY });
+                clickedOnText = true;
+                break;
+            }
         }
-    }
 
-    if (foundElement) {
-        setSelectedTextElementId(foundElement.id);
-        setIsAddingTextMode(false); 
-        toast({ title: "Text Selected", description: "You can now edit or delete the selected text."});
-    } else {
-        setSelectedTextElementId(null); 
-    }
-  };
+        if (!clickedOnText) {
+            setSelectedTextElementId(null);
+            setTextControlPanel({ visible: false, x: 0, y: 0 });
+        }
+    };
 
-  const handleUpdateSelectedText = (prop: keyof TextElement, value: string | number) => {
-    if (!selectedTextElementId) return;
-    setImageEditorTextElements(prev => 
-        prev.map(el => 
-            el.id === selectedTextElementId 
-            ? { ...el, [prop]: value }
-            : el
-        )
-    );
-  };
+    const handleAddText = () => {
+        const canvas = imageEditorCanvasRef.current;
+        if (!canvas || !imageEditorSrc) {
+            toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive"});
+            return;
+        };
+        const newId = new Date().toISOString();
+        const newTextElement = {
+            id: newId,
+            text: "New Text",
+            x: canvas.width / 4,
+            y: canvas.height / 2,
+            color: theme === 'dark' ? '#FFFFFF' : '#000000',
+            fontSize: 40,
+            fontFamily: 'Arial',
+        };
+        setImageEditorTextElements(prev => [...prev, newTextElement]);
+        setSelectedTextElementId(newId);
+        setTextControlPanel({ visible: true, x: 200, y: 200}); // Default position
+        setTimeout(() => textInputRef.current?.focus(), 100);
+    };
 
-  const handleDeleteSelectedText = () => {
-    if (!selectedTextElementId) {
-        toast({ title: "No Text Selected", description: "Click on a text element on the image to select it for deletion.", variant: "default" });
-        return;
-    }
-    setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
-    setSelectedTextElementId(null);
-    setIsAddingTextMode(false);
-    toast({ title: "Text Deleted", description: "Selected text has been removed."});
-  };
-  
-  const handlePrepareToAddText = () => {
-    if (!imageEditorSrc) {
-        toast({title: "No Image", description: "Please upload an image first to add text.", variant: "destructive"});
-        return;
-    }
-    setSelectedTextElementId(null);
-    setIsAddingTextMode(true);
-    toast({title: "Add Text Mode", description: "Click on the image to place your text.", variant: "default"});
-  }
+    const handleUpdateSelectedText = (prop: string, value: string | number) => {
+        if (!selectedTextElementId) return;
+        setImageEditorTextElements(prev =>
+            prev.map(el =>
+                el.id === selectedTextElementId ? { ...el, [prop]: value } : el
+            )
+        );
+    };
+
+    const handleDeleteSelectedText = () => {
+        if (!selectedTextElementId) return;
+        setImageEditorTextElements(prev => prev.filter(el => el.id !== selectedTextElementId));
+        setSelectedTextElementId(null);
+        setTextControlPanel({ visible: false, x: 0, y: 0 });
+        toast({ title: "Text Deleted", description: "Selected text has been removed." });
+    };
 
   const handleImageEditorDownload = () => {
     const canvas = imageEditorCanvasRef.current;
@@ -684,7 +676,7 @@ export default function MentorAiPage() {
     setImageEditorSrc(null);
     setImageEditorTextElements([]);
     setSelectedTextElementId(null);
-    setIsAddingTextMode(false);
+    setTextControlPanel({ visible: false, x: 0, y: 0 });
     setAiImageInstruction('');
     setAiImageManipulationMessage('');
     setWatermarkRemovalMessage('');
@@ -991,129 +983,104 @@ export default function MentorAiPage() {
                   </Card>
                 )}
 
-                 {activeTool === 'image-text-editor' && (
-                  <Card className="shadow-xl bg-card">
-                    <CardHeader>
-                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
-                      <CardDescription>Upload an image, add/edit text overlays, or use AI to modify in-image text or remove watermarks. Download your creation.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-1 space-y-4">
-                          <FileUpload 
-                              selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
-                              onFileChange={(files) => handleImageEditorFileChange(files[0] || null)} 
-                              isLoading={isManipulatingImageAI || isRemovingWatermark} 
-                              inputId="image-editor-file-upload"
-                              label="Upload Image"
-                              acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
-                              acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
-                          />
-                          
-                          <Separator />
-                          
-                          <div className="space-y-2">
-                             <Button onClick={handlePrepareToAddText} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                  <Type className="mr-2 h-4 w-4"/> Add New Text
-                              </Button>
-                              {isAddingTextMode && <p className="text-sm text-accent text-center animate-pulse">Click on the image to place text.</p>}
-                          </div>
-
-                          {selectedTextElement ? (
-                            <Card className="p-4 bg-background/50">
-                                <CardHeader className="p-0 pb-2 mb-2 border-b">
-                                    <CardTitle className="text-base text-primary">Edit Selected Text</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-0 space-y-3">
-                                    <div>
-                                        <Label htmlFor="image-editor-text">Text Content</Label>
-                                        <Input id="image-editor-text" value={selectedTextElement.text} onChange={(e) => handleUpdateSelectedText('text', e.target.value)} placeholder="Enter text"/>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <Label htmlFor="image-editor-font-size">Font Size</Label>
-                                            <Input id="image-editor-font-size" type="number" value={selectedTextElement.fontSize} onChange={(e) => handleUpdateSelectedText('fontSize', Number(e.target.value))} placeholder="Size"/>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="image-editor-text-color">Color</Label>
-                                            <Input id="image-editor-text-color" type="color" value={selectedTextElement.color} onChange={(e) => handleUpdateSelectedText('color', e.target.value)} className="h-10"/>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="image-editor-font-family">Font Family</Label>
-                                        <Select value={selectedTextElement.fontFamily} onValueChange={(v) => handleUpdateSelectedText('fontFamily', v)}>
-                                            <SelectTrigger id="image-editor-font-family"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                {availableFonts.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <Button onClick={handleDeleteSelectedText} variant="destructive" size="sm" className="w-full">
-                                        <Trash2 className="mr-2 h-4 w-4"/> Delete Selected Text
+                {activeTool === 'image-text-editor' && (
+                    <Card className="shadow-xl bg-card">
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
+                            <CardDescription>Upload an image, add text overlays, or use AI to modify in-image text or remove watermarks. Download your creation.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="md:col-span-1 space-y-4">
+                                    <FileUpload 
+                                        selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
+                                        onFileChange={(files) => handleImageEditorFileChange(files[0] || null)} 
+                                        isLoading={isManipulatingImageAI || isRemovingWatermark} 
+                                        inputId="image-editor-file-upload"
+                                        label="Upload Image"
+                                        acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                                        acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
+                                    />
+                                    <Separator />
+                                    <Button onClick={handleAddText} disabled={!imageEditorSrc} className="w-full">
+                                        <Type className="mr-2 h-4 w-4"/> Add New Text
                                     </Button>
-                                </CardContent>
-                            </Card>
-                          ) : (
-                             <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="ai-tools">
-                                  <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
-                                  <AccordionContent className="space-y-4 pt-2">
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center">In-Image Text Manipulation</Label>
-                                        <Input 
-                                            id="ai-image-instruction" 
-                                            value={aiImageInstruction} 
-                                            onChange={(e) => setAiImageInstruction(e.target.value)} 
-                                            placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
-                                            disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
-                                        />
-                                        <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                            {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
-                                        </Button>
-                                        {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
-                                    </div>
-                                    
-                                    <div className="space-y-3">
-                                        <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
-                                        <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                          {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
-                                        </Button>
-                                        {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
-                                   </div>
-                                  </AccordionContent>
-                                </AccordionItem>
-                              </Accordion>
-                          )}
-                          
-                        </div>
 
-                        <div className="md:col-span-2">
-                          <ImageEditorCanvas
-                            ref={imageEditorCanvasRef}
-                            imageSrc={imageEditorSrc}
-                            textElements={imageEditorTextElements}
-                            onCanvasClick={handleImageEditorCanvasClick}
-                            selectedTextElementId={selectedTextElementId}
-                          />
-                           {!imageEditorSrc && (
-                              <div className="mt-2 text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/30 flex flex-col items-center justify-center aspect-[4/3]">
-                                  <ImageIconLucide className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                                  <p>Upload an image to start editing.</p>
-                              </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
-                          <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}>
-                              <DownloadCloud className="mr-2 h-4 w-4"/> Download Image
-                          </Button>
-                          <Button onClick={handleImageEditorReset} variant="outline" disabled={isManipulatingImageAI || isRemovingWatermark}>
-                              <Trash2 className="mr-2 h-4 w-4"/> Reset Editor
-                          </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                                    <Accordion type="single" collapsible className="w-full">
+                                      <AccordionItem value="ai-tools">
+                                        <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
+                                        <AccordionContent className="space-y-4 pt-2">
+                                          <div className="space-y-3">
+                                              <Label className="flex items-center">In-Image Text Manipulation</Label>
+                                              <Input 
+                                                  id="ai-image-instruction" 
+                                                  value={aiImageInstruction} 
+                                                  onChange={(e) => setAiImageInstruction(e.target.value)} 
+                                                  placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
+                                                  disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
+                                              />
+                                              <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                                  {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
+                                              </Button>
+                                              {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
+                                          </div>
+                                          <div className="space-y-3">
+                                              <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
+                                              <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                                {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
+                                              </Button>
+                                              {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                                         </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    </Accordion>
+                                </div>
+
+                                <div className="md:col-span-2 relative">
+                                    <div className="w-full h-full bg-muted/20 border border-dashed rounded-md flex items-center justify-center overflow-hidden">
+                                      <canvas
+                                          ref={imageEditorCanvasRef}
+                                          onClick={handleCanvasClick}
+                                          className="max-w-full max-h-full object-contain"
+                                      />
+                                      {!imageEditorSrc && (
+                                          <div className="absolute text-center text-muted-foreground">
+                                              <ImageIconLucide className="mx-auto h-12 w-12" />
+                                              <p>Upload an image to start editing.</p>
+                                          </div>
+                                      )}
+                                    </div>
+                                    {textControlPanel.visible && selectedTextElement && (
+                                        <div
+                                          className="absolute z-10 bg-background/80 backdrop-blur-sm border rounded-lg shadow-xl p-3 space-y-3"
+                                          style={{ top: textControlPanel.y + 10, left: textControlPanel.x + 10 }}
+                                        >
+                                          <Input ref={textInputRef} value={selectedTextElement.text} onChange={(e) => handleUpdateSelectedText('text', e.target.value)} placeholder="Text" className="w-48" />
+                                          <div className="flex items-center gap-2">
+                                            <Input type="number" value={selectedTextElement.fontSize} onChange={(e) => handleUpdateSelectedText('fontSize', Number(e.target.value))} placeholder="Size" className="w-20"/>
+                                            <Input type="color" value={selectedTextElement.color} onChange={(e) => handleUpdateSelectedText('color', e.target.value)} className="w-10 h-10 p-1"/>
+                                          </div>
+                                          <Select value={selectedTextElement.fontFamily} onValueChange={(v) => handleUpdateSelectedText('fontFamily', v)}>
+                                              <SelectTrigger><SelectValue /></SelectTrigger>
+                                              <SelectContent>{availableFonts.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                                          </Select>
+                                          <Button onClick={handleDeleteSelectedText} variant="destructive" size="sm" className="w-full"><Trash2 className="mr-2 h-4 w-4"/> Delete</Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
+                                <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}>
+                                    <DownloadCloud className="mr-2 h-4 w-4"/> Download Image
+                                </Button>
+                                <Button onClick={handleImageEditorReset} variant="outline" disabled={isManipulatingImageAI || isRemovingWatermark}>
+                                    <Trash2 className="mr-2 h-4 w-4"/> Reset Editor
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
+
 
                 {activeTool === 'interview-prep' && (
                   <Card className="shadow-xl bg-card">
@@ -1537,7 +1504,7 @@ export default function MentorAiPage() {
                           )}
                           {generatedLinkedInVisuals.suggestedCoverImageUrl && (
                           <div className="space-y-2">
-                              <h4 className="font-semibold text-foreground flex items-center"><ImagePlay className="mr-2 h-5 w-5 text-accent"/>Suggested Cover Image:</h4>
+                              <h4 className="font-semibold text-foreground flex items-center"><ImageIconLucide className="mr-2 h-5 w-5 text-accent"/>Suggested Cover Image:</h4>
                               <Image src={generatedLinkedInVisuals.suggestedCoverImageUrl} alt="AI Generated Cover Image Suggestion" width={600} height={150} className="rounded-md border shadow-md object-cover aspect-[4/1] w-full" />
                               <Accordion type="single" collapsible className="w-full text-xs">
                                   <AccordionItem value="cover-prompt">
@@ -1557,7 +1524,7 @@ export default function MentorAiPage() {
                        {!generatedLinkedInVisuals && !isGeneratingLinkedInVisuals && (
                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
                               <UserSquare2 className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
-                              <ImagePlay className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                              <ImageIconLucide className="mx-auto h-10 w-10 text-muted-foreground/40" />
                               <p className="mt-2 text-sm">Your AI-generated LinkedIn visual suggestions will appear here.</p>
                               <img data-ai-hint="abstract professional" src="https://placehold.co/300x150.png" alt="Placeholder LinkedIn Visuals" className="mx-auto mt-3 rounded-md opacity-40"/>
                           </div>
