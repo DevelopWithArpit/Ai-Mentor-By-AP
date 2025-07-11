@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const GeneratePortfolioInputSchema = z.object({
   resumeText: z.string().describe("The structured text of the user's resume, formatted with SECTION delimiters. This is the primary source of content."),
   theme: z.enum(["professional-dark", "professional-light", "creative-vibrant"]).optional().default("professional-dark").describe("The desired visual theme for the portfolio website."),
+  profilePictureDataUri: z.string().optional().describe("A data URI of the user's profile picture. If provided, it will be embedded in the hero section. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 export type GeneratePortfolioInput = z.infer<typeof GeneratePortfolioInputSchema>;
 
@@ -44,6 +45,12 @@ A modern, dark-themed portfolio with a prominent hero section featuring a circul
 
 **Selected Theme:** {{{theme}}}
 
+{{#if profilePictureDataUri}}
+**Profile Picture**: A profile picture has been provided by the user. You MUST embed this image directly into the hero section using the provided data URI.
+{{else}}
+**Profile Picture**: No profile picture was provided. Use a professional-looking, abstract placeholder SVG for the profile picture area.
+{{/if}}
+
 **Instructions:**
 1.  **Parse the Resume**: Carefully parse the provided resume text, which is structured with "SECTION: [NAME]" and "END_SECTION" delimiters, to extract all relevant information (Personal Info, Summary, Experience, Education, Skills, Projects, Key Achievements).
 2.  **Generate HTML**: Create a single, complete HTML5 document ('htmlContent').
@@ -51,7 +58,9 @@ A modern, dark-themed portfolio with a prominent hero section featuring a circul
     *   It must include a <head> section with a proper title (using the person's name from Personal Info), meta tags for viewport and character set, and a link to an external stylesheet named "style.css".
     *   Create a <nav> bar with links that smooth-scroll to sections: Home, About, Projects, Experience, Contact.
     *   **Hero Section**: Create a prominent hero section. It should display "Hello.", the user's name, and their professional title. It MUST include a circular profile picture area.
-    *   Create distinct sections for 'About Me' (from Summary), 'Projects', 'Experience', and a 'Contact' section in the footer. Use the 'animate-on-scroll' class for these sections to enable animations.
+        *   If a 'profilePictureDataUri' is provided, use it as the 'src' for an '<img>' tag inside the hero image container.
+        *   If no picture is provided, create an inline SVG placeholder.
+    *   Create distinct sections for 'About Me' (from Summary), 'Projects', 'Experience', and a 'Contact' section in the footer. Use the 'animate-on-scroll' class for these sections to enable animations. **The Projects section is mandatory.**
     *   The contact information (email, phone, LinkedIn) should be in the footer.
     *   Include a script at the end of the \`<body>\` for handling smooth scrolling and the scroll animations.
 3.  **Generate CSS**: Create the corresponding CSS styling in a single string ('cssContent').
@@ -60,7 +69,7 @@ A modern, dark-themed portfolio with a prominent hero section featuring a circul
     *   **Layout**: The layout MUST be responsive. Use flexbox or grid and media queries to ensure it looks great on desktop and mobile, matching the two-column inspiration.
     *   **Animations**: Implement a fade-in-up animation for elements with the 'animate-on-scroll' class. The animation should trigger when the element scrolls into view. Use an 'is-visible' class added by JavaScript to trigger the animation. Define keyframes for this.
     *   **Styling**: Style all elements, including cards for projects/experience, buttons, and navigation links with hover effects.
-4.  **Content Integration**: Populate the HTML sections with the parsed resume data.
+4.  **Content Integration**: Populate the HTML sections with all the parsed resume data, including the Projects section.
 5.  **Output Format**: Return the generated HTML and CSS as two separate, complete strings in the specified JSON output format. Do not include any markdown formatting like 'html' or 'css' code fences.
 
 Generate the portfolio website code now.`,
@@ -77,3 +86,5 @@ const generatePortfolioFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    

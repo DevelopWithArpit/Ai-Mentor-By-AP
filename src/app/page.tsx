@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, UserSquare2 } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, UserSquare2, ImageUp } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -184,6 +184,7 @@ export default function MentorAiPage() {
 
 
   // LinkedIn Visuals Generator States
+  const [linkedInUserPhoto, setLinkedInUserPhoto] = useState<File | null>(null);
   const [linkedInFullName, setLinkedInFullName] = useState<string>('');
   const [linkedInProfessionalTitle, setLinkedInProfessionalTitle] = useState<string>('');
   const [linkedInResumeContent, setLinkedInResumeContent] = useState<string>('');
@@ -197,6 +198,7 @@ export default function MentorAiPage() {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState<boolean>(false);
 
   // Portfolio Site Generator States
+  const [portfolioProfilePic, setPortfolioProfilePic] = useState<File | null>(null);
   const [portfolioTheme, setPortfolioTheme] = useState<GeneratePortfolioInput['theme']>('professional-dark');
   const [generatedPortfolio, setGeneratedPortfolio] = useState<GeneratePortfolioOutput | null>(null);
   const [isGeneratingPortfolio, setIsGeneratingPortfolio] = useState<boolean>(false);
@@ -748,21 +750,23 @@ export default function MentorAiPage() {
   };
 
   const handleGenerateLinkedInVisuals = async () => {
-    if (!linkedInResumeContent.trim()) {
-      toast({ title: "Input Required", description: "Please paste your resume content to generate visuals.", variant: "destructive" });
+    if (!linkedInResumeContent.trim() && !linkedInUserPhoto) {
+      toast({ title: "Input Required", description: "Please paste resume content or upload a photo.", variant: "destructive" });
       return;
     }
     setIsGeneratingLinkedInVisuals(true);
     setGeneratedLinkedInVisuals(null);
     try {
+      const userImageUri = linkedInUserPhoto ? await fileToDataUri(linkedInUserPhoto) : undefined;
       const result = await generateLinkedInVisuals({
         fullName: linkedInFullName || undefined,
         professionalTitle: linkedInProfessionalTitle || undefined,
         stylePreference: linkedInVisualStyle,
-        resumeContent: linkedInResumeContent,
+        resumeContent: linkedInResumeContent || undefined,
+        userImageUri: userImageUri,
       });
       setGeneratedLinkedInVisuals(result);
-      toast({ title: "LinkedIn Visuals Generated!", description: "AI has created suggestions for your profile picture and cover image." });
+      toast({ title: "LinkedIn Visuals Generated!", description: "AI has created suggestions for your profile." });
     } catch (err: any) {
       toast({ title: "LinkedIn Visuals Error", description: (err as Error).message || "Failed to generate LinkedIn visuals.", variant: "destructive" });
     } finally {
@@ -796,9 +800,11 @@ export default function MentorAiPage() {
     setIsGeneratingPortfolio(true);
     setGeneratedPortfolio(null);
     try {
+      const profilePicDataUri = portfolioProfilePic ? await fileToDataUri(portfolioProfilePic) : undefined;
       const result = await generatePortfolioSite({
         resumeText: resumeFeedback.modifiedResumeText,
         theme: portfolioTheme,
+        profilePictureDataUri: profilePicDataUri,
       });
       setGeneratedPortfolio(result);
       toast({ title: "Portfolio Site Generated!", description: "Your new portfolio is ready to preview and download." });
@@ -1384,10 +1390,10 @@ export default function MentorAiPage() {
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
                       <CardTitle className="font-headline text-2xl text-primary flex items-center"><Globe className="mr-2 h-7 w-7"/>AI Portfolio Site Generator</CardTitle>
-                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here to generate your site.</CardDescription>
+                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here, upload an optional profile picture, and generate your site.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {!resumeFeedback?.modifiedResumeText ? (
+                        {!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? (
                           <div className="p-4 text-center border border-dashed rounded-md bg-muted/50">
                             <Info className="mx-auto h-8 w-8 text-primary mb-2" />
                             <p className="font-semibold">Resume Data Required</p>
@@ -1395,6 +1401,15 @@ export default function MentorAiPage() {
                           </div>
                         ) : (
                           <>
+                           <FileUpload 
+                                selectedFiles={portfolioProfilePic ? [portfolioProfilePic] : []}
+                                onFileChange={(files) => setPortfolioProfilePic(files[0] || null)}
+                                isLoading={isGeneratingPortfolio}
+                                inputId="portfolio-pic-upload"
+                                label="Upload Profile Picture (Optional)"
+                                acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                                acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
+                            />
                            <div>
                               <Label htmlFor="portfolio-theme">Select a Theme</Label>
                               <Select value={portfolioTheme} onValueChange={(v) => setPortfolioTheme(v as any)} disabled={isGeneratingPortfolio}>
@@ -1426,7 +1441,7 @@ export default function MentorAiPage() {
                             </div>
                            </div>
                         )}
-                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText &&(
+                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") &&(
                            <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
                              <Globe className="mx-auto h-12 w-12 text-muted-foreground/50" />
                              <p className="mt-2 text-sm">Your generated portfolio preview will be available here.</p>
@@ -1442,29 +1457,40 @@ export default function MentorAiPage() {
                     <CardHeader>
                       <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare2 className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
                       <CardDescription>
-                        Generate AI suggestions for your LinkedIn profile picture and a portfolio-style cover image based on your resume.
+                        Generate AI suggestions for your LinkedIn profile. Upload your photo for a realistic, enhanced headshot, and/or paste your resume to create a portfolio-style cover image.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      <Input 
-                          placeholder="Your Full Name (Optional, helps AI)" 
-                          value={linkedInFullName} 
-                          onChange={(e) => setLinkedInFullName(e.target.value)} 
-                          disabled={isGeneratingLinkedInVisuals} 
-                      />
-                      <Input 
-                          placeholder="Your Professional Title (Optional, helps AI)" 
-                          value={linkedInProfessionalTitle} 
-                          onChange={(e) => setLinkedInProfessionalTitle(e.target.value)} 
-                          disabled={isGeneratingLinkedInVisuals} 
+                      <FileUpload
+                        selectedFiles={linkedInUserPhoto ? [linkedInUserPhoto] : []}
+                        onFileChange={(files) => setLinkedInUserPhoto(files[0] || null)}
+                        isLoading={isGeneratingLinkedInVisuals}
+                        inputId="linkedin-photo-upload"
+                        label="Upload Your Photo (Optional, for realistic headshot)"
+                        acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                        acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
                       />
                       <Textarea
-                          placeholder="Paste your full resume text here to generate visuals..."
+                          placeholder="Paste your full resume text here (Optional, for cover image and abstract profile pic)"
                           value={linkedInResumeContent}
                           onChange={(e) => setLinkedInResumeContent(e.target.value)}
                           disabled={isGeneratingLinkedInVisuals}
                           className="min-h-[150px]"
                       />
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input 
+                            placeholder="Your Full Name (Optional, helps AI)" 
+                            value={linkedInFullName} 
+                            onChange={(e) => setLinkedInFullName(e.target.value)} 
+                            disabled={isGeneratingLinkedInVisuals} 
+                        />
+                        <Input 
+                            placeholder="Your Professional Title (Optional, helps AI)" 
+                            value={linkedInProfessionalTitle} 
+                            onChange={(e) => setLinkedInProfessionalTitle(e.target.value)} 
+                            disabled={isGeneratingLinkedInVisuals} 
+                        />
+                       </div>
                       <div>
                           <Label htmlFor="linkedin-visual-style">Visual Style Preference</Label>
                           <Select value={linkedInVisualStyle} onValueChange={(v) => setLinkedInVisualStyle(v as any)} disabled={isGeneratingLinkedInVisuals}>
@@ -1480,9 +1506,9 @@ export default function MentorAiPage() {
                       </div>
                        <p className="text-xs text-muted-foreground p-2 bg-muted/30 rounded-md border border-dashed">
                           <Info className="inline h-4 w-4 mr-1 text-primary"/>
-                          AI will generate an abstract profile picture (not a face) and a cover image themed on your resume.
+                          If you upload a photo, AI will generate a realistic headshot. If not, it generates an abstract image based on your resume. The cover image is always based on your resume content.
                       </p>
-                      <Button onClick={handleGenerateLinkedInVisuals} disabled={isGeneratingLinkedInVisuals || !linkedInResumeContent.trim()} className="w-full sm:w-auto">
+                      <Button onClick={handleGenerateLinkedInVisuals} disabled={isGeneratingLinkedInVisuals || (!linkedInResumeContent.trim() && !linkedInUserPhoto)} className="w-full sm:w-auto">
                           {isGeneratingLinkedInVisuals && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Visuals
                       </Button>
 
@@ -1922,3 +1948,5 @@ export default function MentorAiPage() {
     </>
   );
 }
+
+    
