@@ -46,7 +46,7 @@ const ResumeFeedbackOutputSchema = z.object({
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume, or general comments if a new resume was created.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume. Explain how these improve ATS chances.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
-  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, structured in a specific text format for parsing by the frontend renderer. It should contain all sections of the resume separated by specific delimiters.'),
+  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, structured in a specific text format for parsing by the frontend renderer. It should contain all sections of the resume separated by specific delimiters, including a LAYOUT section.'),
   linkedinProfileSuggestions: LinkedInProfileSuggestionsSchema,
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
@@ -59,16 +59,24 @@ const prompt = ai.definePrompt({
   name: 'resumeFeedbackPrompt',
   input: {schema: ResumeFeedbackInputSchema},
   output: {schema: ResumeFeedbackOutputSchema},
-  prompt: `You are an expert career coach and resume writer with deep knowledge of Applicant Tracking Systems (ATS).
-Your primary goal is to produce a 100% ATS-friendly resume. You will also provide feedback and generate a structured text output that a frontend application will use to create a visually appealing two-column PDF.
+  prompt: `You are an expert career coach and resume writer with deep knowledge of Applicant Tracking Systems (ATS) and document design.
+Your primary goal is to produce a 100% ATS-friendly resume that is also visually balanced to fit on a single A4 page. You will also generate structured text output for a frontend renderer.
 
-**Core Mission: ATS Optimization**
-An ATS is a software that scans resumes. To pass it, the resume must be highly parsable and keyword-optimized. Adhere strictly to these principles for the 'modifiedResumeText':
-1.  **Use Standard Section Headers**: Only use the headers provided in the template (PERSONAL_INFO, SUMMARY, KEY_ACHIEVEMENTS, EXPERIENCE, EDUCATION, SKILLS, PROJECTS). Do not invent new ones.
-2.  **Keyword Integration**: If a 'targetJobRole' is provided, infuse the entire resume (especially Summary and Experience) with relevant keywords and skills for that role.
-3.  **Action Verbs & Quantifiable Results**: Start experience and project bullet points with strong action verbs (e.g., "Engineered," "Managed," "Increased"). Quantify achievements with numbers and metrics whenever possible (e.g., "Increased user engagement by 30%," "Reduced wait times by 85%").
-4.  **Clarity and Simplicity**: Avoid jargon where simpler terms exist, unless it's a key technical term for the target role.
-5.  **PROJECTS Section is CRITICAL**: You MUST carefully check if the user's resume text, document, or additional information contains any projects. If it does, you MUST include a 'SECTION: PROJECTS' in your final output. Do not omit it if project data exists.
+**Core Mission: ATS Optimization and Single-Page Layout**
+1.  **ATS Principles**:
+    *   Use only standard section headers: PERSONAL_INFO, SUMMARY, KEY_ACHIEVEMENTS, EXPERIENCE, EDUCATION, SKILLS, PROJECTS.
+    *   Infuse the resume with keywords relevant to the 'targetJobRole'.
+    *   Use strong action verbs and quantifiable results (e.g., "Increased user engagement by 30%").
+    *   **PROJECTS Section is CRITICAL**: If the user's input contains projects, you MUST include a 'SECTION: PROJECTS'. Do not omit it.
+
+2.  **Intelligent Layout Engine (Single-Page Goal)**:
+    *   You MUST create a 'SECTION: LAYOUT' at the very beginning of your 'modifiedResumeText' output.
+    *   This section will have two keys: 'main_content' and 'side_content'.
+    *   **Analyze the content length of each section you generate** (Summary, Experience, Projects, Education, Skills, etc.).
+    *   To ensure the resume fits on one page, **place the longest sections in 'main_content' and the shorter, more compact sections in 'side_content'**.
+    *   For example, 'EXPERIENCE' and 'PROJECTS' are usually long and should go in 'main_content'. 'SKILLS', 'EDUCATION', and 'KEY_ACHIEVEMENTS' are often shorter and are good candidates for 'side_content'. 'SUMMARY' should typically be in 'main_content'.
+    *   The value for 'main_content' and 'side_content' should be a comma-separated list of section names (e.g., \`main_content: SUMMARY,EXPERIENCE,PROJECTS\`).
+    *   This layout decision is critical and mandatory for creating a balanced, single-page resume.
 
 **Input Scenario Analysis:**
 {{#if resumeDataUri}}
@@ -76,58 +84,43 @@ Analyze the uploaded resume document: {{media url=resumeDataUri}}.
 {{else if resumeText}}
 Analyze the provided resume text: {{{resumeText}}}.
 {{else}}
-Create a new resume using the details provided. For this scenario, use the following example details to structure the new resume:
-Name: Arpit Pise
-Title: AI Engineer / Robotics Software Engineer
-Phone: 7276602831
-Email: arpitpise1@gmail.com
-LinkedIn: in/arpit-pise-20029a287
-Location: Nagpur, India
-Summary: As a B.Tech student specializing in Robotics and Artificial Intelligence, I am dedicated to crafting cutting-edge AI solutions. My expertise in Python, Java, and C++ complements my projects, notably leading the successful development of the AI Mentor platform. I am eager to apply my skills in an AI Engineer or Robotics Software Engineer role to contribute to advanced technological innovations.
-Experience: Technical Member at Priyadarshini College of Engineering (01/2023 - 01/1970, Nagpur, India) - Technical Member, College Committee. Collaborated in organizing 5+ technical events, resulting in 50% increase in participation. Implemented online registration system with PHP/MySQL, decreasing wait times by 85%. Developed and maintained college committee website using HTML/CSS/JS, leading to 30% increase in event visibility.
-Education: B.Tech in Robotics and AI from Priyadarshini College Of Engineering (08/2024 - 05/2028). HSC from ST. PAUL PUBLIC SCHOOL & JUNIOR COLLEGE (01/2021 - 05/2023). SSC from PURUSHOTTAM DAS BAGLA CONVENT (01/2019 - 05/2021).
-Key Achievements: AI Mentor by AP Platform Development - Led the development of the AI Mentor by AP platform, achieving a 30% increase in user engagement within the first month through personalized learning experiences.
-Skills: AWS, Azure, C/C++, CSS, Data Structures, Deep Learning, Django, Docker, Flask, GAMS, Git, HTML, Java, JavaScript, Keras, Linux, NLP, NumPy, Pandas, PHP, Python, PyTorch, Robotics, Scikit-Learn, TensorFlow, Gmail.
-Projects: AI Mentor by AP (05/2025 - 01/1970) - Personal Project. Spearheaded development of an AI-powered learning platform. Engineered AI-driven tools for resume, cover letter, etc. Integrated AI-powered image generation. Designed the platform with a user-centric approach.
+Create a new resume using the details provided in 'additionalInformation'.
 {{/if}}
 Target Job Role: "{{targetJobRole}}". Tailor content accordingly.
-Additional Information: "{{{additionalInformation}}}". You MUST integrate this information into the final resume. If an existing resume (from text or a file) is provided, intelligently merge these additional details into it. This might involve adding new skills, projects, or updating experience bullet points. If you are creating a new resume from scratch, this field is your primary source of content. This is a mandatory instruction.
+Additional Information: "{{{additionalInformation}}}". You MUST integrate this information.
 
 **Part 1: ATS Scoring**
-*   **originalAtsScore**: If a resume was provided by the user, you MUST analyze it and assign an ATS score from 0 to 100. Provide a brief 'explanation' for this score, focusing on keyword relevance for the target role, parsable format, use of action verbs, and quantifiable results. If the user is creating a new resume from scratch (no original resume provided), you MUST omit the 'originalAtsScore' field entirely from your output.
-*   **improvedAtsScore**: You MUST analyze the resume you just generated/rewrote ('modifiedResumeText'). The 'score' for this improved resume MUST be 100. Provide a brief 'explanation' detailing why this version achieves a perfect score, highlighting the specific ATS optimizations you implemented that make it 100% compliant (e.g., "Achieved a perfect score of 100 due to optimal keyword integration for the target role, a fully parsable format with standard headers, and the use of quantifiable achievements and strong action verbs throughout.").
+*   **originalAtsScore**: If a resume was provided, assign an ATS score from 0-100 with an 'explanation'. Otherwise, OMIT this field.
+*   **improvedAtsScore**: Assign a score of 100 to the resume you generate. Provide an 'explanation' detailing the ATS optimizations you made.
 
 **Part 2: Ancillary Content**
-*   **overallAssessment**: Brief summary of the original resume's strengths/weaknesses or a note about creating a new one. Include a comment on its initial ATS-friendliness.
-*   **feedbackItems**: Actionable feedback points on the original resume. If providing feedback, include specific suggestions under the 'Formatting for ATS' area, commenting on things like tables, columns, or non-standard fonts in the original that could hurt ATS compatibility.
-*   **atsKeywordsSummary**: Explain *why* the keywords you've added to the rewritten resume are important for the target job role and how they improve ATS chances. Be specific.
-*   **talkingPoints**: 2-4 impactful statements from the final resume.
-*   **linkedinProfileSuggestions**: Generate detailed, copy-paste ready suggestions for headline and about section, plus tips for experience and skills sections.
+*   **overallAssessment**: Brief summary of the original resume's strengths/weaknesses or a note about creating a new one.
+*   **feedbackItems**: Actionable feedback points on the original resume.
+*   **atsKeywordsSummary**: Explain the importance of the keywords you added.
+*   **talkingPoints**: 2-4 impactful "elevator pitch" statements from the resume.
+*   **linkedinProfileSuggestions**: Generate detailed, copy-paste ready suggestions for headline and about section, plus tips.
 
 **Part 3: Structured Resume Text (for 'modifiedResumeText' field)**
-Generate the resume content in the EXACT format below. This structured format is itself ATS-friendly. Adhere to the ATS principles above when writing the content for each field.
-
-**IMPORTANT FORMATTING RULES:**
-*   Each section MUST start with 'SECTION: <NAME>' and end with 'END_SECTION'.
-*   Inside a section, use 'key: value' pairs. For lists (like bullet points in experience), start each item on a new line with a hyphen '-'.
-*   For skills, provide a single comma-separated list for the 'skills' key.
-*   If a section (like 'EXPERIENCE' or 'PROJECTS') has no content in the source material, OMIT the entire section block (from 'SECTION:' to 'END_SECTION'). However, if project information exists, YOU MUST include the 'SECTION: PROJECTS'.
-*   When creating a new resume from details, meticulously parse 'additionalInformation' to fill all fields. If a detail isn't found, use a placeholder like '[Detail Not Provided]'.
-*   For multi-entry sections (Experience, Education, Projects), repeat the block of keys (title, company, etc.) for each separate entry.
+Generate the resume content in the EXACT format below. The LAYOUT section MUST come first.
 
 **Resume Structure Template:**
+
+SECTION: LAYOUT
+main_content: [Comma-separated list of main content section names, e.g., SUMMARY,EXPERIENCE,PROJECTS]
+side_content: [Comma-separated list of side content section names, e.g., EDUCATION,SKILLS,KEY_ACHIEVEMENTS]
+END_SECTION
 
 SECTION: PERSONAL_INFO
 name: [Full Name]
 title: [Professional Title]
 phone: [Phone Number]
 email: [Email Address]
-linkedin: [LinkedIn Profile URL, just the path, e.g., in/username-123]
+linkedin: [LinkedIn Profile URL path, e.g., in/username-123]
 location: [City, Country]
 END_SECTION
 
 SECTION: SUMMARY
-[Write a 2-4 sentence professional summary here. Tailor it to the target job role.]
+[Write a 2-4 sentence professional summary here.]
 END_SECTION
 
 SECTION: KEY_ACHIEVEMENTS
@@ -141,27 +134,21 @@ title: [Job Title 1]
 company: [Company Name 1]
 date: [Start Date] - [End Date]
 location: [City, Country]
-context: [Optional extra context, e.g., 'College Committee']
+context: [Optional extra context]
 details:
 - [Responsibility or achievement as a bullet point.]
 - [Another bullet point.]
 title: [Job Title 2]
-company: [Company Name 2]
-date: [Start Date] - [End Date]
-location: [City, Country]
-details:
-- [Responsibility or achievement as a bullet point.]
+...
 END_SECTION
 
 SECTION: EDUCATION
-degree: [Degree Name 1, e.g., Bachelor of Technology]
+degree: [Degree Name 1]
 institution: [Institution Name 1]
 date: [Start Date] - [End Date]
 location: [City, Country]
-degree: [Degree Name 2, e.g., HSC]
-institution: [Institution Name 2]
-date: [Start Date] - [End Date]
-location: [City, Country]
+degree: [Degree Name 2]
+...
 END_SECTION
 
 SECTION: SKILLS
@@ -171,17 +158,13 @@ END_SECTION
 SECTION: PROJECTS
 title: [Project Title 1]
 date: [Start Date] - [End Date]
-context: [Optional extra context, e.g., 'Personal Project']
-details:
-- [Project detail as a bullet point. Describe your contribution and the outcome.]
-- [Another bullet point.]
-title: [Project Title 2]
-date: [Start Date] - [End Date]
-context: [Optional extra context, e.g., 'Team Project']
+context: [Optional extra context]
 details:
 - [Project detail as a bullet point.]
+- [Another bullet point.]
+title: [Project Title 2]
+...
 END_SECTION
-
 `,
 });
 
@@ -221,3 +204,4 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
+

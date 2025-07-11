@@ -338,7 +338,7 @@ export default function MentorAiPage() {
     const parseResumeData = (text: string): ResumeData => {
         const sections: { [key: string]: string[] } = {
             PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
-            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: [], ERROR: []
+            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: [], LAYOUT: [], ERROR: []
         };
         const sectionKeys = Object.keys(sections);
         let currentSection: string | null = null;
@@ -442,8 +442,10 @@ export default function MentorAiPage() {
         const projects = parseMultiEntrySection(sections.PROJECTS, ['title']);
         const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
         const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const layout = parseKeyValueSection(sections.LAYOUT);
 
-        return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
+
+        return { personalInfo, summary, keyAchievements, experience, education, projects, skills, layout };
     };
 
     const handleDownloadPdf = async () => {
@@ -456,55 +458,46 @@ export default function MentorAiPage() {
         toast({ title: "Preparing PDF...", description: "Please wait, this may take a moment." });
 
         try {
-            // A4 page dimensions in pixels at 96 DPI: 794 x 1123
-            const a4Width = 794;
-            const a4Height = 1123;
-            const pdf = new jsPDF('p', 'px', 'a4');
-            const pdfInternals = pdf.internal;
-            const pdfPageWidth = pdfInternals.pageSize.getWidth();
-            const pdfPageHeight = pdfInternals.pageSize.getHeight();
-
-            // Set content to a fixed width for consistent rendering
-            resumeContent.style.width = `${a4Width}px`;
-            
             const canvas = await html2canvas(resumeContent, {
-                scale: 2, // Higher scale for better quality
-                useCORS: true,
-                logging: false, // Turn off logging for cleaner console
+                scale: 2,
+                useCORS: true, 
                 allowTaint: true,
                 onclone: (document) => {
-                    // Try to ensure fonts are loaded and applied in the cloned document
-                    const style = document.createElement('style');
-                    style.innerHTML = `
-                        @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap');
-                        #resume-preview-content * {
-                            font-family: 'PT Sans', sans-serif !important;
-                        }
-                        #resume-preview-content h1, #resume-preview-content h2, #resume-preview-content h3 {
-                            font-family: 'Space Grotesk', sans-serif !important;
-                        }
-                    `;
-                    document.head.appendChild(style);
+                  const style = document.createElement('style');
+                  style.innerHTML = `
+                      @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap');
+                      #resume-preview-content * {
+                          font-family: 'PT Sans', sans-serif !important;
+                      }
+                      #resume-preview-content h1, #resume-preview-content h2, #resume-preview-content h3 {
+                          font-family: 'Space Grotesk', sans-serif !important;
+                      }
+                  `;
+                  document.head.appendChild(style);
                 }
             });
 
-            resumeContent.style.width = ''; // Reset style
-
             const imgData = canvas.toDataURL('image/png');
-            const contentHeight = canvas.height * pdfPageWidth / canvas.width;
-            let heightLeft = contentHeight;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = imgHeight / imgWidth;
+            const finalImgHeight = pdfWidth * ratio;
+            let heightLeft = finalImgHeight;
             let position = 0;
 
-            pdf.addImage(imgData, 'PNG', 0, position, pdfPageWidth, contentHeight);
-            heightLeft -= pdfPageHeight;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
+            heightLeft -= pdfHeight;
 
             while (heightLeft > 0) {
-                position = heightLeft - contentHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfPageWidth, contentHeight);
-                heightLeft -= pdfPageHeight;
+              position = heightLeft - finalImgHeight;
+              pdf.addPage();
+              pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+              heightLeft -= pdfHeight;
             }
-            
+
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
         } catch (e) {
