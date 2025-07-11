@@ -53,7 +53,8 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   ].filter(item => item.text);
 
   return (
-    <div id="resume-preview-content" className="bg-white text-[#1f2937] p-8 font-sans shadow-lg w-[210mm] min-h-[297mm] mx-auto">
+    // The id="resume-preview-content" is crucial for the PDF download functionality
+    <div id="resume-preview-content" className="bg-white text-[#1f2937] p-8 font-sans shadow-lg w-[210mm] min-h-[297mm] mx-auto box-border">
       <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap');
@@ -75,7 +76,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
       </header>
 
       <div className="flex gap-x-6">
-        <div className="w-2/3 space-y-4">
+        <div className="w-[65%] space-y-4">
           {summary && (
             <section>
               <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Summary</h3>
@@ -119,7 +120,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
           )}
         </div>
 
-        <div className="w-1/3 space-y-4">
+        <div className="w-[35%] space-y-4">
            {education.length > 0 && (
              <section>
               <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-700 pb-1 mb-2 tracking-wide uppercase">Education</h3>

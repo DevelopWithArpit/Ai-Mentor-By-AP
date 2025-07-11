@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, UserSquare2, ImageUp } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, ImageUp, UserSquare2 } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -456,30 +456,60 @@ export default function MentorAiPage() {
         toast({ title: "Preparing PDF...", description: "Please wait, this may take a moment." });
 
         try {
+            // A4 page dimensions in pixels at 96 DPI: 794 x 1123
+            const a4Width = 794;
+            const a4Height = 1123;
+            const pdf = new jsPDF('p', 'px', 'a4');
+            const pdfInternals = pdf.internal;
+            const pdfPageWidth = pdfInternals.pageSize.getWidth();
+            const pdfPageHeight = pdfInternals.pageSize.getHeight();
+
+            // Set content to a fixed width for consistent rendering
+            resumeContent.style.width = `${a4Width}px`;
+            
             const canvas = await html2canvas(resumeContent, {
-                scale: 2, 
+                scale: 2, // Higher scale for better quality
                 useCORS: true,
-                logging: true,
+                logging: false, // Turn off logging for cleaner console
+                allowTaint: true,
+                onclone: (document) => {
+                    // Try to ensure fonts are loaded and applied in the cloned document
+                    const style = document.createElement('style');
+                    style.innerHTML = `
+                        @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap');
+                        #resume-preview-content * {
+                            font-family: 'PT Sans', sans-serif !important;
+                        }
+                        #resume-preview-content h1, #resume-preview-content h2, #resume-preview-content h3 {
+                            font-family: 'Space Grotesk', sans-serif !important;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
             });
-            
+
+            resumeContent.style.width = ''; // Reset style
+
             const imgData = canvas.toDataURL('image/png');
+            const contentHeight = canvas.height * pdfPageWidth / canvas.width;
+            let heightLeft = contentHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfPageWidth, contentHeight);
+            heightLeft -= pdfPageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - contentHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfPageWidth, contentHeight);
+                heightLeft -= pdfPageHeight;
+            }
             
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4',
-            });
-            
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
         } catch (e) {
             console.error(e);
-            toast({ title: "PDF Generation Failed", description: "An error occurred while creating the PDF.", variant: "destructive" });
+            toast({ title: "PDF Generation Failed", description: "An error occurred while creating the PDF. Please try again.", variant: "destructive" });
         }
     };
 
@@ -1949,4 +1979,3 @@ export default function MentorAiPage() {
   );
 }
 
-    
