@@ -28,9 +28,9 @@ const Section: FC<{ title: string; children: React.ReactNode; className?: string
 const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   if (!data) {
     return (
-      <div id="resume-preview-content" className="bg-white p-8 w-[210mm] min-h-[297mm] mx-auto shadow-lg">
+      <div id="resume-preview-content" className="bg-white p-6 w-[210mm] min-h-[297mm] mx-auto shadow-lg">
         <Skeleton className="h-20 w-full mb-4" />
-        <div className="flex gap-8">
+        <div className="flex gap-6">
             <div className="w-2/3 space-y-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-32 w-full" /></div>
             <div className="w-1/3 space-y-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-32 w-full" /></div>
         </div>
@@ -38,7 +38,8 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
     );
   }
 
-  const { personalInfo = {}, summary, keyAchievements = [], experience, education, projects, skills } = data;
+  const { personalInfo = {}, summary, keyAchievements = [], experience = [], education = [], projects = [], skills = [] } = data;
+  
   const contactInfo = [
     { icon: '📞', text: personalInfo.phone },
     { icon: '✉️', text: personalInfo.email },
@@ -46,7 +47,6 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
     { icon: '📍', text: personalInfo.location }
   ].filter(item => item.text);
   
-  // Combine all sections that could go into the sidebar
   const sidebarSections = [
     { title: "Key Achievements", items: keyAchievements, type: 'achievements' },
     { title: "Skills", items: skills, type: 'skills' },
@@ -54,21 +54,24 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   ].filter(sec => sec.items && sec.items.length > 0);
 
   return (
-    <div id="resume-preview-content" className="bg-white p-8 w-[210mm] min-h-[297mm] mx-auto shadow-lg text-[#333] font-sans text-[10px] leading-relaxed">
+    <div id="resume-preview-content" className="bg-white p-6 w-[210mm] min-h-[296mm] h-[296mm] mx-auto shadow-lg text-[#333] font-sans text-[9.5px] leading-snug">
        <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+          #resume-preview-content {
+            font-family: 'Roboto', sans-serif !important;
+          }
           #resume-preview-content * {
-              font-family: 'Roboto', sans-serif !important;
-              box-sizing: border-box;
+            box-sizing: border-box;
+            font-family: inherit !important;
           }
         `}
       </style>
-        <header className="flex items-center mb-6">
+        <header className="flex items-start mb-4">
             <div className="flex-1">
-                <h1 className="text-4xl font-bold text-black tracking-tight">{personalInfo.name || 'Your Name'}</h1>
-                <h2 className="text-lg font-semibold text-blue-600 mt-1">{personalInfo.title || 'Your Title'}</h2>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-gray-600 text-[9px]">
+                <h1 className="text-3xl font-bold text-black tracking-tight leading-none">{personalInfo.name || 'Your Name'}</h1>
+                <h2 className="text-base font-semibold text-blue-600 mt-1">{personalInfo.title || 'Your Title'}</h2>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-gray-600 text-[9px]">
                   {contactInfo.map((item, index) => (
                     <div key={index} className="flex items-center gap-1">
                       <span>{item.icon}</span>
@@ -78,33 +81,32 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
                 </div>
             </div>
             {personalInfo.profile_image_initials && (
-                <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center ml-4">
-                    <span className="text-white text-4xl font-bold">{personalInfo.profile_image_initials}</span>
+                <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center ml-4 flex-shrink-0">
+                    <span className="text-white text-3xl font-bold">{personalInfo.profile_image_initials}</span>
                 </div>
             )}
         </header>
 
-        <div className="flex gap-x-8">
-            {/* Left Column */}
-            <div className="w-2/3 space-y-4">
+        <div className="flex gap-x-6">
+            <div className="w-[65%] space-y-3">
                 {summary && (
                     <Section title="Summary">
                         <p>{summary}</p>
                     </Section>
                 )}
-                {experience && experience.length > 0 && (
+                {experience.length > 0 && (
                     <Section title="Experience">
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                         {experience.map((job, index) => (
                             <div key={`exp-${index}`}>
-                                <h4 className="text-sm font-bold text-black">{job.title}</h4>
-                                <p className="text-xs font-semibold text-blue-600">{job.company}</p>
-                                <p className="text-[9px] text-gray-500 my-0.5">
+                                <h4 className="text-[10.5px] font-bold text-black">{job.title}</h4>
+                                <p className="text-[9.5px] font-semibold text-blue-600">{job.company}</p>
+                                <p className="text-[8.5px] text-gray-500 my-0.5">
                                     <span>{job.date}</span>
                                     {job.location && <span className="ml-2">| {job.location}</span>}
                                 </p>
-                                {job.context && <p className="text-xs font-medium text-gray-700">{job.context}</p>}
-                                <ul className="list-disc list-outside pl-4 space-y-1 mt-1">
+                                {job.context && <p className="text-[9.5px] font-medium text-gray-700">{job.context}</p>}
+                                <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1">
                                     {job.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                                 </ul>
                             </div>
@@ -112,14 +114,14 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
                         </div>
                     </Section>
                 )}
-                {education && education.length > 0 && (
+                {education.length > 0 && (
                      <Section title="Education">
-                         <div className="space-y-3">
+                         <div className="space-y-2.5">
                          {education.map((edu, index) => (
                             <div key={`edu-${index}`}>
-                                <h4 className="text-sm font-bold text-black">{edu.degree}</h4>
-                                <p className="text-xs font-semibold text-blue-600">{edu.institution}</p>
-                                <p className="text-[9px] text-gray-500 my-0.5">
+                                <h4 className="text-[10.5px] font-bold text-black">{edu.degree}</h4>
+                                <p className="text-[9.5px] font-semibold text-blue-600">{edu.institution}</p>
+                                <p className="text-[8.5px] text-gray-500 my-0.5">
                                     <span>{edu.date}</span>
                                     {edu.location && <span className="ml-2">| {edu.location}</span>}
                                 </p>
@@ -130,14 +132,13 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
                 )}
             </div>
 
-            {/* Right Column */}
-            <div className="w-1/3 space-y-4">
+            <div className="w-[35%] space-y-3">
                 {sidebarSections.map((section, index) => (
                     <Section key={index} title={section.title}>
                         {section.type === 'skills' && (
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-1">
                                 {(section.items as string[]).map((skill) => (
-                                    <span key={skill} className="bg-gray-100 text-gray-800 text-[9px] font-medium px-2 py-1 rounded-md border border-gray-300">{skill}</span>
+                                    <span key={skill} className="bg-gray-100 text-gray-800 text-[8.5px] font-medium px-1.5 py-0.5 rounded-md border border-gray-300">{skill}</span>
                                 ))}
                             </div>
                         )}
@@ -145,8 +146,8 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
                             <div className="space-y-2">
                                 {(section.items as any[]).map((ach, i) => (
                                     <div key={`ach-${i}`}>
-                                        <h4 className="text-xs font-bold text-black">{ach.title}</h4>
-                                        <ul className="list-disc list-outside pl-4 space-y-1 mt-1">
+                                        <h4 className="text-[10px] font-bold text-black">{ach.title}</h4>
+                                        <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1">
                                             {ach.details?.map((detail: string, j: number) => <li key={j}>{detail}</li>)}
                                         </ul>
                                     </div>
@@ -154,15 +155,15 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
                             </div>
                         )}
                         {section.type === 'projects' && (
-                             <div className="space-y-3">
+                             <div className="space-y-2.5">
                                 {(section.items as any[]).map((proj, i) => (
                                     <div key={`proj-${i}`}>
-                                        <h4 className="text-sm font-bold text-black">{proj.title}</h4>
-                                        <p className="text-[9px] text-gray-500 my-0.5">
+                                        <h4 className="text-[10.5px] font-bold text-black">{proj.title}</h4>
+                                        <p className="text-[8.5px] text-gray-500 my-0.5">
                                             <span>{proj.date}</span>
                                         </p>
-                                        {proj.context && <p className="text-xs font-medium text-gray-700">{proj.context}</p>}
-                                        <ul className="list-disc list-outside pl-4 space-y-1 mt-1">
+                                        {proj.context && <p className="text-[9.5px] font-medium text-gray-700">{proj.context}</p>}
+                                        <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1">
                                             {proj.details?.map((detail: string, j: number) => <li key={j}>{detail}</li>)}
                                         </ul>
                                     </div>

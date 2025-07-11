@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, ImageUp, UserSquare2 } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, UserSquare2, Phone, Mail, MapPin } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -452,46 +452,46 @@ export default function MentorAiPage() {
             toast({ title: "Error", description: "Could not find resume content to print.", variant: "destructive" });
             return;
         }
-
+    
         toast({ title: "Preparing PDF...", description: "Please wait, this may take a moment." });
-
+    
         try {
-            // A4 page dimensions in pixels at 96 DPI
-            const a4Width = 794; 
-            const a4Height = 1123;
-            const contentHeight = resumeContent.scrollHeight;
-
+            // A4 page dimensions in mm
+            const a4WidthMm = 210;
+            const a4HeightMm = 297;
+    
             const canvas = await html2canvas(resumeContent, {
-                scale: 2,
+                scale: 3, // Increase scale for higher resolution
                 useCORS: true, 
-                logging: false, // Set to true for debugging
+                logging: false,
                 width: resumeContent.scrollWidth,
-                height: contentHeight,
+                height: resumeContent.scrollHeight,
+                windowWidth: resumeContent.scrollWidth,
+                windowHeight: resumeContent.scrollHeight,
             });
-
+    
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'px', 'a4'); // Use 'px' for units
+            const pdf = new jsPDF('p', 'mm', 'a4'); // Use 'mm' for units and 'a4' for size
             
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const ratio = canvasHeight / canvasWidth;
-            let finalImgHeight = pdfWidth * ratio;
-            
-            let heightLeft = finalImgHeight;
-            let position = 0;
-
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-                position = heightLeft - finalImgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
-                heightLeft -= pdfHeight;
+            const canvasAspectRatio = canvasHeight / canvasWidth;
+    
+            const pdfWidth = pdf.internal.pageSize.getWidth(); // This is a4WidthMm
+            const pdfHeight = pdf.internal.pageSize.getHeight(); // This is a4HeightMm
+    
+            // Calculate the image height in the PDF to maintain aspect ratio
+            const finalImgHeight = pdfWidth * canvasAspectRatio;
+    
+            // If the calculated height is greater than an A4 page, scale it down to fit.
+            if (finalImgHeight > pdfHeight) {
+                console.warn("Content is taller than a single A4 page, but forcing it to fit.");
+                // This case should be avoided by the compact design, but as a fallback:
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            } else {
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
             }
-
+            
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
         } catch (e) {
