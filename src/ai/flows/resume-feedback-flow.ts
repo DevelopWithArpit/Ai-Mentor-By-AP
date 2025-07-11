@@ -46,7 +46,7 @@ const ResumeFeedbackOutputSchema = z.object({
   feedbackItems: z.array(FeedbackItemSchema).describe('A list of specific feedback points and suggestions for the original resume, or general comments if a new resume was created.'),
   atsKeywordsSummary: z.string().optional().describe('A summary of relevant keywords identified or suggested for better ATS performance, tailored to the target job role if provided, applicable to the rewritten/created resume. Explain how these improve ATS chances.'),
   talkingPoints: z.array(z.string()).optional().describe("A list of 2-4 concise and impactful statements derived from the resume, highlighting key achievements or value propositions. Useful for quick self-introductions or elevator pitches."),
-  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, structured in a specific text format for parsing by the frontend renderer. It should contain all sections of the resume separated by specific delimiters, including a LAYOUT section.'),
+  modifiedResumeText: z.string().describe('The rewritten or newly created resume text, structured in a specific text format for parsing by the frontend renderer. It should contain all sections of the resume separated by specific delimiters.'),
   linkedinProfileSuggestions: LinkedInProfileSuggestionsSchema,
 });
 export type ResumeFeedbackOutput = z.infer<typeof ResumeFeedbackOutputSchema>;
@@ -60,23 +60,19 @@ const prompt = ai.definePrompt({
   input: {schema: ResumeFeedbackInputSchema},
   output: {schema: ResumeFeedbackOutputSchema},
   prompt: `You are an expert career coach and resume writer with deep knowledge of Applicant Tracking Systems (ATS) and document design.
-Your primary goal is to produce a 100% ATS-friendly resume that is also visually balanced to fit on a single A4 page. You will also generate structured text output for a frontend renderer.
+Your primary goal is to produce a 100% ATS-friendly resume that is also visually balanced to fit on a single A4 page, precisely matching the user-provided design template. You will generate structured text output for a frontend renderer.
 
-**Core Mission: ATS Optimization and Single-Page Layout**
+**Core Mission: ATS Optimization and Adherence to Design Template**
 1.  **ATS Principles**:
     *   Use only standard section headers: PERSONAL_INFO, SUMMARY, KEY_ACHIEVEMENTS, EXPERIENCE, EDUCATION, SKILLS, PROJECTS.
     *   Infuse the resume with keywords relevant to the 'targetJobRole'.
     *   Use strong action verbs and quantifiable results (e.g., "Increased user engagement by 30%").
-    *   **PROJECTS Section is CRITICAL**: If the user's input contains projects, you MUST include a 'SECTION: PROJECTS'. Do not omit it.
 
-2.  **Intelligent Layout Engine (Single-Page Goal)**:
-    *   You MUST create a 'SECTION: LAYOUT' at the very beginning of your 'modifiedResumeText' output.
-    *   This section will have two keys: 'main_content' and 'side_content'.
-    *   **Analyze the content length of each section you generate** (Summary, Experience, Projects, Education, Skills, etc.).
-    *   To ensure the resume fits on one page, **place the longest sections in 'main_content' and the shorter, more compact sections in 'side_content'**.
-    *   For example, 'EXPERIENCE' and 'PROJECTS' are usually long and should go in 'main_content'. 'SKILLS', 'EDUCATION', and 'KEY_ACHIEVEMENTS' are often shorter and are good candidates for 'side_content'. 'SUMMARY' should typically be in 'main_content'.
-    *   The value for 'main_content' and 'side_content' should be a comma-separated list of section names (e.g., \`main_content: SUMMARY,EXPERIENCE,PROJECTS\`).
-    *   This layout decision is critical and mandatory for creating a balanced, single-page resume.
+2.  **Design Adherence**:
+    *   The final layout is a fixed two-column design.
+    *   Left (main) column must contain: SUMMARY, EXPERIENCE, EDUCATION.
+    *   Right (sidebar) column must contain: KEY_ACHIEVEMENTS, SKILLS, PROJECTS.
+    *   You MUST generate content for ALL these sections. If user input for a section is missing (e.g., no 'Key Achievements'), you should create relevant, plausible content based on the rest of the resume, or state 'Not specified'. **The PROJECTS section is CRITICAL and must not be omitted if any project information is present in the input.**
 
 **Input Scenario Analysis:**
 {{#if resumeDataUri}}
@@ -101,14 +97,9 @@ Additional Information: "{{{additionalInformation}}}". You MUST integrate this i
 *   **linkedinProfileSuggestions**: Generate detailed, copy-paste ready suggestions for headline and about section, plus tips.
 
 **Part 3: Structured Resume Text (for 'modifiedResumeText' field)**
-Generate the resume content in the EXACT format below. The LAYOUT section MUST come first.
+Generate the resume content in the EXACT format below. This structure is fixed and must be followed.
 
 **Resume Structure Template:**
-
-SECTION: LAYOUT
-main_content: [Comma-separated list of main content section names, e.g., SUMMARY,EXPERIENCE,PROJECTS]
-side_content: [Comma-separated list of side content section names, e.g., EDUCATION,SKILLS,KEY_ACHIEVEMENTS]
-END_SECTION
 
 SECTION: PERSONAL_INFO
 name: [Full Name]
@@ -117,16 +108,11 @@ phone: [Phone Number]
 email: [Email Address]
 linkedin: [LinkedIn Profile URL path, e.g., in/username-123]
 location: [City, Country]
+profile_image_initials: [Generate 2-letter initials from the name, e.g., "AP" from "Arpit Pise"]
 END_SECTION
 
 SECTION: SUMMARY
-[Write a 2-4 sentence professional summary here.]
-END_SECTION
-
-SECTION: KEY_ACHIEVEMENTS
-title: [Key achievement title]
-details:
-- [Bullet point describing the achievement.]
+[Write a 2-4 sentence professional summary here. This goes in the LEFT column.]
 END_SECTION
 
 SECTION: EXPERIENCE
@@ -140,6 +126,7 @@ details:
 - [Another bullet point.]
 title: [Job Title 2]
 ...
+[This section goes in the LEFT column.]
 END_SECTION
 
 SECTION: EDUCATION
@@ -149,21 +136,31 @@ date: [Start Date] - [End Date]
 location: [City, Country]
 degree: [Degree Name 2]
 ...
+[This section goes in the LEFT column.]
+END_SECTION
+
+SECTION: KEY_ACHIEVEMENTS
+title: [Key achievement title]
+details:
+- [Bullet point describing the achievement.]
+[This section goes in the RIGHT column.]
 END_SECTION
 
 SECTION: SKILLS
 skills: [Comma-separated list of all relevant skills]
+[This section goes in the RIGHT column.]
 END_SECTION
 
 SECTION: PROJECTS
 title: [Project Title 1]
 date: [Start Date] - [End Date]
-context: [Optional extra context]
+context: [Optional extra context, e.g., "Personal Project"]
 details:
 - [Project detail as a bullet point.]
 - [Another bullet point.]
 title: [Project Title 2]
 ...
+[This section goes in the RIGHT column.]
 END_SECTION
 `,
 });
@@ -204,4 +201,3 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
-

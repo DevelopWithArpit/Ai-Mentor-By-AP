@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, ImageUp, UserSquare2 } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, ImageUp, UserSquare } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -72,7 +72,7 @@ const tools = [
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
   { id: 'resume-review', label: 'Resume Assistant', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
   { id: 'portfolio-site', label: 'Portfolio Site', icon: Globe, cardTitle: 'AI Portfolio Site Generator' },
-  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare2, cardTitle: 'AI LinkedIn Visuals Generator' },
+  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare, cardTitle: 'AI LinkedIn Visuals Generator' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
@@ -338,7 +338,7 @@ export default function MentorAiPage() {
     const parseResumeData = (text: string): ResumeData => {
         const sections: { [key: string]: string[] } = {
             PERSONAL_INFO: [], SUMMARY: [], KEY_ACHIEVEMENTS: [],
-            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: [], LAYOUT: [], ERROR: []
+            EXPERIENCE: [], EDUCATION: [], PROJECTS: [], SKILLS: [], ERROR: []
         };
         const sectionKeys = Object.keys(sections);
         let currentSection: string | null = null;
@@ -442,10 +442,8 @@ export default function MentorAiPage() {
         const projects = parseMultiEntrySection(sections.PROJECTS, ['title']);
         const skillsStr = (parseKeyValueSection(sections.SKILLS).skills as string) || '';
         const skills = skillsStr ? skillsStr.split(',').map(s => s.trim()).filter(Boolean) : [];
-        const layout = parseKeyValueSection(sections.LAYOUT);
 
-
-        return { personalInfo, summary, keyAchievements, experience, education, projects, skills, layout };
+        return { personalInfo, summary, keyAchievements, experience, education, projects, skills };
     };
 
     const handleDownloadPdf = async () => {
@@ -461,16 +459,13 @@ export default function MentorAiPage() {
             const canvas = await html2canvas(resumeContent, {
                 scale: 2,
                 useCORS: true, 
-                allowTaint: true,
+                logging: true,
                 onclone: (document) => {
                   const style = document.createElement('style');
                   style.innerHTML = `
-                      @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap');
+                      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
                       #resume-preview-content * {
-                          font-family: 'PT Sans', sans-serif !important;
-                      }
-                      #resume-preview-content h1, #resume-preview-content h2, #resume-preview-content h3 {
-                          font-family: 'Space Grotesk', sans-serif !important;
+                          font-family: 'Roboto', sans-serif !important;
                       }
                   `;
                   document.head.appendChild(style);
@@ -485,19 +480,12 @@ export default function MentorAiPage() {
             const imgHeight = canvas.height;
             const ratio = imgHeight / imgWidth;
             const finalImgHeight = pdfWidth * ratio;
-            let heightLeft = finalImgHeight;
-            let position = 0;
 
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-              position = heightLeft - finalImgHeight;
-              pdf.addPage();
-              pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
-              heightLeft -= pdfHeight;
+            if (finalImgHeight > pdfHeight) {
+              console.warn("Content might be too long for a single A4 page. Consider a more compact layout.");
             }
 
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
         } catch (e) {
@@ -1478,7 +1466,7 @@ export default function MentorAiPage() {
                {activeTool === 'linkedin-visuals' && (
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
-                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare2 className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
                       <CardDescription>
                         Generate AI suggestions for your LinkedIn profile. Upload your photo for a realistic, enhanced headshot, and/or paste your resume to create a portfolio-style cover image.
                       </CardDescription>
@@ -1539,7 +1527,7 @@ export default function MentorAiPage() {
                       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                           {generatedLinkedInVisuals.suggestedProfilePictureUrl && (
                           <div className="space-y-2">
-                              <h4 className="font-semibold text-foreground flex items-center"><UserSquare2 className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
+                              <h4 className="font-semibold text-foreground flex items-center"><UserSquare className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
                                <Image src={generatedLinkedInVisuals.suggestedProfilePictureUrl} alt="AI Generated Profile Picture Suggestion" width={200} height={200} className="rounded-full border-2 border-primary shadow-md object-cover aspect-square mx-auto md:mx-0" />
                                <Accordion type="single" collapsible className="w-full text-xs">
                                   <AccordionItem value="profile-prompt">
@@ -1572,7 +1560,7 @@ export default function MentorAiPage() {
                       )}
                        {!generatedLinkedInVisuals && !isGeneratingLinkedInVisuals && (
                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
-                              <UserSquare2 className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
+                              <UserSquare className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
                               <ImageIconLucide className="mx-auto h-10 w-10 text-muted-foreground/40" />
                               <p className="mt-2 text-sm">Your AI-generated LinkedIn visual suggestions will appear here.</p>
                               <img data-ai-hint="abstract professional" src="https://placehold.co/300x150.png" alt="Placeholder LinkedIn Visuals" className="mx-auto mt-3 rounded-md opacity-40"/>
@@ -1971,4 +1959,3 @@ export default function MentorAiPage() {
     </>
   );
 }
-
