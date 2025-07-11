@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, ImageUp, UserSquare } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, ImageUp, UserSquare2 } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -72,7 +72,7 @@ const tools = [
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
   { id: 'resume-review', label: 'Resume Assistant', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
   { id: 'portfolio-site', label: 'Portfolio Site', icon: Globe, cardTitle: 'AI Portfolio Site Generator' },
-  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare, cardTitle: 'AI LinkedIn Visuals Generator' },
+  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare2, cardTitle: 'AI LinkedIn Visuals Generator' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
@@ -388,7 +388,7 @@ export default function MentorAiPage() {
         const parseKeyValueSection = (lines: string[]) => {
             const data: { [key: string]: string } = {};
             lines.forEach(line => {
-                const parts = line.match(/^([\w\s]+):\s*(.*)$/);
+                const parts = line.match(/^([\w\s_]+):\s*(.*)$/);
                 if (parts) {
                     data[parts[1].trim().toLowerCase().replace(/\s+/g, '_')] = parts[2].trim();
                 }
@@ -418,7 +418,7 @@ export default function MentorAiPage() {
                 } else if (trimmedLine.toLowerCase() === 'details:') {
                      if (!currentEntry.details) currentEntry.details = [];
                 } else {
-                    const parts = line.match(/^([\w\s]+):\s*(.*)$/);
+                    const parts = line.match(/^([\w\s_]+):\s*(.*)$/);
                     if (parts) {
                         const key = parts[1].trim().toLowerCase().replace(/\s+/g, '_');
                         const value = parts[2].trim();
@@ -436,7 +436,7 @@ export default function MentorAiPage() {
         
         const personalInfo = parseKeyValueSection(sections.PERSONAL_INFO);
         const summary = sections.SUMMARY.join('\n').trim();
-        const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title'])[0] || { details: [] };
+        const keyAchievements = parseMultiEntrySection(sections.KEY_ACHIEVEMENTS, ['title']);
         const experience = parseMultiEntrySection(sections.EXPERIENCE, ['title']);
         const education = parseMultiEntrySection(sections.EDUCATION, ['degree']);
         const projects = parseMultiEntrySection(sections.PROJECTS, ['title']);
@@ -456,36 +456,42 @@ export default function MentorAiPage() {
         toast({ title: "Preparing PDF...", description: "Please wait, this may take a moment." });
 
         try {
+            // A4 page dimensions in pixels at 96 DPI
+            const a4Width = 794; 
+            const a4Height = 1123;
+            const contentHeight = resumeContent.scrollHeight;
+
             const canvas = await html2canvas(resumeContent, {
                 scale: 2,
                 useCORS: true, 
-                logging: true,
-                onclone: (document) => {
-                  const style = document.createElement('style');
-                  style.innerHTML = `
-                      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-                      #resume-preview-content * {
-                          font-family: 'Roboto', sans-serif !important;
-                      }
-                  `;
-                  document.head.appendChild(style);
-                }
+                logging: false, // Set to true for debugging
+                width: resumeContent.scrollWidth,
+                height: contentHeight,
             });
 
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdf = new jsPDF('p', 'px', 'a4'); // Use 'px' for units
+            
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
-            const ratio = imgHeight / imgWidth;
-            const finalImgHeight = pdfWidth * ratio;
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasHeight / canvasWidth;
+            let finalImgHeight = pdfWidth * ratio;
+            
+            let heightLeft = finalImgHeight;
+            let position = 0;
 
-            if (finalImgHeight > pdfHeight) {
-              console.warn("Content might be too long for a single A4 page. Consider a more compact layout.");
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - finalImgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+                heightLeft -= pdfHeight;
             }
 
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
         } catch (e) {
@@ -1466,7 +1472,7 @@ export default function MentorAiPage() {
                {activeTool === 'linkedin-visuals' && (
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
-                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare2 className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
                       <CardDescription>
                         Generate AI suggestions for your LinkedIn profile. Upload your photo for a realistic, enhanced headshot, and/or paste your resume to create a portfolio-style cover image.
                       </CardDescription>
@@ -1527,7 +1533,7 @@ export default function MentorAiPage() {
                       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                           {generatedLinkedInVisuals.suggestedProfilePictureUrl && (
                           <div className="space-y-2">
-                              <h4 className="font-semibold text-foreground flex items-center"><UserSquare className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
+                              <h4 className="font-semibold text-foreground flex items-center"><UserSquare2 className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
                                <Image src={generatedLinkedInVisuals.suggestedProfilePictureUrl} alt="AI Generated Profile Picture Suggestion" width={200} height={200} className="rounded-full border-2 border-primary shadow-md object-cover aspect-square mx-auto md:mx-0" />
                                <Accordion type="single" collapsible className="w-full text-xs">
                                   <AccordionItem value="profile-prompt">
@@ -1560,7 +1566,7 @@ export default function MentorAiPage() {
                       )}
                        {!generatedLinkedInVisuals && !isGeneratingLinkedInVisuals && (
                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
-                              <UserSquare className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
+                              <UserSquare2 className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
                               <ImageIconLucide className="mx-auto h-10 w-10 text-muted-foreground/40" />
                               <p className="mt-2 text-sm">Your AI-generated LinkedIn visual suggestions will appear here.</p>
                               <img data-ai-hint="abstract professional" src="https://placehold.co/300x150.png" alt="Placeholder LinkedIn Visuals" className="mx-auto mt-3 rounded-md opacity-40"/>
@@ -1924,7 +1930,7 @@ export default function MentorAiPage() {
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
-            <div className="p-6 bg-gray-200" id="pdf-render-area">
+            <div className="p-6" style={{ background: '#525659' }}>
                 <ResumePreview data={parsedResumeData} />
             </div>
             <DialogFooter className="p-4 border-t">
