@@ -24,21 +24,21 @@ const renderSection = (sectionName: string, data: ResumeData) => {
         case 'SUMMARY':
             return data.summary ? (
                 <section>
-                    <h3 className="text-sm font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-2 tracking-wider uppercase">Summary</h3>
-                    <p className="text-[11px] text-gray-600 leading-relaxed">{data.summary}</p>
+                    <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-1.5 tracking-wider uppercase">Summary</h3>
+                    <p className="text-[9px] text-gray-600 leading-normal">{data.summary}</p>
                 </section>
             ) : null;
         case 'EXPERIENCE':
             return data.experience && data.experience.length > 0 ? (
                 <section>
-                    <h3 className="text-sm font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-2 tracking-wider uppercase">Experience</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-1.5 tracking-wider uppercase">Experience</h3>
+                    <div className="space-y-2.5">
                         {data.experience.map((job, index) => (
                             <div key={`exp-${index}`} className="break-inside-avoid">
-                                <h4 className="font-bold text-base text-gray-900 leading-snug">{job.title || '[Job Title]'}</h4>
-                                <p className="text-blue-600 font-semibold text-xs leading-snug">{job.company || '[Company Name]'}</p>
-                                <p className="text-[10px] text-gray-500 mb-1 leading-snug">{job.date || '[Date]'} {job.location && `| ${job.location}`} {job.context && `- ${job.context}`}</p>
-                                <ul className="list-disc list-inside text-gray-700 space-y-1 pl-1 text-[11px] leading-snug">
+                                <h4 className="font-bold text-sm text-gray-900 leading-snug">{job.title || '[Job Title]'}</h4>
+                                <p className="text-blue-600 font-semibold text-[10px] leading-snug">{job.company || '[Company Name]'}</p>
+                                <p className="text-[9px] text-gray-500 mb-1 leading-snug">{job.date || '[Date]'} {job.location && `| ${job.location}`} {job.context && `- ${job.context}`}</p>
+                                <ul className="list-disc list-inside text-gray-700 space-y-0.5 pl-1 text-[9px] leading-snug">
                                     {job.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                                 </ul>
                             </div>
@@ -49,13 +49,13 @@ const renderSection = (sectionName: string, data: ResumeData) => {
         case 'PROJECTS':
             return data.projects && data.projects.length > 0 ? (
                 <section>
-                    <h3 className="text-sm font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-2 tracking-wider uppercase">Projects</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-1.5 tracking-wider uppercase">Projects</h3>
+                    <div className="space-y-2.5">
                         {data.projects.map((proj, index) => (
                             <div key={`proj-${index}`} className="break-inside-avoid">
-                                <h4 className="font-bold text-base text-gray-900 leading-snug">{proj.title || '[Project Title]'}</h4>
-                                <p className="text-[10px] text-gray-500 mb-1 leading-snug">{proj.date || '[Date]'} {proj.context && `- ${proj.context}`}</p>
-                                <ul className="list-disc list-inside text-gray-700 space-y-1 pl-1 text-[11px] leading-snug">
+                                <h4 className="font-bold text-sm text-gray-900 leading-snug">{proj.title || '[Project Title]'}</h4>
+                                <p className="text-[9px] text-gray-500 mb-1 leading-snug">{proj.date || '[Date]'} {proj.context && `- ${proj.context}`}</p>
+                                <ul className="list-disc list-inside text-gray-700 space-y-0.5 pl-1 text-[9px] leading-snug">
                                     {proj.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                                 </ul>
                             </div>
@@ -66,13 +66,13 @@ const renderSection = (sectionName: string, data: ResumeData) => {
         case 'EDUCATION':
             return data.education && data.education.length > 0 ? (
                 <section>
-                    <h3 className="text-sm font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-2 tracking-wider uppercase">Education</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-1.5 tracking-wider uppercase">Education</h3>
+                    <div className="space-y-2">
                         {data.education.map((edu, index) => (
                             <div key={`edu-${index}`} className="break-inside-avoid">
-                                <h4 className="font-bold text-base text-gray-900 leading-snug">{edu.degree || '[Degree]'}</h4>
-                                <p className="text-blue-600 font-semibold text-xs leading-snug">{edu.institution || '[Institution]'}</p>
-                                <p className="text-[10px] text-gray-500 leading-snug">{edu.date || '[Date]'} {edu.location && `| ${edu.location}`}</p>
+                                <h4 className="font-bold text-sm text-gray-900 leading-snug">{edu.degree || '[Degree]'}</h4>
+                                <p className="text-blue-600 font-semibold text-[10px] leading-snug">{edu.institution || '[Institution]'}</p>
+                                <p className="text-[9px] text-gray-500 leading-snug">{edu.date || '[Date]'} {edu.location && `| ${edu.location}`}</p>
                             </div>
                         ))}
                     </div>
@@ -81,9 +81,9 @@ const renderSection = (sectionName: string, data: ResumeData) => {
         case 'KEY_ACHIEVEMENTS':
              return data.keyAchievements && (data.keyAchievements.title || data.keyAchievements.details?.length > 0) ? (
                  <section>
-                    <h3 className="text-sm font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-2 tracking-wider uppercase">Key Achievements</h3>
-                     <h4 className="font-bold text-base text-gray-900 leading-snug">{data.keyAchievements.title}</h4>
-                     <ul className="list-disc list-inside text-gray-700 space-y-1 mt-1 pl-1 text-[11px] leading-snug">
+                    <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-1.5 tracking-wider uppercase">Key Achievements</h3>
+                     <h4 className="font-bold text-sm text-gray-900 leading-snug">{data.keyAchievements.title}</h4>
+                     <ul className="list-disc list-inside text-gray-700 space-y-0.5 mt-1 pl-1 text-[9px] leading-snug">
                         {data.keyAchievements.details?.map((detail: string, i: number) => <li key={i}>{detail}</li>)}
                       </ul>
                  </section>
@@ -91,10 +91,10 @@ const renderSection = (sectionName: string, data: ResumeData) => {
         case 'SKILLS':
             return data.skills && data.skills.length > 0 ? (
                 <section>
-                    <h3 className="text-sm font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-2 tracking-wider uppercase">Skills</h3>
+                    <h3 className="text-xs font-bold text-gray-800 border-b-2 border-gray-200 pb-1 mb-1.5 tracking-wider uppercase">Skills</h3>
                     <div className="flex flex-wrap gap-1">
                         {data.skills.map((skill, index) => (
-                            <span key={index} className="bg-gray-100 text-gray-800 text-[10px] font-medium px-2 py-1 rounded-md leading-snug">{skill}</span>
+                            <span key={index} className="bg-gray-100 text-gray-800 text-[8px] font-medium px-1.5 py-0.5 rounded-md leading-snug">{skill}</span>
                         ))}
                     </div>
                 </section>
@@ -135,10 +135,10 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
   const sideContentSections = layout.side_content?.split(',') || ['EDUCATION', 'SKILLS', 'KEY_ACHIEVEMENTS'];
 
   const contactInfo = [
-    { icon: "📞", text: personalInfo.phone },
-    { icon: "📧", text: personalInfo.email },
-    { icon: "💼", text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
-    { icon: "📍", text: personalInfo.location }
+    { text: personalInfo.phone },
+    { text: personalInfo.email },
+    { text: personalInfo.linkedin ? `linkedin.com/in/${personalInfo.linkedin.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '')}` : '' },
+    { text: personalInfo.location }
   ].filter(item => item.text);
 
   return (
@@ -146,26 +146,28 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
       <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap');
-          #resume-preview-content { font-family: 'PT Sans', sans-serif; line-height: 1.4; }
+          #resume-preview-content { font-family: 'PT Sans', sans-serif; line-height: 1.3; }
           #resume-preview-content h1, #resume-preview-content h2, #resume-preview-content h3, #resume-preview-content h4 { font-family: 'Space Grotesk', sans-serif; }
         `}
       </style>
-      <header className="text-center mb-4">
+      <header className="text-center mb-4 border-b border-gray-200 pb-2">
         <h1 className="text-3xl font-bold text-gray-800 tracking-tight leading-tight">{personalInfo.name || '[Full Name]'}</h1>
-        <h2 className="text-base text-blue-600 font-semibold leading-normal">{personalInfo.title || '[Professional Title]'}</h2>
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2 text-[10px] text-gray-600">
+        <h2 className="text-base text-blue-600 font-semibold leading-tight">{personalInfo.title || '[Professional Title]'}</h2>
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0 mt-1.5 text-[9px] text-gray-600">
           {contactInfo.map((item, index) => (
-            <div key={index} className="flex items-center">
-              <span>{item.icon}</span>
-              <span className="ml-1">{item.text}</span>
-            </div>
+            <React.Fragment key={index}>
+                <div className="flex items-center">
+                    <span>{item.text}</span>
+                </div>
+                {index < contactInfo.length - 1 && <span>•</span>}
+            </React.Fragment>
           ))}
         </div>
       </header>
 
       <div className="flex gap-x-4">
         {/* Main Content Column */}
-        <div className="w-[65%] space-y-4">
+        <div className="w-[65%] space-y-3">
           {mainContentSections.map(sectionName => (
             <React.Fragment key={`main-${sectionName}`}>
                 {renderSection(sectionName, data)}
@@ -174,7 +176,7 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
         </div>
 
         {/* Side Content Column */}
-        <div className="w-[35%] space-y-4">
+        <div className="w-[35%] space-y-3">
           {sideContentSections.map(sectionName => (
              <React.Fragment key={`side-${sectionName}`}>
                 {renderSection(sectionName, data)}
@@ -188,4 +190,3 @@ const ResumePreview: FC<ResumePreviewProps> = ({ data }) => {
 
 ResumePreview.displayName = "ResumePreview";
 export default ResumePreview;
-
