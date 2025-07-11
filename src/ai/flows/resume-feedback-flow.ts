@@ -68,6 +68,7 @@ An ATS is a software that scans resumes. To pass it, the resume must be highly p
 2.  **Keyword Integration**: If a 'targetJobRole' is provided, infuse the entire resume (especially Summary and Experience) with relevant keywords and skills for that role.
 3.  **Action Verbs & Quantifiable Results**: Start experience and project bullet points with strong action verbs (e.g., "Engineered," "Managed," "Increased"). Quantify achievements with numbers and metrics whenever possible (e.g., "Increased user engagement by 30%," "Reduced wait times by 85%").
 4.  **Clarity and Simplicity**: Avoid jargon where simpler terms exist, unless it's a key technical term for the target role.
+5.  **PROJECTS Section is CRITICAL**: You MUST carefully check if the user's resume text, document, or additional information contains any projects. If it does, you MUST include a 'SECTION: PROJECTS' in your final output. Do not omit it if project data exists.
 
 **Input Scenario Analysis:**
 {{#if resumeDataUri}}
@@ -110,7 +111,7 @@ Generate the resume content in the EXACT format below. This structured format is
 *   Each section MUST start with 'SECTION: <NAME>' and end with 'END_SECTION'.
 *   Inside a section, use 'key: value' pairs. For lists (like bullet points in experience), start each item on a new line with a hyphen '-'.
 *   For skills, provide a single comma-separated list for the 'skills' key.
-*   If a section (like 'EXPERIENCE' or 'PROJECTS') has no content, OMIT the entire section block (from 'SECTION:' to 'END_SECTION').
+*   If a section (like 'EXPERIENCE' or 'PROJECTS') has no content in the source material, OMIT the entire section block (from 'SECTION:' to 'END_SECTION'). However, if project information exists, YOU MUST include the 'SECTION: PROJECTS'.
 *   When creating a new resume from details, meticulously parse 'additionalInformation' to fill all fields. If a detail isn't found, use a placeholder like '[Detail Not Provided]'.
 *   For multi-entry sections (Experience, Education, Projects), repeat the block of keys (title, company, etc.) for each separate entry.
 
