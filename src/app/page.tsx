@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, UserSquare2, Phone, Mail, MapPin } from 'lucide-react';
+import { RefreshCcw, Sparkles, Code, Image as ImageIconLucide, Presentation as PresentationIcon, Wand2, Brain, FileText, Loader2, Lightbulb, Download, Palette, Info, Briefcase, MessageSquareQuote, CheckCircle, Edit3, FileSearch2, GraduationCap, Copy, Share2, Send, FileType, Star, BookOpen, Users, SearchCode, PanelLeft, Mic, Check, X, FileSignature, Settings as SettingsIcon, Edit, Trash2, DownloadCloud, Type, AlertTriangle, Eraser, Linkedin, UploadCloud, Eye, AudioLines, Globe, User, Phone, Mail, MapPin } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -72,7 +72,7 @@ const tools = [
   { id: 'interview-prep', label: 'Interview Prep', icon: MessageSquareQuote, cardTitle: 'AI Interview Question Generator' },
   { id: 'resume-review', label: 'Resume Assistant', icon: Edit3, cardTitle: 'AI Resume & LinkedIn Profile Assistant' },
   { id: 'portfolio-site', label: 'Portfolio Site', icon: Globe, cardTitle: 'AI Portfolio Site Generator' },
-  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: UserSquare2, cardTitle: 'AI LinkedIn Visuals Generator' },
+  { id: 'linkedin-visuals', label: 'LinkedIn Visuals', icon: Linkedin, cardTitle: 'AI LinkedIn Visuals Generator' },
   { id: 'cover-letter', label: 'Cover Letter', icon: Send, cardTitle: 'AI Cover Letter Assistant' },
   { id: 'career-paths', label: 'Career Paths', icon: Star, cardTitle: 'AI Career Path Suggester' },
   { id: 'code-gen', label: 'Code & DSA', icon: SearchCode, cardTitle: 'AI Code & DSA Helper' },
@@ -456,14 +456,10 @@ export default function MentorAiPage() {
         toast({ title: "Preparing PDF...", description: "Please wait, this may take a moment." });
     
         try {
-            // A4 page dimensions in mm
-            const a4WidthMm = 210;
-            const a4HeightMm = 297;
-    
             const canvas = await html2canvas(resumeContent, {
-                scale: 3, // Increase scale for higher resolution
-                useCORS: true, 
-                logging: false,
+                scale: 2, // Increased scale for better resolution
+                useCORS: true, // Important for external resources like fonts
+                logging: false, // Set to true for debugging
                 width: resumeContent.scrollWidth,
                 height: resumeContent.scrollHeight,
                 windowWidth: resumeContent.scrollWidth,
@@ -471,26 +467,31 @@ export default function MentorAiPage() {
             });
     
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4'); // Use 'mm' for units and 'a4' for size
+            // A4 page dimensions in mm
+            const a4WidthMm = 210;
+            const a4HeightMm = 297;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
             
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
             const canvasAspectRatio = canvasHeight / canvasWidth;
-    
-            const pdfWidth = pdf.internal.pageSize.getWidth(); // This is a4WidthMm
-            const pdfHeight = pdf.internal.pageSize.getHeight(); // This is a4HeightMm
-    
-            // Calculate the image height in the PDF to maintain aspect ratio
-            const finalImgHeight = pdfWidth * canvasAspectRatio;
-    
-            // If the calculated height is greater than an A4 page, scale it down to fit.
+
+            let finalImgWidth = pdfWidth;
+            let finalImgHeight = pdfWidth * canvasAspectRatio;
+
             if (finalImgHeight > pdfHeight) {
-                console.warn("Content is taller than a single A4 page, but forcing it to fit.");
-                // This case should be avoided by the compact design, but as a fallback:
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            } else {
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalImgHeight);
+                finalImgHeight = pdfHeight;
+                finalImgWidth = pdfHeight / canvasAspectRatio;
             }
+            
+            const xOffset = (pdfWidth - finalImgWidth) / 2;
+            const yOffset = (pdfHeight - finalImgHeight) / 2;
+    
+            // Add the image to the PDF, scaling it to fit the page while maintaining aspect ratio
+            pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
             
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
@@ -1158,6 +1159,71 @@ export default function MentorAiPage() {
                       </CardContent>
                   </Card>
                 )}
+                
+                {activeTool === 'portfolio-site' && (
+                  <Card className="shadow-xl bg-card">
+                    <CardHeader>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Globe className="mr-2 h-7 w-7"/>AI Portfolio Site Generator</CardTitle>
+                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here, upload an optional profile picture, and generate your site.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? (
+                          <div className="p-4 text-center border border-dashed rounded-md bg-muted/50">
+                            <Info className="mx-auto h-8 w-8 text-primary mb-2" />
+                            <p className="font-semibold">Resume Data Required</p>
+                            <p className="text-sm text-muted-foreground">Please use the "Resume Assistant" tool first to generate or improve your resume. The portfolio generator uses that data.</p>
+                          </div>
+                        ) : (
+                          <>
+                           <FileUpload 
+                                selectedFiles={portfolioProfilePic ? [portfolioProfilePic] : []}
+                                onFileChange={(files) => setPortfolioProfilePic(files[0] || null)}
+                                isLoading={isGeneratingPortfolio}
+                                inputId="portfolio-pic-upload"
+                                label="Upload Profile Picture (Optional)"
+                                acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                                acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
+                            />
+                           <div>
+                              <Label htmlFor="portfolio-theme">Select a Theme</Label>
+                              <Select value={portfolioTheme} onValueChange={(v) => setPortfolioTheme(v as any)} disabled={isGeneratingPortfolio}>
+                                  <SelectTrigger id="portfolio-theme"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="professional-dark">Professional Dark</SelectItem>
+                                      <SelectItem value="professional-light">Professional Light</SelectItem>
+                                      <SelectItem value="creative-vibrant">Creative & Vibrant</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <Button onClick={handleGeneratePortfolio} disabled={isGeneratingPortfolio} className="w-full sm:w-auto">
+                              {isGeneratingPortfolio && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Portfolio Site
+                          </Button>
+                          </>
+                        )}
+
+                        {generatedPortfolio && (
+                           <div className="mt-6 p-4 bg-muted rounded-md space-y-4">
+                            <h4 className="font-semibold text-foreground">Portfolio Generated!</h4>
+                            <p className="text-sm text-muted-foreground">Your single-page portfolio is ready. You can preview it or download the HTML and CSS files to host anywhere.</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button onClick={() => setIsPortfolioPreviewOpen(true)} variant="secondary">
+                                <Eye className="mr-2 h-4 w-4"/> Preview Site
+                              </Button>
+                              <Button onClick={handleDownloadPortfolio} variant="default">
+                                <DownloadCloud className="mr-2 h-4 w-4"/> Download Files (HTML+CSS)
+                              </Button>
+                            </div>
+                           </div>
+                        )}
+                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") &&(
+                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
+                             <Globe className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                             <p className="mt-2 text-sm">Your generated portfolio preview will be available here.</p>
+                           </div>
+                        )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {activeTool === 'resume-review' && (
                   <Card className="shadow-xl bg-card">
@@ -1403,76 +1469,11 @@ export default function MentorAiPage() {
                   </Card>
                 )}
 
-                {activeTool === 'portfolio-site' && (
-                  <Card className="shadow-xl bg-card">
-                    <CardHeader>
-                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Globe className="mr-2 h-7 w-7"/>AI Portfolio Site Generator</CardTitle>
-                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here, upload an optional profile picture, and generate your site.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? (
-                          <div className="p-4 text-center border border-dashed rounded-md bg-muted/50">
-                            <Info className="mx-auto h-8 w-8 text-primary mb-2" />
-                            <p className="font-semibold">Resume Data Required</p>
-                            <p className="text-sm text-muted-foreground">Please use the "Resume Assistant" tool first to generate or improve your resume. The portfolio generator uses that data.</p>
-                          </div>
-                        ) : (
-                          <>
-                           <FileUpload 
-                                selectedFiles={portfolioProfilePic ? [portfolioProfilePic] : []}
-                                onFileChange={(files) => setPortfolioProfilePic(files[0] || null)}
-                                isLoading={isGeneratingPortfolio}
-                                inputId="portfolio-pic-upload"
-                                label="Upload Profile Picture (Optional)"
-                                acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
-                                acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
-                            />
-                           <div>
-                              <Label htmlFor="portfolio-theme">Select a Theme</Label>
-                              <Select value={portfolioTheme} onValueChange={(v) => setPortfolioTheme(v as any)} disabled={isGeneratingPortfolio}>
-                                  <SelectTrigger id="portfolio-theme"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="professional-dark">Professional Dark</SelectItem>
-                                      <SelectItem value="professional-light">Professional Light</SelectItem>
-                                      <SelectItem value="creative-vibrant">Creative & Vibrant</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                          <Button onClick={handleGeneratePortfolio} disabled={isGeneratingPortfolio} className="w-full sm:w-auto">
-                              {isGeneratingPortfolio && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Portfolio Site
-                          </Button>
-                          </>
-                        )}
-
-                        {generatedPortfolio && (
-                           <div className="mt-6 p-4 bg-muted rounded-md space-y-4">
-                            <h4 className="font-semibold text-foreground">Portfolio Generated!</h4>
-                            <p className="text-sm text-muted-foreground">Your single-page portfolio is ready. You can preview it or download the HTML and CSS files to host anywhere.</p>
-                            <div className="flex flex-wrap gap-2">
-                              <Button onClick={() => setIsPortfolioPreviewOpen(true)} variant="secondary">
-                                <Eye className="mr-2 h-4 w-4"/> Preview Site
-                              </Button>
-                              <Button onClick={handleDownloadPortfolio} variant="default">
-                                <DownloadCloud className="mr-2 h-4 w-4"/> Download Files (HTML+CSS)
-                              </Button>
-                            </div>
-                           </div>
-                        )}
-                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") &&(
-                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
-                             <Globe className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                             <p className="mt-2 text-sm">Your generated portfolio preview will be available here.</p>
-                           </div>
-                        )}
-                    </CardContent>
-                  </Card>
-                )}
-
 
                {activeTool === 'linkedin-visuals' && (
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
-                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><UserSquare2 className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Linkedin className="mr-2 h-7 w-7"/>AI LinkedIn Visuals Generator</CardTitle>
                       <CardDescription>
                         Generate AI suggestions for your LinkedIn profile. Upload your photo for a realistic, enhanced headshot, and/or paste your resume to create a portfolio-style cover image.
                       </CardDescription>
@@ -1533,7 +1534,7 @@ export default function MentorAiPage() {
                       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                           {generatedLinkedInVisuals.suggestedProfilePictureUrl && (
                           <div className="space-y-2">
-                              <h4 className="font-semibold text-foreground flex items-center"><UserSquare2 className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
+                              <h4 className="font-semibold text-foreground flex items-center"><User className="mr-2 h-5 w-5 text-accent"/>Suggested Profile Picture:</h4>
                                <Image src={generatedLinkedInVisuals.suggestedProfilePictureUrl} alt="AI Generated Profile Picture Suggestion" width={200} height={200} className="rounded-full border-2 border-primary shadow-md object-cover aspect-square mx-auto md:mx-0" />
                                <Accordion type="single" collapsible className="w-full text-xs">
                                   <AccordionItem value="profile-prompt">
@@ -1566,7 +1567,7 @@ export default function MentorAiPage() {
                       )}
                        {!generatedLinkedInVisuals && !isGeneratingLinkedInVisuals && (
                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
-                              <UserSquare2 className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
+                              <User className="mx-auto h-10 w-10 text-muted-foreground/40 mb-1" />
                               <ImageIconLucide className="mx-auto h-10 w-10 text-muted-foreground/40" />
                               <p className="mt-2 text-sm">Your AI-generated LinkedIn visual suggestions will appear here.</p>
                               <img data-ai-hint="abstract professional" src="https://placehold.co/300x150.png" alt="Placeholder LinkedIn Visuals" className="mx-auto mt-3 rounded-md opacity-40"/>
@@ -1872,7 +1873,7 @@ export default function MentorAiPage() {
                                   {generatedPresentation.slides.map((slide, index) => (
                                   <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
                                       <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
-                                      <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>)}</ul>
+                                      <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>}</ul>
                                       {slide.imageUrl && <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5"><p className="text-xs text-primary font-medium flex items-center mb-2"><ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />Generated Image (style: {imageStylePrompt || 'default'}):</p><Image src={slide.imageUrl} alt={`AI for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" /></div>}
                                       {!slide.imageUrl && slide.suggestedImageDescription && <div className="mt-2 p-2 bg-primary/10 rounded"><p className="text-xs text-primary font-medium flex items-center"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span> (Not generated)</p></div>}
                                   </div>
@@ -1930,7 +1931,7 @@ export default function MentorAiPage() {
             <DialogHeader className="p-4 border-b">
                <DialogTitle>Resume Preview</DialogTitle>
             </DialogHeader>
-            <div className="p-6" style={{ background: '#525659' }}>
+            <div className="p-6 bg-gray-400">
                 <ResumePreview data={parsedResumeData} />
             </div>
             <DialogFooter className="p-4 border-t">

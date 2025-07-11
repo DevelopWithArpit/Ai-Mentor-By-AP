@@ -70,9 +70,9 @@ Your primary goal is to produce a 100% ATS-friendly resume that is also visually
 
 2.  **Design Adherence**:
     *   The final layout is a fixed two-column design.
-    *   Left (main) column must contain: SUMMARY, EXPERIENCE, EDUCATION.
-    *   Right (sidebar) column must contain: KEY_ACHIEVEMENTS, SKILLS, PROJECTS.
-    *   You MUST generate content for ALL these sections. If user input for a section is missing (e.g., no 'Key Achievements'), you should create relevant, plausible content based on the rest of the resume, or state 'Not specified'. **The PROJECTS section is CRITICAL and must not be omitted if any project information is present in the input.**
+    *   **Left (main) column MUST contain**: SUMMARY, EXPERIENCE, EDUCATION.
+    *   **Right (sidebar) column MUST contain**: KEY_ACHIEVEMENTS, SKILLS, PROJECTS.
+    *   You MUST generate content for ALL these sections. If user input for a section is missing (e.g., no 'Key Achievements'), you should create relevant, plausible content based on the rest of the resume. **The PROJECTS section is CRITICAL and must not be omitted if any project information is present in the input.**
 
 **Input Scenario Analysis:**
 {{#if resumeDataUri}}
@@ -201,3 +201,5 @@ const resumeFeedbackFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    
