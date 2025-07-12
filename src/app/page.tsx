@@ -457,7 +457,7 @@ export default function MentorAiPage() {
     
         try {
             const canvas = await html2canvas(resumeContent, {
-                scale: 3, // Increased scale for better resolution
+                scale: 3, 
                 useCORS: true,
                 logging: false, 
                 width: resumeContent.offsetWidth,
@@ -465,9 +465,6 @@ export default function MentorAiPage() {
             });
     
             const imgData = canvas.toDataURL('image/png');
-            // A4 page dimensions in mm
-            const a4WidthMm = 210;
-            const a4HeightMm = 297;
             const pdf = new jsPDF({
                 orientation: 'p',
                 unit: 'mm',
@@ -479,18 +476,19 @@ export default function MentorAiPage() {
             
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
+            
             const canvasAspectRatio = canvasWidth / canvasHeight;
+            const pdfAspectRatio = pdfWidth / pdfHeight;
 
-            let finalImgWidth = pdfWidth;
-            let finalImgHeight = pdfWidth / canvasAspectRatio;
+            let finalImgWidth, finalImgHeight;
 
-            if (finalImgHeight > pdfHeight) {
+            if (canvasAspectRatio > pdfAspectRatio) {
+                finalImgWidth = pdfWidth;
+                finalImgHeight = pdfWidth / canvasAspectRatio;
+            } else {
                 finalImgHeight = pdfHeight;
                 finalImgWidth = pdfHeight * canvasAspectRatio;
             }
-            
-            const xOffset = (pdfWidth - finalImgWidth) / 2;
-            const yOffset = (pdfHeight - finalImgHeight) / 2;
     
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             
@@ -1106,7 +1104,6 @@ export default function MentorAiPage() {
                     </Card>
                 )}
 
-
                 {activeTool === 'interview-prep' && (
                   <Card className="shadow-xl bg-card">
                       <CardHeader>
@@ -1469,7 +1466,6 @@ export default function MentorAiPage() {
                       </CardContent>
                   </Card>
                 )}
-
 
                {activeTool === 'linkedin-visuals' && (
                   <Card className="shadow-xl bg-card">
