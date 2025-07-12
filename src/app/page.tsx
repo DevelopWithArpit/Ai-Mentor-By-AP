@@ -457,41 +457,42 @@ export default function MentorAiPage() {
     
         try {
             const canvas = await html2canvas(resumeContent, {
-                scale: 2, // Increased scale for better resolution
-                useCORS: true, // Important for external resources like fonts
-                logging: false, // Set to true for debugging
-                width: resumeContent.scrollWidth,
-                height: resumeContent.scrollHeight,
-                windowWidth: resumeContent.scrollWidth,
-                windowHeight: resumeContent.scrollHeight,
+                scale: 3, // Increased scale for better resolution
+                useCORS: true,
+                logging: false, 
+                width: resumeContent.offsetWidth,
+                height: resumeContent.offsetHeight,
             });
     
             const imgData = canvas.toDataURL('image/png');
             // A4 page dimensions in mm
             const a4WidthMm = 210;
             const a4HeightMm = 297;
-            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: 'a4'
+            });
             
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const canvasAspectRatio = canvasHeight / canvasWidth;
+            const canvasAspectRatio = canvasWidth / canvasHeight;
 
             let finalImgWidth = pdfWidth;
-            let finalImgHeight = pdfWidth * canvasAspectRatio;
+            let finalImgHeight = pdfWidth / canvasAspectRatio;
 
             if (finalImgHeight > pdfHeight) {
                 finalImgHeight = pdfHeight;
-                finalImgWidth = pdfHeight / canvasAspectRatio;
+                finalImgWidth = pdfHeight * canvasAspectRatio;
             }
             
             const xOffset = (pdfWidth - finalImgWidth) / 2;
             const yOffset = (pdfHeight - finalImgHeight) / 2;
     
-            // Add the image to the PDF, scaling it to fit the page while maintaining aspect ratio
-            pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             
             pdf.save('resume.pdf');
             toast({ title: "Download Started", description: "Your resume PDF is being downloaded." });
@@ -879,7 +880,7 @@ export default function MentorAiPage() {
         <Header
           selectedLanguage={selectedLanguage}
           onLanguageChange={setSelectedLanguage}
-          currentTheme={theme}
+          currentTheme={theme as Theme}
           onThemeChange={setTheme}
         />
         <SidebarProvider defaultOpen={true}>
