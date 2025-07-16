@@ -870,6 +870,44 @@ export default function MentorAiPage() {
   if (hasExistingResumeInput) resumeButtonText = "Improve Resume";
   else if (canCreateNewResume) resumeButtonText = "Create Resume";
 
+  useEffect(() => {
+    const canvas = imageEditorCanvasRef.current;
+    if (!canvas || !imageEditorSrc) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous'; 
+    img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+
+        imageEditorTextElements.forEach(el => {
+            ctx.font = `${el.fontSize}px ${el.fontFamily}`;
+            ctx.fillStyle = el.color;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(el.text, el.x, el.y);
+        });
+    };
+    img.onerror = () => {
+        toast({ title: "Image Load Error", description: "Could not load the provided image. It might be a network issue or an invalid format.", variant: "destructive"});
+    };
+    
+    if (typeof imageEditorSrc === 'string') {
+        img.src = imageEditorSrc;
+    } else if (imageEditorSrc instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(imageEditorSrc);
+    }
+  }, [imageEditorSrc, imageEditorTextElements, toast]);
+
 
   return (
     <>
@@ -1005,104 +1043,6 @@ export default function MentorAiPage() {
                   </Card>
                 )}
 
-                {activeTool === 'image-text-editor' && (
-                    <Card className="shadow-xl bg-card">
-                        <CardHeader>
-                            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
-                            <CardDescription>Upload an image, add text overlays, or use AI to modify in-image text or remove watermarks. Download your creation.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="md:col-span-1 space-y-4">
-                                    <FileUpload 
-                                        selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
-                                        onFileChange={(files) => handleImageEditorFileChange(files[0] || null)} 
-                                        isLoading={isManipulatingImageAI || isRemovingWatermark} 
-                                        inputId="image-editor-file-upload"
-                                        label="Upload Image"
-                                        acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
-                                        acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
-                                    />
-                                    <Separator />
-                                    <Button onClick={handleAddText} disabled={!imageEditorSrc} className="w-full">
-                                        <Type className="mr-2 h-4 w-4"/> Add New Text
-                                    </Button>
-
-                                    <Accordion type="single" collapsible className="w-full">
-                                      <AccordionItem value="ai-tools">
-                                        <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
-                                        <AccordionContent className="space-y-4 pt-2">
-                                          <div className="space-y-3">
-                                              <Label className="flex items-center">In-Image Text Manipulation</Label>
-                                              <Input 
-                                                  id="ai-image-instruction" 
-                                                  value={aiImageInstruction} 
-                                                  onChange={(e) => setAiImageInstruction(e.target.value)} 
-                                                  placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
-                                                  disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
-                                              />
-                                              <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                                  {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
-                                              </Button>
-                                              {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
-                                          </div>
-                                          <div className="space-y-3">
-                                              <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
-                                              <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
-                                                {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
-                                              </Button>
-                                              {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
-                                         </div>
-                                        </AccordionContent>
-                                      </AccordionItem>
-                                    </Accordion>
-                                </div>
-
-                                <div className="md:col-span-2 relative">
-                                    <div className="w-full h-full bg-muted/20 border border-dashed rounded-md flex items-center justify-center overflow-hidden">
-                                      <canvas
-                                          ref={imageEditorCanvasRef}
-                                          onClick={handleCanvasClick}
-                                          className="max-w-full max-h-full object-contain"
-                                      />
-                                      {!imageEditorSrc && (
-                                          <div className="absolute text-center text-muted-foreground">
-                                              <ImageIconLucide className="mx-auto h-12 w-12" />
-                                              <p>Upload an image to start editing.</p>
-                                          </div>
-                                      )}
-                                    </div>
-                                    {textControlPanel.visible && selectedTextElement && (
-                                        <div
-                                          className="absolute z-10 bg-background/80 backdrop-blur-sm border rounded-lg shadow-xl p-3 space-y-3"
-                                          style={{ top: textControlPanel.y + 10, left: textControlPanel.x + 10 }}
-                                        >
-                                          <Input ref={textInputRef} value={selectedTextElement.text} onChange={(e) => handleUpdateSelectedText('text', e.target.value)} placeholder="Text" className="w-48" />
-                                          <div className="flex items-center gap-2">
-                                            <Input type="number" value={selectedTextElement.fontSize} onChange={(e) => handleUpdateSelectedText('fontSize', Number(e.target.value))} placeholder="Size" className="w-20"/>
-                                            <Input type="color" value={selectedTextElement.color} onChange={(e) => handleUpdateSelectedText('color', e.target.value)} className="w-10 h-10 p-1"/>
-                                          </div>
-                                          <Select value={selectedTextElement.fontFamily} onValueChange={(v) => handleUpdateSelectedText('fontFamily', v)}>
-                                              <SelectTrigger><SelectValue /></SelectTrigger>
-                                              <SelectContent>{availableFonts.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                                          </Select>
-                                          <Button onClick={handleDeleteSelectedText} variant="destructive" size="sm" className="w-full"><Trash2 className="mr-2 h-4 w-4"/> Delete</Button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
-                                <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}>
-                                    <DownloadCloud className="mr-2 h-4 w-4"/> Download Image
-                                </Button>
-                                <Button onClick={handleImageEditorReset} variant="outline" disabled={isManipulatingImageAI || isRemovingWatermark}>
-                                    <Trash2 className="mr-2 h-4 w-4"/> Reset Editor
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
                 {activeTool === 'interview-prep' && (
                   <Card className="shadow-xl bg-card">
                       <CardHeader>
@@ -1154,71 +1094,6 @@ export default function MentorAiPage() {
                               </div>
                           )}
                       </CardContent>
-                  </Card>
-                )}
-                
-                {activeTool === 'portfolio-site' && (
-                  <Card className="shadow-xl bg-card">
-                    <CardHeader>
-                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Globe className="mr-2 h-7 w-7"/>AI Portfolio Site Generator</CardTitle>
-                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here, upload an optional profile picture, and generate your site.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? (
-                          <div className="p-4 text-center border border-dashed rounded-md bg-muted/50">
-                            <Info className="mx-auto h-8 w-8 text-primary mb-2" />
-                            <p className="font-semibold">Resume Data Required</p>
-                            <p className="text-sm text-muted-foreground">Please use the "Resume Assistant" tool first to generate or improve your resume. The portfolio generator uses that data.</p>
-                          </div>
-                        ) : (
-                          <>
-                           <FileUpload 
-                                selectedFiles={portfolioProfilePic ? [portfolioProfilePic] : []}
-                                onFileChange={(files) => setPortfolioProfilePic(files[0] || null)}
-                                isLoading={isGeneratingPortfolio}
-                                inputId="portfolio-pic-upload"
-                                label="Upload Profile Picture (Optional)"
-                                acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
-                                acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
-                            />
-                           <div>
-                              <Label htmlFor="portfolio-theme">Select a Theme</Label>
-                              <Select value={portfolioTheme} onValueChange={(v) => setPortfolioTheme(v as any)} disabled={isGeneratingPortfolio}>
-                                  <SelectTrigger id="portfolio-theme"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                      <SelectItem value="professional-dark">Professional Dark</SelectItem>
-                                      <SelectItem value="professional-light">Professional Light</SelectItem>
-                                      <SelectItem value="creative-vibrant">Creative & Vibrant</SelectItem>
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                          <Button onClick={handleGeneratePortfolio} disabled={isGeneratingPortfolio} className="w-full sm:w-auto">
-                              {isGeneratingPortfolio && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Portfolio Site
-                          </Button>
-                          </>
-                        )}
-
-                        {generatedPortfolio && (
-                           <div className="mt-6 p-4 bg-muted rounded-md space-y-4">
-                            <h4 className="font-semibold text-foreground">Portfolio Generated!</h4>
-                            <p className="text-sm text-muted-foreground">Your single-page portfolio is ready. You can preview it or download the HTML and CSS files to host anywhere.</p>
-                            <div className="flex flex-wrap gap-2">
-                              <Button onClick={() => setIsPortfolioPreviewOpen(true)} variant="secondary">
-                                <Eye className="mr-2 h-4 w-4"/> Preview Site
-                              </Button>
-                              <Button onClick={handleDownloadPortfolio} variant="default">
-                                <DownloadCloud className="mr-2 h-4 w-4"/> Download Files (HTML+CSS)
-                              </Button>
-                            </div>
-                           </div>
-                        )}
-                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") &&(
-                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
-                             <Globe className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                             <p className="mt-2 text-sm">Your generated portfolio preview will be available here.</p>
-                           </div>
-                        )}
-                    </CardContent>
                   </Card>
                 )}
 
@@ -1466,6 +1341,71 @@ export default function MentorAiPage() {
                   </Card>
                 )}
 
+                {activeTool === 'portfolio-site' && (
+                  <Card className="shadow-xl bg-card">
+                    <CardHeader>
+                      <CardTitle className="font-headline text-2xl text-primary flex items-center"><Globe className="mr-2 h-7 w-7"/>AI Portfolio Site Generator</CardTitle>
+                      <CardDescription>Generate a complete, single-page portfolio website from your improved resume. First, use the 'Resume Assistant' tool, then come back here, upload an optional profile picture, and generate your site.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!resumeFeedback?.modifiedResumeText || resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") ? (
+                          <div className="p-4 text-center border border-dashed rounded-md bg-muted/50">
+                            <Info className="mx-auto h-8 w-8 text-primary mb-2" />
+                            <p className="font-semibold">Resume Data Required</p>
+                            <p className="text-sm text-muted-foreground">Please use the "Resume Assistant" tool first to generate or improve your resume. The portfolio generator uses that data.</p>
+                          </div>
+                        ) : (
+                          <>
+                           <FileUpload 
+                                selectedFiles={portfolioProfilePic ? [portfolioProfilePic] : []}
+                                onFileChange={(files) => setPortfolioProfilePic(files[0] || null)}
+                                isLoading={isGeneratingPortfolio}
+                                inputId="portfolio-pic-upload"
+                                label="Upload Profile Picture (Optional)"
+                                acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                                acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
+                            />
+                           <div>
+                              <Label htmlFor="portfolio-theme">Select a Theme</Label>
+                              <Select value={portfolioTheme} onValueChange={(v) => setPortfolioTheme(v as any)} disabled={isGeneratingPortfolio}>
+                                  <SelectTrigger id="portfolio-theme"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="professional-dark">Professional Dark</SelectItem>
+                                      <SelectItem value="professional-light">Professional Light</SelectItem>
+                                      <SelectItem value="creative-vibrant">Creative & Vibrant</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <Button onClick={handleGeneratePortfolio} disabled={isGeneratingPortfolio} className="w-full sm:w-auto">
+                              {isGeneratingPortfolio && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Generate Portfolio Site
+                          </Button>
+                          </>
+                        )}
+
+                        {generatedPortfolio && (
+                           <div className="mt-6 p-4 bg-muted rounded-md space-y-4">
+                            <h4 className="font-semibold text-foreground">Portfolio Generated!</h4>
+                            <p className="text-sm text-muted-foreground">Your single-page portfolio is ready. You can preview it or download the HTML and CSS files to host anywhere.</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button onClick={() => setIsPortfolioPreviewOpen(true)} variant="secondary">
+                                <Eye className="mr-2 h-4 w-4"/> Preview Site
+                              </Button>
+                              <Button onClick={handleDownloadPortfolio} variant="default">
+                                <DownloadCloud className="mr-2 h-4 w-4"/> Download Files (HTML+CSS)
+                              </Button>
+                            </div>
+                           </div>
+                        )}
+                        {!generatedPortfolio && !isGeneratingPortfolio && resumeFeedback?.modifiedResumeText && !resumeFeedback.modifiedResumeText.includes("SECTION: ERROR") &&(
+                           <div className="text-center text-muted-foreground py-4 border border-dashed rounded-md bg-muted/20">
+                             <Globe className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                             <p className="mt-2 text-sm">Your generated portfolio preview will be available here.</p>
+                           </div>
+                        )}
+                    </CardContent>
+                  </Card>
+                )}
+
                {activeTool === 'linkedin-visuals' && (
                   <Card className="shadow-xl bg-card">
                     <CardHeader>
@@ -1572,7 +1512,6 @@ export default function MentorAiPage() {
                     </CardContent>
                   </Card>
                 )}
-
 
                 {activeTool === 'cover-letter' && (
                   <Card className="shadow-xl bg-card">
@@ -1844,6 +1783,104 @@ export default function MentorAiPage() {
                   </Card>
                 )}
 
+                {activeTool === 'image-text-editor' && (
+                    <Card className="shadow-xl bg-card">
+                        <CardHeader>
+                            <CardTitle className="font-headline text-2xl text-primary flex items-center"><Edit className="mr-2 h-7 w-7"/>Image Text Editor</CardTitle>
+                            <CardDescription>Upload an image, add text overlays, or use AI to modify in-image text or remove watermarks. Download your creation.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="md:col-span-1 space-y-4">
+                                    <FileUpload 
+                                        selectedFiles={imageEditorSrc instanceof File ? [imageEditorSrc] : []} 
+                                        onFileChange={(files) => handleImageEditorFileChange(files[0] || null)} 
+                                        isLoading={isManipulatingImageAI || isRemovingWatermark} 
+                                        inputId="image-editor-file-upload"
+                                        label="Upload Image"
+                                        acceptedFileTypes={COMMON_IMAGE_MIME_TYPES}
+                                        acceptedFileExtensionsString={COMMON_IMAGE_EXTENSIONS_STRING}
+                                    />
+                                    <Separator />
+                                    <Button onClick={handleAddText} disabled={!imageEditorSrc} className="w-full">
+                                        <Type className="mr-2 h-4 w-4"/> Add New Text
+                                    </Button>
+
+                                    <Accordion type="single" collapsible className="w-full">
+                                      <AccordionItem value="ai-tools">
+                                        <AccordionTrigger className="text-md font-semibold text-primary hover:no-underline"><Sparkles className="mr-2 h-5 w-5"/>AI Image Tools</AccordionTrigger>
+                                        <AccordionContent className="space-y-4 pt-2">
+                                          <div className="space-y-3">
+                                              <Label className="flex items-center">In-Image Text Manipulation</Label>
+                                              <Input 
+                                                  id="ai-image-instruction" 
+                                                  value={aiImageInstruction} 
+                                                  onChange={(e) => setAiImageInstruction(e.target.value)} 
+                                                  placeholder={imageEditorSrc ? "e.g., Change 'Hello' to 'Hi'" : "Upload an image first..."}
+                                                  disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}
+                                              />
+                                              <Button onClick={handleAiImageManipulation} disabled={!imageEditorSrc || !aiImageInstruction.trim() || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                                  {isManipulatingImageAI && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Apply AI Edit
+                                              </Button>
+                                              {aiImageManipulationMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{aiImageManipulationMessage}</p>}
+                                          </div>
+                                          <div className="space-y-3">
+                                              <Label className="flex items-center"><Eraser className="mr-2 h-4 w-4"/>Watermark Remover</Label>
+                                              <Button onClick={handleAiWatermarkRemoval} disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark} className="w-full">
+                                                {isRemovingWatermark && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Attempt Removal
+                                              </Button>
+                                              {watermarkRemovalMessage && <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">{watermarkRemovalMessage}</p>}
+                                         </div>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    </Accordion>
+                                </div>
+
+                                <div className="md:col-span-2 relative">
+                                    <div className="w-full h-full bg-muted/20 border border-dashed rounded-md flex items-center justify-center overflow-hidden">
+                                      <canvas
+                                          ref={imageEditorCanvasRef}
+                                          onClick={handleCanvasClick}
+                                          className="max-w-full max-h-full object-contain"
+                                      />
+                                      {!imageEditorSrc && (
+                                          <div className="absolute text-center text-muted-foreground">
+                                              <ImageIconLucide className="mx-auto h-12 w-12" />
+                                              <p>Upload an image to start editing.</p>
+                                          </div>
+                                      )}
+                                    </div>
+                                    {textControlPanel.visible && selectedTextElement && (
+                                        <div
+                                          className="absolute z-10 bg-background/80 backdrop-blur-sm border rounded-lg shadow-xl p-3 space-y-3"
+                                          style={{ top: textControlPanel.y + 10, left: textControlPanel.x + 10 }}
+                                        >
+                                          <Input ref={textInputRef} value={selectedTextElement.text} onChange={(e) => handleUpdateSelectedText('text', e.target.value)} placeholder="Text" className="w-48" />
+                                          <div className="flex items-center gap-2">
+                                            <Input type="number" value={selectedTextElement.fontSize} onChange={(e) => handleUpdateSelectedText('fontSize', Number(e.target.value))} placeholder="Size" className="w-20"/>
+                                            <Input type="color" value={selectedTextElement.color} onChange={(e) => handleUpdateSelectedText('color', e.target.value)} className="w-10 h-10 p-1"/>
+                                          </div>
+                                          <Select value={selectedTextElement.fontFamily} onValueChange={(v) => handleUpdateSelectedText('fontFamily', v)}>
+                                              <SelectTrigger><SelectValue /></SelectTrigger>
+                                              <SelectContent>{availableFonts.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+                                          </Select>
+                                          <Button onClick={handleDeleteSelectedText} variant="destructive" size="sm" className="w-full"><Trash2 className="mr-2 h-4 w-4"/> Delete</Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
+                                <Button onClick={handleImageEditorDownload} variant="default" disabled={!imageEditorSrc || isManipulatingImageAI || isRemovingWatermark}>
+                                    <DownloadCloud className="mr-2 h-4 w-4"/> Download Image
+                                </Button>
+                                <Button onClick={handleImageEditorReset} variant="outline" disabled={isManipulatingImageAI || isRemovingWatermark}>
+                                    <Trash2 className="mr-2 h-4 w-4"/> Reset Editor
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                
                 {activeTool === 'presentations' && (
                   <Card className="shadow-xl bg-card">
                       <CardHeader>
@@ -1869,7 +1906,7 @@ export default function MentorAiPage() {
                                   {generatedPresentation.slides.map((slide, index) => (
                                   <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
                                       <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
-                                      <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>}</ul>
+                                      <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>)}</ul>
                                       {slide.imageUrl && <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5"><p className="text-xs text-primary font-medium flex items-center mb-2"><ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />Generated Image (style: {imageStylePrompt || 'default'}):</p><Image src={slide.imageUrl} alt={`AI for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" /></div>}
                                       {!slide.imageUrl && slide.suggestedImageDescription && <div className="mt-2 p-2 bg-primary/10 rounded"><p className="text-xs text-primary font-medium flex items-center"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span> (Not generated)</p></div>}
                                   </div>
