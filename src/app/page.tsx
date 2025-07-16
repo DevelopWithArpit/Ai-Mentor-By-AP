@@ -1114,7 +1114,7 @@ export default function MentorAiPage() {
                           <Input placeholder="Job Role or Topic (e.g., 'Software Engineer', 'Leadership')" value={interviewJobRole} onChange={(e) => setInterviewJobRole(e.target.value)} disabled={isGeneratingInterviewQuestions} />
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <Input type="number" placeholder="Number of Questions (e.g., 5)" value={interviewNumQuestions} onChange={(e) => setInterviewNumQuestions(e.target.value)} disabled={isGeneratingInterviewQuestions} min="1" max="10" />
-                              <Select value={interviewQuestionCategory} onValuechange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
+                              <Select value={interviewQuestionCategory} onValueChange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
                                   <SelectTrigger><SelectValue placeholder="Question Category" /></SelectTrigger>
                                   <SelectContent>
                                       <SelectItem value="any">Any Category</SelectItem>
@@ -1963,5 +1963,6 @@ export default function MentorAiPage() {
     </>
   );
 }
+
 
     
