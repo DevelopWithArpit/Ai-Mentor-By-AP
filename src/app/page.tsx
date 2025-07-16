@@ -1114,7 +1114,7 @@ export default function MentorAiPage() {
                           <Input placeholder="Job Role or Topic (e.g., 'Software Engineer', 'Leadership')" value={interviewJobRole} onChange={(e) => setInterviewJobRole(e.target.value)} disabled={isGeneratingInterviewQuestions} />
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <Input type="number" placeholder="Number of Questions (e.g., 5)" value={interviewNumQuestions} onChange={(e) => setInterviewNumQuestions(e.target.value)} disabled={isGeneratingInterviewQuestions} min="1" max="10" />
-                              <Select value={interviewQuestionCategory} onValueChange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
+                              <Select value={interviewQuestionCategory} onValuechange={(value) => setInterviewQuestionCategory(value as QuestionCategory)} disabled={isGeneratingInterviewQuestions}>
                                   <SelectTrigger><SelectValue placeholder="Question Category" /></SelectTrigger>
                                   <SelectContent>
                                       <SelectItem value="any">Any Category</SelectItem>
@@ -1870,7 +1870,7 @@ export default function MentorAiPage() {
                                   {generatedPresentation.slides.map((slide, index) => (
                                   <div key={index} className="mb-6 p-4 bg-background/70 rounded-lg shadow">
                                       <h6 className="font-semibold text-lg text-accent">{index + 1}. {slide.title}</h6>
-                                      <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>}</ul>
+                                      <ul className="list-disc list-inside ml-4 my-2 text-sm">{slide.bulletPoints.map((point, pIndex) => <li key={pIndex} className="mb-1">{point}</li>)}</ul>
                                       {slide.imageUrl && <div className="mt-3 p-2 border border-primary/20 rounded-md bg-primary/5"><p className="text-xs text-primary font-medium flex items-center mb-2"><ImageIconLucide className="mr-1.5 h-4 w-4 text-primary/80" />Generated Image (style: {imageStylePrompt || 'default'}):</p><Image src={slide.imageUrl} alt={`AI for ${slide.title}`} width={300} height={200} className="rounded-md border shadow-sm object-contain mx-auto" /></div>}
                                       {!slide.imageUrl && slide.suggestedImageDescription && <div className="mt-2 p-2 bg-primary/10 rounded"><p className="text-xs text-primary font-medium flex items-center"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-primary/80" />Suggested Image Idea: <span className="italic ml-1 text-primary/90">{slide.suggestedImageDescription}</span> (Not generated)</p></div>}
                                   </div>
@@ -1963,3 +1963,5 @@ export default function MentorAiPage() {
     </>
   );
 }
+
+    
