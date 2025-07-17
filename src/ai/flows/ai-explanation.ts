@@ -56,10 +56,10 @@ const explainAnswerFlow = ai.defineFlow(
 
     try {
       console.log(`Attempting to generate explanation with primary model: ${primaryModel} for language: ${input.outputLanguage}`);
-     const {output} = await ai.generate({
-  prompt: explanationPromptConfig.promptText,
-  input: input, 
-  output: { schema: explanationPromptConfig.outputSchema },
+    await generate({
+  text: explanationPromptConfig.promptText,
+  input,
+  output: { schema: explanationPromptConfig.outputSchema }
 });
       if (!output) throw new Error('Primary model returned no output.');
       return output;
